@@ -1,0 +1,214 @@
+import { useState } from 'react';
+import { api } from '../api.js';
+import { fmtDate, useLoad, useMeta } from '../ui.jsx';
+
+function SparkTgPanel() {
+  const [status, reload] = useLoad(() => api.get('/sparktg/status'));
+  const [txnId, setTxnId] = useState('');
+  const [test, setTest] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const origin = window.location.origin;
+
+  async function run() {
+    setBusy(true);
+    setTest(await api.get('/sparktg/test' + (txnId ? '?txnId=' + encodeURIComponent(txnId) : '')).catch((e) => ({ error: e.message })));
+    setBusy(false);
+    reload();
+  }
+
+  return (
+    <section className="card">
+      <h2>SparkTG telephony</h2>
+      {!status ? (
+        <div className="muted small">Loading…</div>
+      ) : !status.configured ? (
+        <div className="notice">
+          Not connected. Copy <code>.env.example</code> to <code>.env</code>, fill in SPARKTG_USERNAME, SPARKTG_PASSWORD and SPARKTG_SVC_ID, then restart the CRM.
+        </div>
+      ) : (
+        <div className="notice ok">Credentials loaded from .env.</div>
+      )}
+
+      <div className="row">
+        <input value={txnId} onChange={(e) => setTxnId(e.target.value)} placeholder="Optional: a real SparkTG call id to check field mapping" />
+        <button className="btn primary" onClick={run} disabled={busy}>
+          {busy ? 'Testing…' : 'Test connection'}
+        </button>
+      </div>
+      {test && (
+        <div className="grid" style={{ marginTop: 12 }}>
+          {test.error && <div className="error wide">{test.error}</div>}
+          {test.agents && (
+            <div className="field wide">
+              <span className="field-label">Agents endpoint</span>
+              {test.agents.ok ? <div className="small">OK · {test.agents.count} agent(s)</div> : <div className="error">{test.agents.error}</div>}
+              {test.agents.ok && <pre className="raw">{JSON.stringify(test.agents.sample, null, 2)}</pre>}
+            </div>
+          )}
+          {test.call && (
+            <div className="field wide">
+              <span className="field-label">Call record · how the CRM reads it (blank = field name not recognised, tell your developer)</span>
+              {test.call.ok ? (
+                <>
+                  <table className="table compact">
+                    <tbody>
+                      {Object.entries(test.call.mapped).map(([k, v]) => (
+                        <tr key={k}>
+                          <td>{k}</td>
+                          <td>{v == null ? <span className="over">— not found</span> : String(v)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <pre className="raw">{JSON.stringify(test.call.raw, null, 2)}</pre>
+                </>
+              ) : (
+                <div className="error">{test.call.error}</div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      <h3 style={{ marginTop: 16 }}>Set these up in SparkTG (if your account has the options)</h3>
+      <div className="small">
+        <div>
+          <strong>Screen-pop / CRM URL</strong>. Opens a pre-filled new case when the agent answers. Use SparkTG’s placeholders for caller number and call id:
+        </div>
+        <pre className="raw">{origin}/new?phone={'{CALLER_NUMBER}'}&amp;txn={'{CALL_ID}'}</pre>
+        <div>
+          <strong>Call-event webhook</strong>. Missed / abandoned calls land in the Missed calls list automatically:
+        </div>
+        <pre className="raw">{origin}/api/sparktg/event?token=YOUR_SPARKTG_WEBHOOK_TOKEN</pre>
+        <div className="muted">SparkTG has to be able to reach this computer for the webhook, so it needs a public address or a tunnel. The screen-pop only needs the agent’s browser to reach the CRM.</div>
+      </div>
+
+      <h3 style={{ marginTop: 16 }}>Last events received</h3>
+      {status?.events?.length ? (
+        status.events.map((e, i) => (
+          <details key={i}>
+            <summary className="small">{fmtDate(e.at)}</summary>
+            <pre className="raw">{JSON.stringify(e.payload, null, 2)}</pre>
+          </details>
+        ))
+      ) : (
+        <div className="muted small">None yet.</div>
+      )}
+    </section>
+  );
+}
+
+function AgentRow({ name, email, onSaved }) {
+  const [v, setV] = useState(email);
+  return (
+    <tr>
+      <td>
+        <strong>{name}</strong>
+      </td>
+      <td>
+        <input type="email" value={v} onChange={(e) => setV(e.target.value)} placeholder="SparkTG login email" />
+      </td>
+      <td>
+        <button className="btn sm primary" disabled={v === email} onClick={() => api.put('/agents/' + encodeURIComponent(name), { email: v }).then(onSaved)}>
+          Save
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function StoreRow({ s, onSaved }) {
+  const [v, setV] = useState({ spocName: s.spocName, spocPhone: s.spocPhone, spocEmail: s.spocEmail, hours: s.hours });
+  const dirty = Object.keys(v).some((k) => v[k] !== s[k]);
+  return (
+    <tr>
+      <td>
+        <strong>
+          {s.code} {s.short}
+        </strong>
+        <div className="muted small">{s.name}</div>
+      </td>
+      {['hours', 'spocName', 'spocPhone', 'spocEmail'].map((k) => (
+        <td key={k}>
+          <input value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
+        </td>
+      ))}
+      <td>
+        <button className="btn sm primary" disabled={!dirty} onClick={() => api.put('/stores/' + s.code, v).then(onSaved)}>
+          Save
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function DatabaseCard() {
+  const { database: d } = useMeta();
+  if (!d) return null;
+  return (
+    <section className="card">
+      <h2>Database</h2>
+      {d.backend === 'mysql' ? (
+        <div className={`notice ${d.lastError ? '' : 'ok'}`}>
+          MySQL database <strong>{d.database}</strong> · connected · last write {d.lastFlush ? fmtDate(d.lastFlush) : '—'} · {d.pending} change(s) waiting
+          {d.lastError && <div className="error">Last write failed (retrying automatically): {d.lastError}</div>}
+        </div>
+      ) : (
+        <div className="notice">
+          Using the data file <code>{d.file}</code>. To move to MySQL, put the MySQL settings in the private secrets file (see README §3) and restart. Existing data is copied into MySQL on the first start.
+        </div>
+      )}
+    </section>
+  );
+}
+
+export default function Settings() {
+  const { stores, agents, agentEmails, reloadMeta } = useMeta();
+  return (
+    <>
+      <div className="page-head">
+        <h1>Stores &amp; settings</h1>
+      </div>
+      <section className="card">
+        <h2>Store SPOCs (used for escalations and daily follow-ups)</h2>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Store</th>
+              <th>Hours</th>
+              <th>SPOC name</th>
+              <th>SPOC phone</th>
+              <th>SPOC email</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {stores.map((s) => (
+              <StoreRow key={s.code} s={s} onSaved={reloadMeta} />
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <SparkTgPanel />
+      <section className="card">
+        <h2>Agents</h2>
+        <p className="muted small">The SparkTG login email logs each agent into the CRM dialer automatically (SSO). New agents add themselves from the sign-in screen.</p>
+        <table className="table compact">
+          <tbody>
+            {agents.map((a) => (
+              <AgentRow key={a} name={a} email={agentEmails?.[a] || ''} onSaved={reloadMeta} />
+            ))}
+          </tbody>
+        </table>
+      </section>
+      <DatabaseCard />
+      <section className="card">
+        <h2>Backup</h2>
+        <p className="muted small">With MySQL, back up the database with your usual MySQL backups. This download is a full JSON copy of everything and works with either backend.</p>
+        <a className="btn" href="/api/export">
+          Download full backup (JSON)
+        </a>
+      </section>
+    </>
+  );
+}

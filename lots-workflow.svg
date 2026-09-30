@@ -1,0 +1,497 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="2864" viewBox="0 0 1800 2864" font-family="'Segoe UI', 'Segoe UI Emoji', Arial, sans-serif">
+<defs>
+  <marker id="ah" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+    <path d="M0,0 L8,4.5 L0,9 L2.5,4.5 Z" fill="context-stroke"/>
+  </marker>
+  <filter id="sh" x="-20%" y="-20%" width="140%" height="140%">
+    <feDropShadow dx="0" dy="1" stdDeviation="1.6" flood-color="#0f172a" flood-opacity="0.10"/>
+  </filter>
+</defs>
+<text x="110" y="48" font-size="30" font-weight="700" fill="#111827">LOTS Customer Care — Workflow Chart</text>
+<text x="110" y="74" font-size="14" fill="#6b7280">The 11 process steps an agent follows, per "Lots Process Documents 2026". Part 1 is the flow; Part 2 is the SOP detail behind every step.</text>
+<text x="110" y="94" font-size="14" fill="#6b7280">17 sections · 80 detail items, reproduced in full. Where the SOP contradicts itself,</text>
+<rect x="530" y="83" width="86" height="15" rx="7.5" fill="#f59e0b"/><text x="573" y="94" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">SOP CONFLICT</text>
+<text x="624" y="94" font-size="14" fill="#6b7280">both statements are shown so the process owner can settle it.</text>
+<text x="110" y="128" font-size="10" font-weight="700" fill="#6b7280" letter-spacing="0.6">LEGEND</text>
+<rect x="168" y="117" width="15" height="15" rx="4" fill="#dcfce7" stroke="#16a34a" stroke-width="2"/>
+<text x="189" y="129" font-size="12" fill="#111827">Entry</text>
+<rect x="243.24" y="117" width="15" height="15" rx="4" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/>
+<text x="264.24" y="129" font-size="12" fill="#111827">Action</text>
+<rect x="322.08000000000004" y="117" width="15" height="15" rx="4" fill="#fffbeb" stroke="#fbbf24" stroke-width="2"/>
+<text x="343.08000000000004" y="129" font-size="12" fill="#111827">Decision</text>
+<rect x="413.40000000000003" y="117" width="15" height="15" rx="4" fill="#fef2f2" stroke="#f87171" stroke-width="2"/>
+<text x="434.40000000000003" y="129" font-size="12" fill="#111827">Escalation</text>
+<rect x="514.5600000000001" y="117" width="15" height="15" rx="4" fill="#f0fdf4" stroke="#34d399" stroke-width="2"/>
+<text x="535.5600000000001" y="129" font-size="12" fill="#111827">Resolved</text>
+<rect x="608.5200000000001" y="117" width="32" height="15" rx="7.5" fill="#3b82f6"/><text x="624.5200000000001" y="128" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">TAT</text>
+<text x="648.5200000000001" y="129" font-size="12" fill="#111827">target response time</text>
+<rect x="785.08" y="117" width="66" height="15" rx="7.5" fill="#d97706"/><text x="818.08" y="128" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">DECISION</text>
+<text x="859.08" y="129" font-size="12" fill="#111827">step branches the case</text>
+<text x="110" y="156" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="1">PART 1 — THE FLOW</text>
+<g fill="none" stroke-linecap="round" stroke-linejoin="round">
+<path d="M 910 429 L 910 466 L 295 466 L 295 496" stroke="#16a34a" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 950 429 L 950 452 L 1525 452 L 1525 496" stroke="#16a34a" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 1525 586 L 1525 623 L 705 623 L 705 653" stroke="#f59e0b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 295 561 L 295 596.5 L 751 596.5 L 751 653" stroke="#64748b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 705 718 L 705 755 L 705 755 L 705 785" stroke="#64748b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 705 850 L 705 887 L 705 887 L 705 917" stroke="#64748b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 705 1007 L 705 1044 L 295 1044 L 295 1074" stroke="#16a34a" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 745 1007 L 745 1030 L 705 1030 L 705 1074" stroke="#ef4444" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 665 1007 L 665 1017 L 1115 1017 L 1115 1074" stroke="#f59e0b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 1115 1081 L 1115 1049 L 96 1049 L 96 777 L 647 777 L 647 785" stroke="#f59e0b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 295 1081 L 295 1049 L 1730 1049 L 1730 645 L 763 645 L 763 653" stroke="#f59e0b" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 295 1139 L 295 1210 L 1748 1210 L 1748 1369 L 763 1369 L 763 1377" stroke="#16a34a" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 705 1178 L 705 1215 L 705 1215 L 705 1245" stroke="#16a34a" stroke-width="2" marker-end="url(#ah)"/>
+<path d="M 705 1310 L 705 1347 L 751 1347 L 751 1377" stroke="#16a34a" stroke-width="2" marker-end="url(#ah)"/>
+</g>
+<g transform="translate(602.5 466)">
+<rect x="-70.30499999999999" y="-9" width="140.60999999999999" height="18" rx="9" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#16a34a" text-anchor="middle">call · missed call · email</text>
+</g>
+<g transform="translate(1237.5 452)">
+<rect x="-28.669999999999998" y="-9" width="57.339999999999996" height="18" rx="9" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#16a34a" text-anchor="middle">outbound</text>
+</g>
+<g transform="translate(1115 623)">
+<rect x="-44.455" y="-9" width="88.91" height="18" rx="9" fill="#ffffff" stroke="#f59e0b" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#f59e0b" text-anchor="middle">concern raised</text>
+</g>
+<g transform="translate(500 1044)">
+<rect x="-28.67" y="-9" width="57.34" height="18" rx="9" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#16a34a" text-anchor="middle">resolved</text>
+</g>
+<g transform="translate(725 1030)">
+<rect x="-27.46" y="-9" width="54.92" height="18" rx="9" fill="#ffffff" stroke="#ef4444" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#ef4444" text-anchor="middle">escalate</text>
+</g>
+<g transform="translate(890 1017)">
+<rect x="-37.084999999999994" y="-9" width="74.16999999999999" height="18" rx="9" fill="#ffffff" stroke="#f59e0b" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#f59e0b" text-anchor="middle">info missing</text>
+</g>
+<g transform="translate(605.5 1068)">
+<rect x="-49.735" y="-9" width="99.47" height="18" rx="9" fill="#ffffff" stroke="#f59e0b" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#f59e0b" text-anchor="middle">customer replied</text>
+</g>
+<g transform="translate(1012.5 1068)">
+<rect x="-52.1" y="-9" width="104.2" height="18" rx="9" fill="#ffffff" stroke="#f59e0b" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#f59e0b" text-anchor="middle">anything else? yes</text>
+</g>
+<g transform="translate(1021.5 1198)">
+<rect x="-12.72" y="-9" width="25.44" height="18" rx="9" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#16a34a" text-anchor="middle">no</text>
+</g>
+<g transform="translate(705 1215)">
+<rect x="-39.175" y="-9" width="78.35" height="18" rx="9" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#16a34a" text-anchor="middle">store replied</text>
+</g>
+<g transform="translate(728 1347)">
+<rect x="-54.575" y="-9" width="109.15" height="18" rx="9" fill="#ffffff" stroke="#16a34a" stroke-width="1"/>
+<text x="0" y="4" font-size="11" font-weight="600" fill="#16a34a" text-anchor="middle">customer confirms</text>
+</g>
+<g filter="url(#sh)"><rect x="710" y="172" width="400" height="257" rx="10" fill="#dcfce7" stroke="#16a34a" stroke-width="3"/></g>
+<text x="724" y="203" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">▶</text>
+<text x="754" y="192" font-size="13" font-weight="700" fill="#111827">Case</text>
+<text x="754" y="209" font-size="13" font-weight="700" fill="#111827">comes</text>
+<text x="754" y="226" font-size="13" font-weight="700" fill="#111827">in</text>
+<text x="754" y="245" font-size="11" fill="#6b7280">Inbound</text>
+<text x="754" y="259" font-size="11" fill="#6b7280">call</text>
+<text x="754" y="273" font-size="11" fill="#6b7280">·</text>
+<text x="754" y="287" font-size="11" fill="#6b7280">Missed</text>
+<text x="754" y="301" font-size="11" fill="#6b7280">call</text>
+<text x="754" y="315" font-size="11" fill="#6b7280">·</text>
+<text x="754" y="329" font-size="11" fill="#6b7280">Email</text>
+<text x="754" y="343" font-size="11" fill="#6b7280">(case</text>
+<text x="754" y="357" font-size="11" fill="#6b7280">auto-created)</text>
+<text x="754" y="371" font-size="11" fill="#6b7280">·</text>
+<text x="754" y="385" font-size="11" fill="#6b7280">Outbound</text>
+<rect x="754" y="392" width="43.7" height="16" rx="8" fill="#16a34a"/>
+<text x="775.85" y="403.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">START</text>
+<circle cx="1093" cy="189" r="11" fill="#16a34a"/>
+<text x="1093" y="193" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="1093" y="419" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">10 items</text>
+<g filter="url(#sh)"><rect x="1340" y="503" width="370" height="83" rx="10" fill="#ffffff" stroke="#a78bfa" stroke-width="2"/></g>
+<text x="1354" y="534" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">📤</text>
+<text x="1384" y="523" font-size="13" font-weight="700" fill="#111827">Outbound call</text>
+<text x="1384" y="542" font-size="11" fill="#6b7280">Lead call → order on call (OMS) / offer info / concern raised</text>
+<rect x="1384" y="549" width="81.14" height="16" rx="8" fill="#3b82f6"/>
+<text x="1424.57" y="560.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">TAT 80–100/day</text>
+<circle cx="1693" cy="520" r="11" fill="#a78bfa"/>
+<text x="1693" y="524" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="1693" y="576" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">10 items</text>
+<g filter="url(#sh)"><rect x="110" y="503" width="370" height="58" rx="10" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/></g>
+<text x="124" y="534" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">🪪</text>
+<text x="154" y="523" font-size="13" font-weight="700" fill="#111827">Identify caller</text>
+<text x="154" y="542" font-size="11" fill="#6b7280">Registered member · Not registered · B2C customer</text>
+<circle cx="463" cy="520" r="11" fill="#60a5fa"/>
+<text x="463" y="524" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="463" y="551" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">16 items</text>
+<g filter="url(#sh)"><rect x="520" y="660" width="370" height="58" rx="10" fill="#fffbeb" stroke="#fbbf24" stroke-width="2"/></g>
+<text x="534" y="691" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">🧭</text>
+<text x="564" y="680" font-size="13" font-weight="700" fill="#111827">Case type</text>
+<text x="564" y="699" font-size="11" fill="#6b7280">Enquiry · Issue &amp; Complaint · Request</text>
+<circle cx="873" cy="677" r="11" fill="#fbbf24"/>
+<text x="873" y="681" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="873" y="708" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">12 items</text>
+<g filter="url(#sh)"><rect x="520" y="792" width="370" height="58" rx="10" fill="#ffffff" stroke="#60a5fa" stroke-width="2"/></g>
+<text x="534" y="823" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">🧾</text>
+<text x="564" y="812" font-size="13" font-weight="700" fill="#111827">Case details</text>
+<text x="564" y="831" font-size="11" fill="#6b7280">Call: agent creates case · Email: auto-created case is updated</text>
+<circle cx="873" cy="809" r="11" fill="#60a5fa"/>
+<text x="873" y="813" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="873" y="840" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">13 items</text>
+<g filter="url(#sh)"><rect x="520" y="924" width="370" height="83" rx="10" fill="#fffbeb" stroke="#fbbf24" stroke-width="2"/></g>
+<text x="534" y="955" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">⚡</text>
+<text x="564" y="944" font-size="13" font-weight="700" fill="#111827">Can agent resolve it?</text>
+<text x="564" y="963" font-size="11" fill="#6b7280">Resolve on call · Info missing · Escalate to store</text>
+<rect x="564" y="970" width="55.04" height="16" rx="8" fill="#d97706"/>
+<text x="591.52" y="981.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">DECISION</text>
+<circle cx="873" cy="941" r="11" fill="#fbbf24"/>
+<text x="873" y="945" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="873" y="997" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">13 items</text>
+<g filter="url(#sh)"><rect x="110" y="1081" width="370" height="58" rx="10" fill="#f0fdf4" stroke="#34d399" stroke-width="2"/></g>
+<text x="124" y="1112" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">✅</text>
+<text x="154" y="1101" font-size="13" font-weight="700" fill="#111827">Resolved on call (ROT)</text>
+<text x="154" y="1120" font-size="11" fill="#6b7280">&quot;Is there anything else I can assist you with?&quot;</text>
+<circle cx="463" cy="1098" r="11" fill="#34d399"/>
+<text x="463" y="1102" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="463" y="1129" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">2 items</text>
+<g filter="url(#sh)"><rect x="930" y="1081" width="370" height="72" rx="10" fill="#fffbeb" stroke="#fbbf24" stroke-width="2"/></g>
+<text x="944" y="1112" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">⏳</text>
+<text x="974" y="1101" font-size="13" font-weight="700" fill="#111827">Waiting</text>
+<text x="974" y="1120" font-size="11" fill="#6b7280">Email customer for missing info · stays Waiting until they</text>
+<text x="974" y="1134" font-size="11" fill="#6b7280">reply</text>
+<circle cx="1283" cy="1098" r="11" fill="#fbbf24"/>
+<text x="1283" y="1102" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">8</text>
+<g filter="url(#sh)"><rect x="520" y="1081" width="370" height="97" rx="10" fill="#fef2f2" stroke="#f87171" stroke-width="2"/></g>
+<text x="534" y="1112" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">🏪</text>
+<text x="564" y="1101" font-size="13" font-weight="700" fill="#111827">Escalate to store + daily follow-up</text>
+<text x="564" y="1120" font-size="11" fill="#6b7280">As per escalation matrix · daily call to store · CRM updated</text>
+<text x="564" y="1134" font-size="11" fill="#6b7280">after each call</text>
+<rect x="564" y="1141" width="71.87" height="16" rx="8" fill="#3b82f6"/>
+<text x="599.935" y="1152.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">TAT L1: 1 day</text>
+<circle cx="873" cy="1098" r="11" fill="#f87171"/>
+<text x="873" y="1102" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">9</text>
+<text x="873" y="1168" font-size="10" font-weight="600" fill="#6b7280" text-anchor="middle">4 items</text>
+<g filter="url(#sh)"><rect x="520" y="1252" width="370" height="58" rx="10" fill="#f0fdf4" stroke="#34d399" stroke-width="2"/></g>
+<text x="534" y="1283" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">🤝</text>
+<text x="564" y="1272" font-size="13" font-weight="700" fill="#111827">Resolution → confirm with customer</text>
+<text x="564" y="1291" font-size="11" fill="#6b7280">Store replies by email · agent calls customer to confirm</text>
+<circle cx="873" cy="1269" r="11" fill="#34d399"/>
+<text x="873" y="1273" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">10</text>
+<g filter="url(#sh)"><rect x="520" y="1384" width="370" height="83" rx="10" fill="#f0fdf4" stroke="#34d399" stroke-width="2"/></g>
+<text x="534" y="1415" font-size="20" font-family="'Segoe UI Emoji','Segoe UI',sans-serif">🏁</text>
+<text x="564" y="1404" font-size="13" font-weight="700" fill="#111827">Case Closed</text>
+<text x="564" y="1423" font-size="11" fill="#6b7280">Customer confirms → case closed from our end</text>
+<rect x="564" y="1430" width="31.82" height="16" rx="8" fill="#16a34a"/>
+<text x="579.91" y="1441.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">END</text>
+<circle cx="873" cy="1401" r="11" fill="#34d399"/>
+<text x="873" y="1405" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">11</text>
+<line x1="110" y1="1479" x2="1780" y2="1479" stroke="#e5e7eb" stroke-width="2"/>
+<text x="110" y="1499" font-size="11" font-weight="700" fill="#6b7280" letter-spacing="1">PART 2 — THE SOP DETAIL BEHIND EVERY STEP</text>
+<g filter="url(#sh)"><rect x="110" y="1525" width="520" height="384" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="110" y="1525" width="5" height="384" rx="2.5" fill="#16a34a"/>
+<circle cx="141" cy="1545" r="12" fill="#16a34a"/>
+<text x="141" y="1549.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">1</text>
+<text x="160" y="1550" font-size="13" font-weight="700" fill="#111827">Case comes in</text>
+<text x="160" y="1568" font-size="11" fill="#6b7280">Inbound call · Missed call · Email (case auto-created) · Outbound</text>
+<rect x="160" y="1576" width="43.7" height="16" rx="8" fill="#16a34a"/>
+<text x="181.85" y="1587.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">START</text>
+<text x="160" y="1603" font-size="9" font-weight="700" fill="#16a34a" letter-spacing="0.5">INBOUND CALL — ANSWER WITHIN 3 RINGS</text>
+<circle cx="164" cy="1613" r="2" fill="#16a34a"/>
+<text x="172" y="1617" font-size="11" fill="#1f2937">Customer care 1860-123-5687 · everyday 9 AM–9 PM</text>
+<circle cx="164" cy="1632" r="2" fill="#16a34a"/>
+<text x="172" y="1636" font-size="11" fill="#1f2937">Greeting: &quot;Good morning! [Name] this side from Lots Wholesale Solution. How may I</text>
+<text x="172" y="1650" font-size="11" fill="#1f2937">assist you today?&quot;</text>
+<circle cx="164" cy="1665" r="2" fill="#16a34a"/>
+<text x="172" y="1669" font-size="11" fill="#1f2937">Hold: explain the reason · ask for phone number in case the call is cut · give best</text>
+<text x="172" y="1683" font-size="11" fill="#1f2937">estimate of hold time</text>
+<circle cx="164" cy="1698" r="2" fill="#16a34a"/>
+<text x="172" y="1702" font-size="11" fill="#1f2937">Delay longer than a couple of minutes: ask for a number and a time to call back</text>
+<text x="160" y="1719" font-size="9" font-weight="700" fill="#16a34a" letter-spacing="0.5">MISSED / ABANDONED CALL — CALL BACK WITHIN 30 MIN</text>
+<circle cx="164" cy="1729" r="2" fill="#16a34a"/>
+<text x="172" y="1733" font-size="11" fill="#1f2937">Reasons: agent busy on another call · caller hung up · non-working hours</text>
+<circle cx="164" cy="1748" r="2" fill="#16a34a"/>
+<text x="172" y="1752" font-size="11" fill="#1f2937">No missed call should be left unattended</text>
+<circle cx="164" cy="1767" r="2" fill="#16a34a"/>
+<text x="172" y="1771" font-size="11" fill="#1f2937">Call back, ask the query and give a satisfactory resolution</text>
+<text x="160" y="1788" font-size="9" font-weight="700" fill="#16a34a" letter-spacing="0.5">EMAIL — CONTACTUS@CPWI.IN · CHECK EVERY 5 MIN</text>
+<circle cx="164" cy="1798" r="2" fill="#16a34a"/>
+<text x="172" y="1802" font-size="11" fill="#1f2937">Case auto-created in CRM on mail receipt · complaint number generated · status</text>
+<text x="172" y="1816" font-size="11" fill="#1f2937">Pending</text>
+<circle cx="164" cy="1831" r="2" fill="#16a34a"/>
+<text x="172" y="1835" font-size="11" fill="#1f2937">Call the customer to understand complete details — details are updated on the same case</text>
+<circle cx="164" cy="1850" r="2" fill="#16a34a"/>
+<text x="172" y="1854" font-size="11" fill="#1f2937">Categorise by contact and case type · reply as per the template provided</text>
+<g filter="url(#sh)"><rect x="654" y="1525" width="520" height="406" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="654" y="1525" width="5" height="406" rx="2.5" fill="#a78bfa"/>
+<circle cx="685" cy="1545" r="12" fill="#a78bfa"/>
+<text x="685" y="1549.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">2</text>
+<text x="704" y="1550" font-size="13" font-weight="700" fill="#111827">Outbound call</text>
+<text x="704" y="1568" font-size="11" fill="#6b7280">Lead call → order on call (OMS) / offer info / concern raised</text>
+<rect x="704" y="1576" width="81.14" height="16" rx="8" fill="#3b82f6"/>
+<text x="744.57" y="1587.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">TAT 80–100/day</text>
+<text x="704" y="1603" font-size="9" font-weight="700" fill="#a78bfa" letter-spacing="0.5">LEAD TYPES</text>
+<circle cx="708" cy="1613" r="2" fill="#a78bfa"/>
+<text x="716" y="1617" font-size="11" fill="#1f2937">New registration — enquired about membership via app / website → explain process and</text>
+<text x="716" y="1631" font-size="11" fill="#1f2937">documents</text>
+<circle cx="708" cy="1646" r="2" fill="#a78bfa"/>
+<text x="716" y="1650" font-size="11" fill="#1f2937">Inactive customer — ask the issue they face in purchasing → resolve concerns → share</text>
+<text x="716" y="1664" font-size="11" fill="#1f2937">current offers</text>
+<circle cx="708" cy="1679" r="2" fill="#a78bfa"/>
+<text x="716" y="1683" font-size="11" fill="#1f2937">Order on call — inform offers, schemes, prices → place order on call (recorded in OMS)</text>
+<circle cx="708" cy="1698" r="2" fill="#a78bfa"/>
+<text x="716" y="1702" font-size="11" fill="#1f2937">LCC (Lots Club Card) — delivery within 24 hours, zero delivery charges, personal</text>
+<text x="716" y="1716" font-size="11" fill="#1f2937">assistance in store</text>
+<circle cx="708" cy="1731" r="2" fill="#a78bfa"/>
+<text x="716" y="1735" font-size="11" fill="#1f2937">Confirmation / resolution — is the customer satisfied, concern resolved?</text>
+<circle cx="708" cy="1750" r="2" fill="#a78bfa"/>
+<text x="716" y="1754" font-size="11" fill="#1f2937">Festival &amp; seasonal offers — invite to visit store or shop on app</text>
+<text x="704" y="1771" font-size="9" font-weight="700" fill="#a78bfa" letter-spacing="0.5">SCRIPT</text>
+<circle cx="708" cy="1781" r="2" fill="#a78bfa"/>
+<text x="716" y="1785" font-size="11" fill="#1f2937">Opening: &quot;Namaskar! Main [Name] bol raha hoon LOTS Wholesale Solutions se. Kya abhi</text>
+<text x="716" y="1799" font-size="11" fill="#1f2937">aapse baat karne ka yeh sahi samay hai?&quot;</text>
+<circle cx="708" cy="1814" r="2" fill="#a78bfa"/>
+<text x="716" y="1818" font-size="11" fill="#1f2937">Offer example: ₹99 voucher on ₹999+ shopping at Akshardham (code via SMS &amp;</text>
+<text x="716" y="1832" font-size="11" fill="#1f2937">WhatsApp)</text>
+<circle cx="708" cy="1847" r="2" fill="#a78bfa"/>
+<text x="716" y="1851" font-size="11" fill="#1f2937">B2C info: AKD &amp; NSP — shop without documentation, food items only</text>
+<circle cx="708" cy="1866" r="2" fill="#a78bfa"/>
+<text x="716" y="1870" font-size="11" fill="#1f2937">Closing: &quot;Dhanyavaad Sir, LOTS Wholesale mein samay dene ke liye shukriya. Aapka din</text>
+<text x="716" y="1884" font-size="11" fill="#1f2937">shubh ho!&quot;</text>
+<g filter="url(#sh)"><rect x="1198" y="1525" width="520" height="520" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="1198" y="1525" width="5" height="520" rx="2.5" fill="#60a5fa"/>
+<circle cx="1229" cy="1545" r="12" fill="#60a5fa"/>
+<text x="1229" y="1549.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">3</text>
+<text x="1248" y="1550" font-size="13" font-weight="700" fill="#111827">Identify caller</text>
+<text x="1248" y="1568" font-size="11" fill="#6b7280">Registered member · Not registered · B2C customer</text>
+<text x="1248" y="1588" font-size="9" font-weight="700" fill="#60a5fa" letter-spacing="0.5">CALLER TYPE</text>
+<circle cx="1252" cy="1598" r="2" fill="#60a5fa"/>
+<text x="1260" y="1602" font-size="11" fill="#1f2937">Registered member</text>
+<circle cx="1252" cy="1617" r="2" fill="#60a5fa"/>
+<text x="1260" y="1621" font-size="11" fill="#1f2937">Not registered — only new membership or new supplier registration requests</text>
+<circle cx="1252" cy="1636" r="2" fill="#60a5fa"/>
+<text x="1260" y="1640" font-size="11" fill="#1f2937">B2C customer (AKD from Sep 2025, NSP from Nov 2025) — no membership · food items</text>
+<text x="1260" y="1654" font-size="11" fill="#1f2937">of Indian origin only · no e-commerce</text>
+<text x="1248" y="1671" font-size="9" font-weight="700" fill="#60a5fa" letter-spacing="0.5">CUSTOMER CATEGORIES</text>
+<circle cx="1252" cy="1681" r="2" fill="#60a5fa"/>
+<text x="1260" y="1685" font-size="11" fill="#1f2937">Distributor: Exporter · FMCG Wholesaler · Food W/S · Fresh Food Wholesaler ·</text>
+<text x="1260" y="1699" font-size="11" fill="#1f2937">Grocery Retail Shop/Stall · Non Food Wholesaler · Up Country Distributor</text>
+<circle cx="1252" cy="1714" r="2" fill="#60a5fa"/>
+<text x="1260" y="1718" font-size="11" fill="#1f2937">Food Retailer: Bakery/Sweet Shop · Fresh Food Retail Shop · Fruit &amp; Vegetable Shop ·</text>
+<text x="1260" y="1732" font-size="11" fill="#1f2937">Grocery Retail Shop/Stall · Kirana · Organised Retailer · Supermarket</text>
+<circle cx="1252" cy="1747" r="2" fill="#60a5fa"/>
+<text x="1260" y="1751" font-size="11" fill="#1f2937">HoReCa: Bakery/Sweet Shop · Caterer</text>
+<circle cx="1252" cy="1766" r="2" fill="#60a5fa"/>
+<text x="1260" y="1770" font-size="11" fill="#1f2937">Catering Business: Hotel · Hotel &amp; Resort · Restaurant</text>
+<circle cx="1252" cy="1785" r="2" fill="#60a5fa"/>
+<text x="1260" y="1789" font-size="11" fill="#1f2937">Non-food Retailer: Electronic appliance shop · Medicine Shop · Non Food Wholesaler ·</text>
+<text x="1260" y="1803" font-size="11" fill="#1f2937">Stationery / Office supply shop</text>
+<circle cx="1252" cy="1818" r="2" fill="#60a5fa"/>
+<text x="1260" y="1822" font-size="11" fill="#1f2937">Self Employed Professionals: Educational Service · Self Employed Professionals ·</text>
+<text x="1260" y="1836" font-size="11" fill="#1f2937">Small and Medium Office</text>
+<circle cx="1252" cy="1851" r="2" fill="#60a5fa"/>
+<text x="1260" y="1855" font-size="11" fill="#1f2937">Service: Educational Institute · Exporter · Hospital · Institution · Institutional Service ·</text>
+<text x="1260" y="1869" font-size="11" fill="#1f2937">Other Service</text>
+<text x="1248" y="1886" font-size="9" font-weight="700" fill="#60a5fa" letter-spacing="0.5">STORES</text>
+<circle cx="1252" cy="1896" r="2" fill="#60a5fa"/>
+<text x="1260" y="1900" font-size="11" fill="#1f2937">101 NSP — 9 AM–8 PM</text>
+<circle cx="1252" cy="1915" r="2" fill="#60a5fa"/>
+<text x="1260" y="1919" font-size="11" fill="#1f2937">102 Ithum, Noida — 7 AM–9 PM</text>
+<circle cx="1252" cy="1934" r="2" fill="#60a5fa"/>
+<text x="1260" y="1938" font-size="11" fill="#1f2937">103 Akshardham (AKD) — 9 AM–9 PM</text>
+<circle cx="1252" cy="1953" r="2" fill="#60a5fa"/>
+<text x="1260" y="1957" font-size="11" fill="#1f2937">104 Sarita Vihar (SRV) — 9 AM–8 PM</text>
+<circle cx="1252" cy="1972" r="2" fill="#60a5fa"/>
+<text x="1260" y="1976" font-size="11" fill="#1f2937">105 Duhai (GZB) — online store</text>
+<circle cx="1252" cy="1991" r="2" fill="#60a5fa"/>
+<text x="1260" y="1995" font-size="11" fill="#1f2937">106 Greater Noida (GNI) — 9 AM–8 PM</text>
+<g filter="url(#sh)"><rect x="110" y="1931" width="520" height="486" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="110" y="1931" width="5" height="486" rx="2.5" fill="#fbbf24"/>
+<circle cx="141" cy="1951" r="12" fill="#fbbf24"/>
+<text x="141" y="1955.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">4</text>
+<text x="160" y="1956" font-size="13" font-weight="700" fill="#111827">Case type</text>
+<text x="160" y="1974" font-size="11" fill="#6b7280">Enquiry · Issue &amp; Complaint · Request</text>
+<text x="160" y="1994" font-size="9" font-weight="700" fill="#fbbf24" letter-spacing="0.5">ENQUIRY — USUALLY ANSWERED ON THE CALL</text>
+<circle cx="164" cy="2004" r="2" fill="#fbbf24"/>
+<text x="172" y="2008" font-size="11" fill="#1f2937">General: store timings, address, membership process &amp; documents, supplier</text>
+<text x="172" y="2022" font-size="11" fill="#1f2937">registration, product availability / stock / price, payment modes, add-on cards, delivery</text>
+<text x="172" y="2036" font-size="11" fill="#1f2937">enquiry / timings / charges</text>
+<circle cx="164" cy="2051" r="2" fill="#fbbf24"/>
+<text x="172" y="2055" font-size="11" fill="#1f2937">HR &amp; Jobs → careers@cpwi.in · Yuktanshi.Srivastava@cpwi.in / Apoorv.Tyagi@cpwi.in</text>
+<circle cx="164" cy="2070" r="2" fill="#fbbf24"/>
+<text x="172" y="2074" font-size="11" fill="#1f2937">Admin, IT &amp; marketing / website</text>
+<circle cx="164" cy="2089" r="2" fill="#fbbf24"/>
+<text x="172" y="2093" font-size="11" fill="#1f2937">Privilege card</text>
+<text x="160" y="2110" font-size="9" font-weight="700" fill="#fbbf24" letter-spacing="0.5">ISSUE &amp; COMPLAINT</text>
+<circle cx="164" cy="2120" r="2" fill="#fbbf24"/>
+<text x="172" y="2124" font-size="11" fill="#1f2937">Store: rude / unsupportive staff · price mismatch · wrong products billed · GST issue ·</text>
+<text x="172" y="2138" font-size="11" fill="#1f2937">late / incomplete delivery · poor quality / near expiry · freebie not given · SMS coupon</text>
+<text x="172" y="2152" font-size="11" fill="#1f2937">not given</text>
+<circle cx="164" cy="2167" r="2" fill="#fbbf24"/>
+<text x="172" y="2171" font-size="11" fill="#1f2937">App/E-comm: site not opening · wrong profile details · OTP / login · incomplete order ·</text>
+<text x="172" y="2185" font-size="11" fill="#1f2937">wrong products · overcharged · incorrect invoice · refund · poor quality / near expiry ·</text>
+<text x="172" y="2199" font-size="11" fill="#1f2937">delayed delivery (dispatched / not dispatched)</text>
+<circle cx="164" cy="2214" r="2" fill="#fbbf24"/>
+<text x="172" y="2218" font-size="11" fill="#1f2937">BDA: incomplete order · wrong products · order cancelled without communication ·</text>
+<text x="172" y="2232" font-size="11" fill="#1f2937">rude / unsupportive BDA · pricing · quality · delayed delivery (dispatched / not</text>
+<text x="172" y="2246" font-size="11" fill="#1f2937">dispatched)</text>
+<text x="160" y="2263" font-size="9" font-weight="700" fill="#fbbf24" letter-spacing="0.5">REQUEST</text>
+<circle cx="164" cy="2273" r="2" fill="#fbbf24"/>
+<text x="172" y="2277" font-size="11" fill="#1f2937">Membership: change registered contact number · update business address / licence ·</text>
+<text x="172" y="2291" font-size="11" fill="#1f2937">new add-on card · reissue / block card</text>
+<circle cx="164" cy="2306" r="2" fill="#fbbf24"/>
+<text x="172" y="2310" font-size="11" fill="#1f2937">Store: reissue invoice · GST request · return / exchange · increase stock</text>
+<circle cx="164" cy="2325" r="2" fill="#fbbf24"/>
+<text x="172" y="2329" font-size="11" fill="#1f2937">App/E-comm: cancel order · return order · refund</text>
+<circle cx="164" cy="2344" r="2" fill="#fbbf24"/>
+<text x="172" y="2348" font-size="11" fill="#1f2937">BDA: cancel / return BDA order</text>
+<circle cx="164" cy="2363" r="2" fill="#fbbf24"/>
+<text x="172" y="2367" font-size="11" fill="#1f2937">Not registered member: new membership · new supplier registration</text>
+<g filter="url(#sh)"><rect x="654" y="1953" width="520" height="527" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="654" y="1953" width="5" height="527" rx="2.5" fill="#60a5fa"/>
+<circle cx="685" cy="1973" r="12" fill="#60a5fa"/>
+<text x="685" y="1977.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">5</text>
+<text x="704" y="1978" font-size="13" font-weight="700" fill="#111827">Case details</text>
+<text x="704" y="1996" font-size="11" fill="#6b7280">Call: agent creates case · Email: auto-created case is updated</text>
+<text x="704" y="2016" font-size="9" font-weight="700" fill="#60a5fa" letter-spacing="0.5">CAPTURED ON THE CASE</text>
+<circle cx="708" cy="2026" r="2" fill="#60a5fa"/>
+<text x="716" y="2030" font-size="11" fill="#1f2937">Case type and category (by contact and case type)</text>
+<circle cx="708" cy="2045" r="2" fill="#60a5fa"/>
+<text x="716" y="2049" font-size="11" fill="#1f2937">Product category: Fresh · FMCG Food · Commodities · FMCG Non-food · Non-food</text>
+<text x="704" y="2066" font-size="9" font-weight="700" fill="#60a5fa" letter-spacing="0.5">DOCUMENTS REQUIRED FOR REQUESTS</text>
+<circle cx="708" cy="2076" r="2" fill="#60a5fa"/>
+<text x="716" y="2080" font-size="11" fill="#1f2937">New membership — any one: GST · FSSAI · Drug licence · Certificate of Incorporation ·</text>
+<text x="716" y="2094" font-size="11" fill="#1f2937">Society / Trust registration · APMC · Govt authorisation letter · MSME / Udyam ·</text>
+<text x="716" y="2108" font-size="11" fill="#1f2937">Weights &amp; Measures · Trade licence · Shops &amp; Establishments</text>
+<circle cx="708" cy="2123" r="2" fill="#60a5fa"/>
+<text x="716" y="2127" font-size="11" fill="#1f2937">New membership — no GST: visiting card · menu photo · copy of bill · hoarding board ·</text>
+<text x="716" y="2141" font-size="11" fill="#1f2937">flex board</text>
+<circle cx="708" cy="2156" r="2" fill="#60a5fa"/>
+<text x="716" y="2160" font-size="11" fill="#1f2937">New membership — mandatory: PAN · mobile no. · Aadhaar · selfie · store preference</text>
+<text x="716" y="2174" font-size="11" fill="#1f2937">· customer physically present at store</text>
+<circle cx="708" cy="2189" r="2" fill="#60a5fa"/>
+<text x="716" y="2193" font-size="11" fill="#1f2937">Consent form: offline → sign in store · online → store emails PDF → customer prints,</text>
+<text x="716" y="2207" font-size="11" fill="#1f2937">signs, scans, sends back to store email</text>
+<circle cx="708" cy="2222" r="2" fill="#f59e0b"/>
+<text x="716" y="2226" font-size="11" fill="#92400e">Add-on card: authority letter on business letterhead (or A4 with business stamp +</text>
+<text x="716" y="2240" font-size="11" fill="#92400e">signature) · Aadhaar · photo · mobile of person added · linked to owner card · SOP:</text>
+<text x="716" y="2254" font-size="11" fill="#92400e">only 1 per customer / FAQ: up to 4</text>
+<text x="716" y="2268" font-size="9" font-weight="700" fill="#b45309" letter-spacing="0.4">▲ SOP CONFLICT — both statements shown</text>
+<circle cx="708" cy="2281" r="2" fill="#60a5fa"/>
+<text x="716" y="2285" font-size="11" fill="#1f2937">Supplier registration: company profile + product catalogue to contactus@cpwi.in · reply</text>
+<text x="716" y="2299" font-size="11" fill="#1f2937">within 7 days</text>
+<circle cx="708" cy="2314" r="2" fill="#60a5fa"/>
+<text x="716" y="2318" font-size="11" fill="#1f2937">Lost card: application on business letterhead + valid govt ID at store or to</text>
+<text x="716" y="2332" font-size="11" fill="#1f2937">contactus@cpwi.in</text>
+<circle cx="708" cy="2347" r="2" fill="#60a5fa"/>
+<text x="716" y="2351" font-size="11" fill="#1f2937">Change delivery address: new address proof + govt-approved business licence +</text>
+<text x="716" y="2365" font-size="11" fill="#1f2937">authority letter</text>
+<circle cx="708" cy="2380" r="2" fill="#60a5fa"/>
+<text x="716" y="2384" font-size="11" fill="#1f2937">Return / exchange: original bill stamped by store guard · no bill → store verifies</text>
+<text x="716" y="2398" font-size="11" fill="#1f2937">internally</text>
+<circle cx="708" cy="2413" r="2" fill="#60a5fa"/>
+<text x="716" y="2417" font-size="11" fill="#1f2937">Offer SMS not received: missed call to 08061914105 from registered number ·</text>
+<text x="716" y="2431" font-size="11" fill="#1f2937">messages within 48 hours</text>
+<circle cx="708" cy="2446" r="2" fill="#60a5fa"/>
+<text x="716" y="2450" font-size="11" fill="#1f2937">Bulk booking: contact store helpdesk or email product details and quantity</text>
+<g filter="url(#sh)"><rect x="1198" y="2067" width="520" height="443" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="1198" y="2067" width="5" height="443" rx="2.5" fill="#fbbf24"/>
+<circle cx="1229" cy="2087" r="12" fill="#fbbf24"/>
+<text x="1229" y="2091.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">6</text>
+<text x="1248" y="2092" font-size="13" font-weight="700" fill="#111827">Can agent resolve it?</text>
+<text x="1248" y="2110" font-size="11" fill="#6b7280">Resolve on call · Info missing · Escalate to store</text>
+<rect x="1248" y="2118" width="55.04" height="16" rx="8" fill="#d97706"/>
+<text x="1275.52" y="2129.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">DECISION</text>
+<text x="1248" y="2145" font-size="9" font-weight="700" fill="#fbbf24" letter-spacing="0.5">ANSWERS FROM THE SOP / FAQ</text>
+<circle cx="1252" cy="2155" r="2" fill="#fbbf24"/>
+<text x="1260" y="2159" font-size="11" fill="#1f2937">Stores open 7 days · Delhi NCR only · membership is free</text>
+<circle cx="1252" cy="2174" r="2" fill="#fbbf24"/>
+<text x="1260" y="2178" font-size="11" fill="#1f2937">Privilege card: ₹799 / ₹1450 / ₹1499 · valid 3–6 months · in-store only</text>
+<circle cx="1252" cy="2193" r="2" fill="#fbbf24"/>
+<text x="1260" y="2197" font-size="11" fill="#1f2937">Returns: within 7 working days with original invoice · packaging intact, unused,</text>
+<text x="1260" y="2211" font-size="11" fill="#1f2937">saleable, with free articles, before expiry · credit note valid 1 year, single purchase</text>
+<circle cx="1252" cy="2226" r="2" fill="#fbbf24"/>
+<text x="1260" y="2230" font-size="11" fill="#1f2937">Not returnable: oil, ghee, fresh dairy, fruits, vegetables, meat, fish,</text>
+<text x="1260" y="2244" font-size="11" fill="#1f2937">temperature-controlled products</text>
+<circle cx="1252" cy="2259" r="2" fill="#fbbf24"/>
+<text x="1260" y="2263" font-size="11" fill="#1f2937">No warranty from LOTS — manufacturer / brand warranty and service centres apply</text>
+<circle cx="1252" cy="2278" r="2" fill="#fbbf24"/>
+<text x="1260" y="2282" font-size="11" fill="#1f2937">Delivery: free on ₹9,000+ · handling ₹69 GNI / ₹99 others (waived for the month after 8+</text>
+<text x="1260" y="2296" font-size="11" fill="#1f2937">orders) · shipping by article · business licence address only · within 25 km · TAT 2–3</text>
+<text x="1260" y="2310" font-size="11" fill="#1f2937">working days</text>
+<circle cx="1252" cy="2325" r="2" fill="#fbbf24"/>
+<text x="1260" y="2329" font-size="11" fill="#1f2937">App / website MOV: HoReCa (QSR, multi-cuisine, speciality, budget hotel 1–3★, street</text>
+<text x="1260" y="2343" font-size="11" fill="#1f2937">food, online food, pub &amp; bar) ₹3,000 · others: NSP 9000 · Ithum 6000 · AKD 3000 &amp; 6000</text>
+<text x="1260" y="2357" font-size="11" fill="#1f2937">· SRV 5000 · Microhub 3000 · GNI 6000</text>
+<circle cx="1252" cy="2372" r="2" fill="#fbbf24"/>
+<text x="1260" y="2376" font-size="11" fill="#1f2937">In-store minimum ₹500 per invoice</text>
+<circle cx="1252" cy="2391" r="2" fill="#fbbf24"/>
+<text x="1260" y="2395" font-size="11" fill="#1f2937">Payment: credit / debit cards (except AmEx), cash, Paytm · split payment allowed</text>
+<circle cx="1252" cy="2410" r="2" fill="#fbbf24"/>
+<text x="1260" y="2414" font-size="11" fill="#1f2937">Online order: website / app with registered mobile · cancel any time before Dispatched</text>
+<circle cx="1252" cy="2429" r="2" fill="#fbbf24"/>
+<text x="1260" y="2433" font-size="11" fill="#1f2937">Amount debited but not received: auto-refund within 7 working days or contact bank</text>
+<circle cx="1252" cy="2448" r="2" fill="#fbbf24"/>
+<text x="1260" y="2452" font-size="11" fill="#1f2937">Billed items cannot be held / pre-booked · no loyalty programme currently</text>
+<circle cx="1252" cy="2467" r="2" fill="#fbbf24"/>
+<text x="1260" y="2471" font-size="11" fill="#1f2937">BDA: field representatives take orders at registered business address</text>
+<g filter="url(#sh)"><rect x="110" y="2439" width="520" height="144" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="110" y="2439" width="5" height="144" rx="2.5" fill="#34d399"/>
+<circle cx="141" cy="2459" r="12" fill="#34d399"/>
+<text x="141" y="2463.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">7</text>
+<text x="160" y="2464" font-size="13" font-weight="700" fill="#111827">Resolved on call (ROT)</text>
+<text x="160" y="2482" font-size="11" fill="#6b7280">&quot;Is there anything else I can assist you with?&quot;</text>
+<text x="160" y="2502" font-size="9" font-weight="700" fill="#34d399" letter-spacing="0.5">CALL CLOSING</text>
+<circle cx="164" cy="2512" r="2" fill="#34d399"/>
+<text x="172" y="2516" font-size="11" fill="#1f2937">Yes → handle the next concern (back to case type)</text>
+<circle cx="164" cy="2531" r="2" fill="#34d399"/>
+<text x="172" y="2535" font-size="11" fill="#1f2937">No → &quot;Thank you for your time and for contacting Lots Wholesale Solution. Have a great</text>
+<text x="172" y="2549" font-size="11" fill="#1f2937">day ahead!&quot;</text>
+<g filter="url(#sh)"><rect x="654" y="2502" width="520" height="84" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="654" y="2502" width="5" height="84" rx="2.5" fill="#fbbf24"/>
+<circle cx="685" cy="2522" r="12" fill="#fbbf24"/>
+<text x="685" y="2526.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">8</text>
+<text x="704" y="2527" font-size="13" font-weight="700" fill="#111827">Waiting</text>
+<text x="704" y="2545" font-size="11" fill="#6b7280">Email customer for missing info · stays Waiting until they reply</text>
+<text x="704" y="2565" font-size="11" font-style="italic" fill="#6b7280">Status transition — no SOP detail recorded.</text>
+<g filter="url(#sh)"><rect x="1198" y="2532" width="520" height="264" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="1198" y="2532" width="5" height="264" rx="2.5" fill="#f87171"/>
+<circle cx="1229" cy="2552" r="12" fill="#f87171"/>
+<text x="1229" y="2556.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">9</text>
+<text x="1248" y="2557" font-size="13" font-weight="700" fill="#111827">Escalate to store + daily follow-up</text>
+<text x="1248" y="2575" font-size="11" fill="#6b7280">As per escalation matrix · daily call to store · CRM updated after each call</text>
+<rect x="1248" y="2583" width="71.87" height="16" rx="8" fill="#3b82f6"/>
+<text x="1283.935" y="2594.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">TAT L1: 1 day</text>
+<text x="1248" y="2610" font-size="9" font-weight="700" fill="#f87171" letter-spacing="0.5">FOLLOW-UP CALL SCRIPT</text>
+<circle cx="1252" cy="2620" r="2" fill="#f87171"/>
+<text x="1260" y="2624" font-size="11" fill="#1f2937">&quot;Good afternoon XYZ ji, Main [Your Name] bol rahi hoon, Lots Wholesale Solutions ke</text>
+<text x="1260" y="2638" font-size="11" fill="#1f2937">customer support se. Pending cases ke regarding follow-up karna tha. Current status</text>
+<text x="1260" y="2652" font-size="11" fill="#1f2937">aur resolution timeline batane ki kripa karein.&quot;</text>
+<circle cx="1252" cy="2667" r="2" fill="#f87171"/>
+<text x="1260" y="2671" font-size="11" fill="#1f2937">Closing: &quot;Jankari dene ke liye shukriya. Dhanyavaad!&quot;</text>
+<text x="1248" y="2688" font-size="9" font-weight="700" fill="#f87171" letter-spacing="0.5">TEMPLATES</text>
+<circle cx="1252" cy="2698" r="2" fill="#f87171"/>
+<text x="1260" y="2702" font-size="11" fill="#1f2937">CRM note: &quot;Had a discussion with the store contact person, [Name]. As per the update,</text>
+<text x="1260" y="2716" font-size="11" fill="#1f2937">the case is still pending due to [reason]. A follow-up email has been sent to the store.&quot;</text>
+<circle cx="1252" cy="2731" r="2" fill="#f87171"/>
+<text x="1260" y="2735" font-size="11" fill="#1f2937">Follow-up email: &quot;Dear Sir, As per our discussion over the call regarding the pending</text>
+<text x="1260" y="2749" font-size="11" fill="#1f2937">case, we kindly request you to share an update on the same at the earliest.&quot;</text>
+<g filter="url(#sh)"><rect x="110" y="2605" width="520" height="84" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="110" y="2605" width="5" height="84" rx="2.5" fill="#34d399"/>
+<circle cx="141" cy="2625" r="12" fill="#34d399"/>
+<text x="141" y="2629.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">10</text>
+<text x="160" y="2630" font-size="13" font-weight="700" fill="#111827">Resolution → confirm with customer</text>
+<text x="160" y="2648" font-size="11" fill="#6b7280">Store replies by email · agent calls customer to confirm</text>
+<text x="160" y="2668" font-size="11" font-style="italic" fill="#6b7280">Status transition — no SOP detail recorded.</text>
+<g filter="url(#sh)"><rect x="654" y="2608" width="520" height="104" rx="10" fill="#ffffff" stroke="#e5e7eb" stroke-width="1.5"/></g>
+<rect x="654" y="2608" width="5" height="104" rx="2.5" fill="#34d399"/>
+<circle cx="685" cy="2628" r="12" fill="#34d399"/>
+<text x="685" y="2632.5" font-size="12" font-weight="700" fill="#fff" text-anchor="middle">11</text>
+<text x="704" y="2633" font-size="13" font-weight="700" fill="#111827">Case Closed</text>
+<text x="704" y="2651" font-size="11" fill="#6b7280">Customer confirms → case closed from our end</text>
+<rect x="704" y="2659" width="31.82" height="16" rx="8" fill="#16a34a"/>
+<text x="719.91" y="2670.5" font-size="9" font-weight="700" fill="#fff" text-anchor="middle" letter-spacing="0.4">END</text>
+<text x="704" y="2686" font-size="11" font-style="italic" fill="#6b7280">Status transition — no SOP detail recorded.</text>
+<text x="110" y="2842" font-size="11" fill="#6b7280">Source: "Lots Process Documents 2026", mirrored in src/pages/LotsFlow.jsx · contactus@cpwi.in · 1860-123-5687 · everyday 9 AM–9 PM</text>
+</svg>

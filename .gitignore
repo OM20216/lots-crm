@@ -1,0 +1,17 @@
+# dependencies and build output
+node_modules
+dist
+
+# live data: cases, members, calls, backups, attachments (never commit customer data)
+server/data/
+
+# credentials (the real ones live outside the project in ~/.lots-crm/secrets.env)
+.env
+secrets.env
+*.pem
+ms-signin.json
+
+# logs and temp files
+*.log
+*.tmp
+server/_*.mjs
