@@ -50,70 +50,121 @@ export function Dialer() {
   );
 }
 
-// Live call strip: who is on the line (member lookup) and one click to the right screen.
-export function CallBar() {
+// Caller panel (like PSRI): pops up beside the dialer for every call, incoming and outgoing,
+// with the contact's details, open cases and recent cases.
+export function CallerPanel() {
   const { callState, dismissCall } = useSparkTG();
   const nav = useNavigate();
   const [who, setWho] = useState(null);
+  const [searching, setSearching] = useState(false);
+  const [linked, setLinked] = useState({}); // caseId → 'linking' | 'linked' | error text
 
   const phone = callState?.phone;
   useEffect(() => {
     setWho(null);
-    if (!phone || phone.length < 10) return;
+    setLinked({});
+    if (!phone || phone.replace(/\D/g, '').length < 10) return;
+    setSearching(true);
     api
       .get('/lookup?q=' + encodeURIComponent(phone))
       .then(setWho)
-      .catch(() => {});
+      .catch(() => setWho({ members: [], cases: [], match: null }))
+      .finally(() => setSearching(false));
   }, [phone]);
 
   if (!callState) return null;
   const m = who?.match?.member;
+  const via = who?.match;
   const ctx = callState.context || {};
-  const caseHref = `/new?phone=${callState.phone}${callState.callId ? '&txn=' + encodeURIComponent(callState.callId) : ''}${ctx.missedCallId ? '&missedId=' + ctx.missedCallId : ''}${ctx.leadId ? '&leadId=' + ctx.leadId : ''}${callState.direction === 'outbound' ? '&channel=' + (ctx.missedCallId ? 'Missed call callback' : 'Outbound call') : ''}`;
+  const inbound = callState.direction === 'inbound';
+  const initials = (m?.businessName || m?.ownerName || '?').trim().split(/\s+/).slice(0, 2).map((x) => x[0]?.toUpperCase()).join('');
+  const newCaseHref = `/new?phone=${callState.phone}${callState.callId ? '&txn=' + encodeURIComponent(callState.callId) : ''}${ctx.missedCallId ? '&missedId=' + ctx.missedCallId : ''}${ctx.leadId ? '&leadId=' + ctx.leadId : ''}${!inbound ? '&channel=' + encodeURIComponent(ctx.missedCallId ? 'Missed call callback' : 'Outbound call') : ''}`;
+
+  async function linkTo(caseId) {
+    if (!callState.callId) return;
+    setLinked((l) => ({ ...l, [caseId]: 'linking' }));
+    try {
+      await api.post(`/cases/${caseId}/calls`, { txnId: callState.callId });
+      setLinked((l) => ({ ...l, [caseId]: 'linked' }));
+    } catch (e) {
+      setLinked((l) => ({ ...l, [caseId]: e.message }));
+    }
+  }
 
   return (
-    <div className={`callbar ${callState.ended ? 'ended' : ''}`}>
-      <span className="callbar-icon">{callState.ended ? '☎' : callState.direction === 'inbound' ? '📲' : '📤'}</span>
-      <div className="callbar-who">
-        <strong>
-          {callState.ended ? 'Call ended' : callState.direction === 'inbound' ? 'Incoming call' : 'Calling'} · {callState.phone || 'unknown number'}
-        </strong>
-        <span className="small">
-          {m ? (
-            <>
-              {m.businessName} · {m.ownerName} · card {m.cardNo || '—'}
-              {m.status === 'Blocked' && <span className="badge st-escalated">Blocked</span>}
-              {who.openCases > 0 && <> · {who.openCases} open case(s)</>}
-            </>
-          ) : who ? (
-            'Not a registered member'
-          ) : (
-            callState.name || 'Looking up…'
-          )}
-          {callState.callId && <span className="muted"> · call {callState.callId}</span>}
-        </span>
+    <div className={`caller-panel ${callState.ended ? 'ended' : ''}`}>
+      <div className="cp-head">
+        <span className={`cp-dir ${inbound ? 'in' : 'out'}`}>{inbound ? '↙ Incoming' : '↗ Outgoing'}</span>
+        {callState.ended && <span className="cp-ended">Call ended</span>}
+        <button className="cp-close" onClick={dismissCall} title="Close">
+          ✕
+        </button>
       </div>
-      <div className="row">
-        {ctx.caseId ? (
-          <Link className="btn sm" to={`/cases/${ctx.caseId}`}>
-            Open {ctx.caseId}
+      <div className="cp-phone">{callState.phone || 'Unknown number'}</div>
+      {ctx.missedCallId && <div className="cp-ctx">Call-back of missed call {ctx.missedCallId}</div>}
+      {ctx.leadId && <div className="cp-ctx">Outbound lead {ctx.leadId}</div>}
+      {ctx.caseId && (
+        <div className="cp-ctx">
+          For case <Link to={`/cases/${ctx.caseId}`}>{ctx.caseId}</Link>
+        </div>
+      )}
+
+      {searching && <div className="cp-hint">Looking up the caller…</div>}
+
+      {!searching && m && (
+        <div className={`cp-contact ${m.status === 'Blocked' ? 'blocked' : ''}`}>
+          <div className="cp-contact-row">
+            <div className="cp-avatar">{initials}</div>
+            <div>
+              <div className="cp-name">{m.businessName}</div>
+              <div className="cp-sub">
+                {via?.via === 'add-on' ? `${via.addOn.name || 'Add-on holder'} (add-on card)` : m.ownerName}
+              </div>
+            </div>
+          </div>
+          {m.status === 'Blocked' && <div className="cp-blocked">Card blocked</div>}
+          <div className="cp-facts">
+            <span>Card {m.cardNo || '—'}</span>
+            <span>{m.customerType || m.customerGroup || 'Member'}</span>
+            <span>Home store {m.homeStore || '—'}</span>
+            <span className={who.openCases ? 'open' : ''}>{who.openCases || 0} open case(s)</span>
+          </div>
+        </div>
+      )}
+      {!searching && who && !m && <div className="cp-hint">Not a registered member{callState.name && callState.name !== 'Unknown' ? ` (SparkTG: ${callState.name})` : ''}.</div>}
+
+      <div className="cp-actions">
+        <button className="btn primary" onClick={() => nav(newCaseHref)}>
+          + New Case
+        </button>
+        {m && (
+          <Link className="btn" to={`/cases?q=${encodeURIComponent(m.phone)}`}>
+            All cases
           </Link>
-        ) : (
-          <button className="btn sm primary" onClick={() => nav(caseHref)}>
-            Case form
-          </button>
-        )}
-        {who?.cases?.[0] && (
-          <Link className="btn sm" to={`/cases/${who.cases[0].id}`}>
-            Last case {who.cases[0].id}
-          </Link>
-        )}
-        {callState.ended && (
-          <button className="btn sm" onClick={dismissCall}>
-            Dismiss
-          </button>
         )}
       </div>
+
+      {who?.cases?.length > 0 && (
+        <div className="cp-cases">
+          <div className="cp-cases-title">Recent cases</div>
+          {who.cases.slice(0, 5).map((c) => (
+            <div className="cp-case" key={c.id}>
+              <div className="cp-case-top">
+                <Link to={`/cases/${c.id}`}>{c.id}</Link>
+                <span className={`badge st-${(c.status || '').toLowerCase()}`}>{c.status}</span>
+                <span className="cp-date">{new Date(c.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
+              </div>
+              <div className="cp-case-cat">{[c.category, c.subCategory].filter(Boolean).join(' › ') || c.caseType || '—'}</div>
+              {callState.callId && c.status !== 'Closed' && (
+                <button className="link" disabled={linked[c.id] === 'linking' || linked[c.id] === 'linked'} onClick={() => linkTo(c.id)}>
+                  {linked[c.id] === 'linked' ? '✓ Call linked to this case' : linked[c.id] === 'linking' ? 'Linking…' : 'Link this call to this case'}
+                </button>
+              )}
+              {linked[c.id] && !['linked', 'linking'].includes(linked[c.id]) && <div className="cp-err">{linked[c.id]}</div>}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -365,11 +365,17 @@ function onMissed({ m }) {
 }
 
 // ---------- mailbox polling ----------
+// SOP: "Email needs to be checked in every 5 min". The scheduler ticks every minute
+// for the other jobs, so the mailbox is throttled here; "Run now" passes force.
+const MAIL_POLL_MS = 5 * 60 * 1000;
 let polling = false;
+let lastMailPollAt = 0;
 export const mailState = { lastPoll: null, lastError: null, imported: 0 };
 
-export async function pollMailbox() {
+export async function pollMailbox(force = false) {
   if (!mail.configured() || polling) return mailState;
+  if (!force && Date.now() - lastMailPollAt < MAIL_POLL_MS) return mailState;
+  lastMailPollAt = Date.now();
   polling = true;
   try {
     const own = mail.mailbox().toLowerCase();
@@ -518,12 +524,12 @@ async function dailyReport(s) {
 }
 
 let ticking = false;
-export async function tick() {
+export async function tick(opts = {}) {
   if (ticking) return;
   ticking = true;
   const s = settings();
   try {
-    await pollMailbox();
+    await pollMailbox(!!opts.forceMail);
     await overdueEscalations(s);
     await waitingCases(s);
     await storeDigest(s);

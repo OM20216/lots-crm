@@ -80,7 +80,7 @@ const NODES = [
       'Follow up with store SPOC and customer on enquiries / complaints',
     ],
     to: '/emails', auto: true,
-    how: 'Mailbox checked every minute once Microsoft 365 is connected (on hold). Until then emails are logged on the Email inbox screen and follow the same steps.',
+    how: 'Mailbox checked every 5 minutes, as the SOP says, once Microsoft 365 is connected (on hold). Until then emails are logged on the Email inbox screen and follow the same steps.',
   }),
   n('ob', 1560, 0, {
     icon: '📤', label: 'Outbound Call', tone: 'violet', tat: '80–100 calls/day',

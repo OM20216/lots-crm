@@ -57,16 +57,51 @@ export function findMemberByPhone(phone) {
   const key = phoneKey(phone);
   if (key.length !== 10) return null;
   for (const m of db().members) {
-    if (phoneKey(m.phone) === key || phoneKey(m.altPhone) === key) return { member: m, via: 'owner' };
+    if (phoneKey(m.phone) === key || phoneKey(m.altPhone) === key || (m.otherPhones || []).some((p) => phoneKey(p) === key)) return { member: m, via: 'owner' };
     const addOn = (m.addOnCards || []).find((a) => phoneKey(a.phone) === key);
     if (addOn) return { member: m, via: 'add-on', addOn };
   }
   return null;
 }
 
+// Every mobile on a contact (registered, alternate, extra, add-on members') must belong to that contact only,
+// so a call or email from it always identifies exactly one customer.
+export function contactPhones(m) {
+  const list = [
+    ['Registered mobile', m.phone],
+    ['Alternate mobile', m.altPhone],
+    ...(m.otherPhones || []).map((p) => ['Phone', p]),
+    ...(m.addOnCards || []).map((a) => [`Add-on member ${a.name || ''}`.trim(), a.phone]),
+  ];
+  return list.map(([label, p]) => ({ label, key: phoneKey(p) })).filter((x) => x.key.length === 10);
+}
+
+/** First number of `record` already used — by another contact, or twice on this one. null = all unique. */
+export function phoneConflict(record, excludeId) {
+  const mine = contactPhones(record);
+  const seen = new Map();
+  for (const x of mine) {
+    if (seen.has(x.key)) return { phone: x.key, label: x.label, message: `${x.key} is entered twice on this contact (${seen.get(x.key)} and ${x.label}).` };
+    seen.set(x.key, x.label);
+  }
+  for (const m of db().members) {
+    if (m.id === excludeId) continue;
+    const hit = contactPhones(m).find((o) => seen.has(o.key));
+    if (hit) {
+      return {
+        phone: hit.key,
+        label: seen.get(hit.key),
+        memberId: m.id,
+        message: `${hit.key} is already registered to ${m.businessName || m.ownerName} (${m.id})${hit.label === 'Registered mobile' ? '' : ' as ' + hit.label.charAt(0).toLowerCase() + hit.label.slice(1)}. One number can belong to one contact only.`,
+      };
+    }
+  }
+  return null;
+}
+
 export function findMemberByEmail(email) {
   const e = String(email || '').toLowerCase();
-  return (e && db().members.find((m) => m.email && m.email.toLowerCase() === e)) || null;
+  return (e && db().members.find((m) => (m.email && m.email.toLowerCase() === e) || (m.otherEmails || []).some((x) => String(x).toLowerCase() === e))) || null;
 }
 
 export function log(c, entry) {

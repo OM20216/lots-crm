@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
-import { NavLink, Route, Routes } from 'react-router-dom';
+import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { api, currentAgent } from './api.js';
 import { MetaContext } from './ui.jsx';
 import Dashboard from './pages/Dashboard.jsx';
@@ -10,15 +10,17 @@ import Cases from './pages/Cases.jsx';
 import CaseDetail from './pages/CaseDetail.jsx';
 import Followups from './pages/Followups.jsx';
 import Leads from './pages/Leads.jsx';
-import Members from './pages/Members.jsx';
+import Contacts from './pages/Contacts.jsx';
+import ContactForm from './pages/ContactForm.jsx';
 import Knowledge from './pages/Knowledge.jsx';
 import Settings from './pages/Settings.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
 const LotsFlow = lazy(() => import('./pages/LotsFlow.jsx'));
 import { SparkTGProvider } from './sparktg.jsx';
-import { CallBar, Dialer } from './components/Dialer.jsx';
+import { CallerPanel, Dialer } from './components/Dialer.jsx';
 import Icon from './components/Icon.jsx';
+import MissedBar from './components/MissedBar.jsx';
 import { useSparkTG } from './sparktg.jsx';
 
 function NavItem({ to, end, icon, label, count, accent, plain }) {
@@ -37,6 +39,7 @@ function TopBar({ agent, onSwitch }) {
   return (
     <header className="topbar">
       <div className="topbar-title">LOTS Wholesale Solutions · Customer Care</div>
+      <MissedBar />
       <div className="topbar-right">
         <span className="topbar-status" title={dialer[1]}>
           <span className={`dot ${dialer[0]}`} /> {dialer[1]}
@@ -168,7 +171,6 @@ export default function App() {
 
             <div className="nav-group">Channels</div>
             <NavItem to="/calls" icon="incoming" label="Calls" />
-            <NavItem to="/missed" icon="missed" label="Missed calls" count={stats?.missedOpen} />
             <NavItem to="/emails" icon="mail" label="Email inbox" count={stats?.pendingEmails} />
             <NavItem to="/leads" icon="outgoing" label="Outbound leads" count={stats?.leadsDue} />
 
@@ -176,7 +178,7 @@ export default function App() {
             <NavItem to="/followups" icon="store" label="Store follow-ups" count={stats?.byStatus?.Escalated} />
 
             <div className="nav-group">Reference</div>
-            <NavItem to="/members" icon="members" label="Members" />
+            <NavItem to="/contacts" icon="members" label="Contacts" />
             <NavItem to="/kb" icon="book" label="SOP knowledge base" />
 
             <div className="nav-group">Admin</div>
@@ -191,7 +193,6 @@ export default function App() {
         <div className="shell">
         <TopBar agent={agent} onSwitch={signOut} />
         <main className="main">
-          <CallBar />
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/new" element={<NewCase />} />
@@ -201,7 +202,10 @@ export default function App() {
             <Route path="/cases/:id" element={<CaseDetail />} />
             <Route path="/followups" element={<Followups />} />
             <Route path="/leads" element={<Leads />} />
-            <Route path="/members" element={<Members />} />
+            <Route path="/contacts" element={<Contacts />} />
+            <Route path="/contacts/new" element={<><Contacts /><ContactForm /></>} />
+            <Route path="/contacts/:id" element={<><Contacts /><ContactForm /></>} />
+            <Route path="/members" element={<Navigate to="/contacts" replace />} />
             <Route path="/kb" element={<Knowledge />} />
             <Route path="/automation" element={<Automation />} />
             <Route path="/calls" element={<Calls />} />
@@ -219,6 +223,7 @@ export default function App() {
         </div>
       </div>
       <Dialer />
+      <CallerPanel />
       </SparkTGProvider>
     </MetaContext.Provider>
   );

@@ -2,7 +2,6 @@
 // Widget → CRM: ready_for_events, login_sso_complete, show_dialer (call ringing/started), hide_dialer (call ended).
 // CRM → widget: login_sso_email, click_to_call.
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from './api.js';
 
 const Ctx = createContext(null);
@@ -20,10 +19,6 @@ export function SparkTGProvider({ widgetUrl, agentEmail, onCallLogged, children 
   const iframeRef = useRef(null);
   const pendingOutbound = useRef(null); // context of the call we asked the widget to dial
   const hasAutoSso = useRef(false);
-  const nav = useNavigate();
-  const loc = useLocation();
-  const pathRef = useRef(loc.pathname);
-  pathRef.current = loc.pathname;
 
   const [ready, setReady] = useState(false);
   const [ssoStatus, setSsoStatus] = useState('pending');
@@ -91,8 +86,7 @@ export function SparkTGProvider({ widgetUrl, agentEmail, onCallLogged, children 
           setWidgetVisible(true);
           if (callId) {
             api.post('/calls/event', { callId, status: 'started', direction, phone: phone || undefined, name: data?.caller?.name, calledTo: data?.calledTo || data?.did, agentEmail, context: context || {}, widget: data }).catch(() => {});
-            // Incoming call: open a pre-filled case form straight away (unless the agent is mid-way through one).
-            if (direction === 'inbound' && phone && pathRef.current !== '/new') nav(`/new?phone=${phone}&txn=${encodeURIComponent(callId)}`);
+            // The caller panel (Dialer.jsx) pops up with the contact and cases; the agent chooses New Case or an existing case.
           }
           break;
         }
@@ -113,7 +107,7 @@ export function SparkTGProvider({ widgetUrl, agentEmail, onCallLogged, children 
     }
     window.addEventListener('message', onMessage);
     return () => window.removeEventListener('message', onMessage);
-  }, [widgetUrl, origin, agentEmail, sendToWidget, nav, onCallLogged]);
+  }, [widgetUrl, origin, agentEmail, sendToWidget, onCallLogged]);
 
   return (
     <Ctx.Provider value={{ hasWidget: Boolean(widgetUrl), widgetUrl, iframeRef, ready, ssoStatus, callState, dismissCall, widgetVisible, setWidgetVisible, dial, sendToWidget, rawEvents, clearRawEvents: () => setRawEvents([]) }}>
