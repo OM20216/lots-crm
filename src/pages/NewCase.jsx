@@ -280,7 +280,7 @@ export default function NewCase() {
             {notFound && (
               <div className="identify-result">
                 Not a registered member. Choose <strong>Not registered</strong> (only new membership / supplier registration requests) or <strong>B2C customer</strong> (AKD &amp; NSP, food items of Indian origin), or{' '}
-                <Link to="/members">add the member</Link>.
+                <Link to={`/contacts/new?phone=${encodeURIComponent(form.phone)}`}>create the contact</Link>.
               </div>
             )}
           </section>

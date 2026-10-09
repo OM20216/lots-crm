@@ -1,4 +1,4 @@
-// Quick answers and reply templates, taken from "Lots Process Documents 2026".
+﻿// Quick answers and reply templates, taken from "Lots Process Documents 2026".
 // Items marked conflict: true are where the SOP contradicts itself — confirm with the process owner.
 
 export const CONTACT = {
@@ -107,6 +107,30 @@ export const KB = [
     title: 'Supplier / vendor registration',
     tags: 'supplier vendor manufacturer register',
     points: ['Email company profile / portfolio + product catalogue to contactus@cpwi.in.', 'Our representatives get in touch within 7 days.'],
+  },
+  {
+    title: 'Carrying goods / vehicle help',
+    tags: 'carry goods vehicle trolley',
+    points: [
+      'Our staff will assist you with your vehicle or organise delivery.',
+      'Please contact the Customer Support Helpdesk at the store for help carrying goods to your vehicle or stores.',
+    ],
+  },
+  {
+    title: 'Cash on Delivery (COD)',
+    tags: 'cod cash on delivery',
+    points: [
+      'We provide Cash on Delivery (COD). Purchases made through our ecommerce platform can be paid via the payment facilities provided therein.',
+      'Credit/debit cards are available as per the payment options shown at checkout for COD-enabled orders.',
+    ],
+  },
+  {
+    title: 'Non-member shopping',
+    tags: 'non member cannot shop',
+    points: [
+      'A non-member cannot shop at the store as we are open only for registered business/institutional customers.',
+      'Non-members may register for membership with valid business licence and documents.',
+    ],
   },
   {
     title: 'Other requests',

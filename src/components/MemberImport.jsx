@@ -128,7 +128,19 @@ export default function MemberImport({ onDone }) {
       )}
       {result && (
         <div className="notice ok">
-          Imported: {result.added} added, {result.updated} updated. {result.total} members in the CRM.
+          Imported: {result.added} added, {result.updated} updated. {result.total} contacts in the CRM.
+          {result.skipped > 0 && (
+            <div className="error">
+              {result.skipped} row(s) skipped because their number already belongs to another contact:
+              <ul className="tight">
+                {result.skippedRows.map((r, i) => (
+                  <li key={i}>
+                    {r.row}: {r.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
     </section>

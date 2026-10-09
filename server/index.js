@@ -307,7 +307,7 @@ api.get('/lookup', (req, res) => {
 api.get('/members', (req, res) => {
   const s = String(req.query.q || '').toLowerCase();
   let list = db().members;
-  if (s) list = list.filter((m) => [m.phone, m.cardNo, m.email, m.businessName, m.ownerName, m.gstin].some((v) => v && v.toLowerCase().includes(s)));
+  if (s) list = list.filter((m) => [m.phone, m.altPhone, ...(m.otherPhones || []), m.cardNo, m.email, m.businessName, m.ownerName, m.gstin, m.contact?.contactType].some((v) => v && String(v).toLowerCase().includes(s)));
   res.json([...list].reverse().slice(0, 500));
 });
 
@@ -315,9 +315,15 @@ const MAX_ADDON_CARDS = 4; // process owner decision, 30 Sep 2026
 const checkAddOns = (body) => {
   if (Array.isArray(body.addOnCards) && body.addOnCards.length > MAX_ADDON_CARDS) throw core.fail(`A member can have at most ${MAX_ADDON_CARDS} add-on cards`);
 };
+// registered numbers are unique across contacts (409 = conflict, with the number and the contact it belongs to)
+const checkUniquePhones = (record, excludeId) => {
+  const c = core.phoneConflict(record, excludeId);
+  if (c) throw Object.assign(core.fail(c.message, 409), { data: { field: 'phone', phone: c.phone, memberId: c.memberId || null } });
+};
 
 api.post('/members', (req, res) => {
   checkAddOns(req.body);
+  checkUniquePhones(req.body);
   const m = { id: store.nextId('member', 'M-', 5), createdAt: now(), status: 'Active', addOnCards: [], ...req.body };
   db().members.push(m);
   save();
@@ -329,10 +335,16 @@ api.post('/members/import', (req, res) => {
   const rows = Array.isArray(req.body) ? req.body : [];
   let added = 0;
   let updated = 0;
+  const skipped = [];
   for (const r of rows) {
     if (!r.phone && !r.cardNo) continue;
     const existing = db().members.find((m) => (r.cardNo && m.cardNo && m.cardNo.toLowerCase() === String(r.cardNo).toLowerCase()) || (r.phone && phoneKey(m.phone) === phoneKey(r.phone)));
     const clean = Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined && v !== ''));
+    const conflict = core.phoneConflict(existing ? { ...existing, ...clean } : clean, existing?.id);
+    if (conflict) {
+      skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: conflict.message });
+      continue;
+    }
     if (existing) {
       Object.assign(existing, clean, { id: existing.id });
       updated++;
@@ -342,13 +354,20 @@ api.post('/members/import', (req, res) => {
     }
   }
   save();
-  res.json({ added, updated, total: db().members.length });
+  res.json({ added, updated, skipped: skipped.length, skippedRows: skipped.slice(0, 50), total: db().members.length });
+});
+
+api.get('/members/:id', (req, res) => {
+  const m = db().members.find((x) => x.id === req.params.id);
+  if (!m) return res.status(404).json({ error: 'Contact not found' });
+  res.json(m);
 });
 
 api.patch('/members/:id', (req, res) => {
   const m = db().members.find((x) => x.id === req.params.id);
   if (!m) return res.status(404).json({ error: 'Member not found' });
   checkAddOns(req.body);
+  checkUniquePhones({ ...m, ...req.body }, m.id);
   Object.assign(m, req.body, { id: m.id });
   save();
   res.json(m);
@@ -356,7 +375,15 @@ api.patch('/members/:id', (req, res) => {
 
 // ----- missed calls -----
 api.get('/missed-calls', (req, res) => {
-  res.json([...db().missedCalls].reverse());
+  let list = [...db().missedCalls].reverse();
+  if (req.query.open) list = list.filter((m) => m.status === 'Open');
+  // who called: registered member's business / name, for the top-bar list
+  res.json(
+    list.map((m) => {
+      const hit = core.findMemberByPhone(m.phone);
+      return { ...m, member: hit ? { id: hit.member.id, businessName: hit.member.businessName, name: hit.via === 'add-on' ? hit.addOn.name : hit.member.ownerName } : null };
+    })
+  );
 });
 
 api.post('/missed-calls', (req, res) => {
@@ -448,7 +475,7 @@ api.put('/automation', (req, res) => {
 api.post(
   '/automation/run',
   wrap(async (req, res) => {
-    await auto.tick();
+    await auto.tick({ forceMail: true });
     res.json({ ok: true, mail: auto.mailState });
   })
 );
@@ -573,7 +600,7 @@ app.use('/api', api);
 app.use('/api', (req, res) => res.status(404).json({ error: 'Not found' }));
 app.use((err, req, res, next) => {
   if (!err.status) console.error(err);
-  res.status(err.status || 500).json({ error: err.message || 'Server error' });
+  res.status(err.status || 500).json({ error: err.message || 'Server error', ...(err.data || {}) });
 });
 
 // ---------- front end ----------
