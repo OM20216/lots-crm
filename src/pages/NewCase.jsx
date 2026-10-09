@@ -5,6 +5,7 @@ import { CALLER_TYPES } from '../taxonomy.js';
 import { KB, SCRIPTS } from '../knowledge.js';
 import { Field, Select, StatusBadge, fmtDate, useMeta } from '../ui.jsx';
 import Classifier, { allowedCategories } from '../components/Classifier.jsx';
+import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
 import { useSparkTG } from '../sparktg.jsx';
 import { requirementsFor, sopWarnings } from '../requirements.js';
@@ -13,7 +14,7 @@ import { requirementsFor, sopWarnings } from '../requirements.js';
 const OUTCOMES = [
   { status: 'Closed', label: 'Resolved over telephone (ROT)', hint: 'Answered from the SOP / FAQ; the case closes now' },
   { status: 'Waiting', label: 'Info missing → Waiting', hint: 'Discrepancy or missing details; stays Waiting until the customer provides them' },
-  { status: 'Escalated', label: 'Escalate to store team', hint: 'As per the escalation matrix · L1 TAT 1 working day' },
+  { status: 'Escalated', label: 'Escalate', hint: 'To the store or team of this case type (see Workflow above) · as per the escalation matrix' },
 ];
 
 // SOP communication channels. "Missed call callback" = calling back a missed / abandoned call (TAT 30 min).
@@ -377,6 +378,9 @@ export default function NewCase() {
             <h2 className="section-h">Case details</h2>
             <div className="grid">
               <Classifier value={form} onChange={setForm} />
+              <div className="field wide">
+                <WorkflowHint c={form} />
+              </div>
               {form.subCategory === 'Return / exchange' && (
                 <Field label="Purchase date" hint="SOP: returns within 7 working days">
                   <input type="date" value={form.purchaseDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set({ purchaseDate: e.target.value })} />

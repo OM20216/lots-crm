@@ -13,6 +13,7 @@ import Leads from './pages/Leads.jsx';
 import Contacts from './pages/Contacts.jsx';
 import ContactForm from './pages/ContactForm.jsx';
 import Knowledge from './pages/Knowledge.jsx';
+import Workflows from './pages/Workflows.jsx';
 import Settings from './pages/Settings.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
@@ -174,12 +175,13 @@ export default function App() {
             <NavItem to="/emails" icon="mail" label="Email inbox" count={stats?.pendingEmails} />
             <NavItem to="/leads" icon="outgoing" label="Outbound leads" count={stats?.leadsDue} />
 
-            <div className="nav-group">Store escalation</div>
-            <NavItem to="/followups" icon="store" label="Store follow-ups" count={stats?.byStatus?.Escalated} />
+            <div className="nav-group">Escalation</div>
+            <NavItem to="/followups" icon="store" label="Follow-ups" count={stats?.byStatus?.Escalated} />
 
             <div className="nav-group">Reference</div>
             <NavItem to="/contacts" icon="members" label="Contacts" />
             <NavItem to="/kb" icon="book" label="SOP knowledge base" />
+            <NavItem to="/case-workflows" icon="workflow" label="Case workflows" />
 
             <div className="nav-group">Admin</div>
             <NavItem to="/automation" icon="zap" label="Automation" />
@@ -207,6 +209,7 @@ export default function App() {
             <Route path="/contacts/:id" element={<><Contacts /><ContactForm /></>} />
             <Route path="/members" element={<Navigate to="/contacts" replace />} />
             <Route path="/kb" element={<Knowledge />} />
+            <Route path="/case-workflows" element={<Workflows />} />
             <Route path="/automation" element={<Automation />} />
             <Route path="/calls" element={<Calls />} />
             <Route

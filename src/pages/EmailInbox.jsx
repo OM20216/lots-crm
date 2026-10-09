@@ -1,14 +1,20 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import { Empty, Field, StatusBadge, ago, useLoad, useMeta } from '../ui.jsx';
+import Mailbox from '../components/Mailbox.jsx';
 
 const blank = { fromEmail: '', fromName: '', subject: '', body: '' };
 
 export default function EmailInbox() {
   const nav = useNavigate();
   const { refreshStats, integrations } = useMeta();
-  const [manual, setManual] = useState(false);
+  const [view, setView] = useState(integrations?.mail ? 'mailbox' : 'cases');
+  const [testTo, setTestTo] = useState('');
+  useEffect(() => {
+    if (integrations?.mail) setView((v) => (v === 'cases' ? 'mailbox' : v));
+    api.get('/automation').then((a) => setTestTo(a.settings.mailTestTo || '')).catch(() => {});
+  }, [integrations?.mail]);
   const [tab, setTab] = useState('Pending');
   const [cases, reload] = useLoad(() => api.get('/cases?channel=Email&status=' + tab), [tab]);
   const [mail, setMail] = useState(blank);
@@ -33,10 +39,39 @@ export default function EmailInbox() {
   return (
     <>
       <div className="page-head">
-        <h1>Email inbox</h1>
-        <span className="muted">contactus@cpwi.in · check every 5 min · each mail becomes a Pending case</span>
+        <div>
+          <h1>Email inbox</h1>
+          <span className="muted">contactus@cpwi.in · {integrations?.mail ? 'connected: new mail becomes a Pending case automatically' : 'mailbox not connected'}</span>
+        </div>
+        <div className="tabs">
+          <button className={view === 'mailbox' ? 'on' : ''} onClick={() => setView('mailbox')}>
+            Mailbox
+          </button>
+          <button className={view === 'cases' ? 'on' : ''} onClick={() => setView('cases')}>
+            Email cases
+          </button>
+          <button className={view === 'manual' ? 'on' : ''} onClick={() => setView('manual')}>
+            Log by hand
+          </button>
+        </div>
       </div>
+      {testTo && <div className="notice">Test mode is on: every outgoing email goes to <strong>{testTo}</strong>, not to customers or stores (Automation → Mailbox).</div>}
+
+      {view === 'mailbox' &&
+        (integrations?.mail ? (
+          <Mailbox testTo={testTo} />
+        ) : (
+          <div className="card">
+            <h2>Mailbox not connected</h2>
+            <p>
+              Connect contactus@cpwi.in once: <Link to="/automation">Automation → Mailbox → Sign in with Microsoft</Link>, with an account that can open the mailbox. Then the inbox appears here, every new mail becomes a case, and replies go out in the customer's thread.
+            </p>
+          </div>
+        ))}
+
+      {view !== 'mailbox' && (
       <div className="two-col">
+        {view === 'cases' && (
         <section className="card">
           <div className="tabs">
             {['Pending', 'Waiting', 'Escalated', 'Resolved'].map((t) => (
@@ -82,17 +117,9 @@ export default function EmailInbox() {
             </table>
           )}
         </section>
+        )}
 
-        <aside>
-          {integrations?.mail && (
-            <div className="notice ok">
-              Mailbox connected — new mail becomes a case automatically every minute, is categorised, assigned and acknowledged.{' '}
-              <button className="link" onClick={() => setManual(!manual)}>
-                {manual ? 'hide manual form' : 'log one by hand'}
-              </button>
-            </div>
-          )}
-          {(!integrations?.mail || manual) && (
+        {view === 'manual' && (
           <form className="card" onSubmit={logEmail}>
             <h2>Log an incoming email</h2>
             <p className="muted small">
@@ -123,7 +150,8 @@ export default function EmailInbox() {
               </div>
             )}
           </form>
-          )}
+        )}
+        <aside>
           <div className="card">
             <h3>Email SOP</h3>
             <ol className="tight">
@@ -136,6 +164,7 @@ export default function EmailInbox() {
           </div>
         </aside>
       </div>
+      )}
     </>
   );
 }
