@@ -5,6 +5,7 @@ import { Empty, Field, Select, fmtDate, useLoad, useMeta } from '../ui.jsx';
 import MailboxCard from '../components/MailboxCard.jsx';
 
 const SWITCHES = [
+  ['autoImport', 'Create cases from new emails', 'Every new mail to the mailbox becomes a Pending case automatically (SOP). Off: mail waits in Email inbox → Mailbox until an agent clicks “Log case”.'],
   ['autoCategorise', 'Categorise new emails', 'Reads subject + body and sets case type, category, sub-category and store (rules from the SOP).'],
   ['autoAssign', 'Assign cases & missed calls', 'To the agent on shift with the fewest open items.'],
   ['autoAck', 'Acknowledge every new email', 'Customer gets the case number straight away.'],
@@ -98,6 +99,7 @@ export default function Automation() {
       <section className="card">
         <h2>Timers &amp; recipients</h2>
         <div className="grid">
+          {text('mailTestTo', 'Test mode: send all emails to', 'Like VMM’s TEST_MODE. While filled in, every outgoing email goes only to this address (subject [TEST]). Empty = live', 'email')}
           {text('storeDigestTime', 'Daily store follow-up email at', 'Each store SPOC gets its pending list. Blank = off', 'time')}
           {text('l2Email', 'Level 2 escalation email', 'Copied on overdue reminders', 'email')}
           {num('waitingReminderHours', 'Remind customer after (hours in Waiting)', '0 = off')}

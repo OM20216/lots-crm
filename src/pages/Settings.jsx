@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import { fmtDate, useLoad, useMeta } from '../ui.jsx';
+import { TEAMS } from '../workflows.js';
 
 function SparkTgPanel() {
   const [status, reload] = useLoad(() => api.get('/sparktg/status'));
@@ -142,6 +143,32 @@ function StoreRow({ s, onSaved }) {
   );
 }
 
+function TeamRow({ k, t, onSaved }) {
+  const [v, setV] = useState({ contact: t.contact || '', phone: t.phone || '', email: t.email || '' });
+  const dirty = Object.keys(v).some((x) => v[x] !== (t[x] || ''));
+  return (
+    <tr>
+      <td>
+        <strong>{t.name}</strong>
+        <div className="muted small">{t.note}</div>
+      </td>
+      {['contact', 'phone', 'email'].map((x) => (
+        <td key={x}>
+          <input value={v[x]} onChange={(e) => setV({ ...v, [x]: e.target.value })} />
+        </td>
+      ))}
+      <td>
+        <button className="btn sm primary" disabled={!dirty} onClick={() => api.put('/teams/' + k, v).then(onSaved)}>
+          Save
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+// Teams used by the case workflows (src/workflows.js); store teams use the store SPOCs above.
+const NOT_TEAMS = ['careDesk', 'store', 'homeStore'];
+
 function DatabaseCard() {
   const { database: d } = useMeta();
   if (!d) return null;
@@ -163,7 +190,7 @@ function DatabaseCard() {
 }
 
 export default function Settings() {
-  const { stores, agents, agentEmails, reloadMeta } = useMeta();
+  const { stores, teams, agents, agentEmails, reloadMeta } = useMeta();
   return (
     <>
       <div className="page-head">
@@ -186,6 +213,30 @@ export default function Settings() {
             {stores.map((s) => (
               <StoreRow key={s.code} s={s} onSaved={reloadMeta} />
             ))}
+          </tbody>
+        </table>
+      </section>
+      <section className="card">
+        <h2>Teams (escalations other than stores)</h2>
+        <p className="muted small">
+          Each case type escalates to its own team (see <a href="/case-workflows">Case workflows</a>). Escalation, overdue and daily follow-up emails go to the email set here.
+        </p>
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Team</th>
+              <th>Contact name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.keys(TEAMS)
+              .filter((k) => !NOT_TEAMS.includes(k))
+              .map((k) => (
+                <TeamRow key={k + JSON.stringify(teams?.[k] || {})} k={k} t={{ ...TEAMS[k], ...(teams?.[k] || {}) }} onSaved={reloadMeta} />
+              ))}
           </tbody>
         </table>
       </section>

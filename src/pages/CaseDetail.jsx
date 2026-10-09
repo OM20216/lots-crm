@@ -10,6 +10,7 @@ import { CallButton } from '../components/Dialer.jsx';
 import { requirementsFor, sopWarnings } from '../requirements.js';
 import { SopWarnings } from './NewCase.jsx';
 import { SCRIPTS } from '../knowledge.js';
+import WorkflowCard, { useEscalationTarget } from '../components/WorkflowCard.jsx';
 
 const ENTRY_LABEL = {
   created: 'Created',
@@ -19,7 +20,8 @@ const ENTRY_LABEL = {
   edit: 'Edited',
   'email-in': 'Email received',
   'email-out': 'Email sent',
-  'store-followup': 'Store follow-up',
+  'store-followup': 'Follow-up',
+  workflow: 'Workflow step',
 };
 
 export default function CaseDetail() {
@@ -36,6 +38,8 @@ export default function CaseDetail() {
   const [tplId, setTplId] = useState('');
   const [err, setErr] = useState('');
   const [flash, setFlash] = useState(loc.state?.created ? `Case saved.${loc.state.warning ? ' ' + loc.state.warning : ''}` : '');
+
+  const target = useEscalationTarget(c);
 
   useEffect(() => {
     if (c) setEdit(pickEditable(c));
@@ -82,7 +86,7 @@ export default function CaseDetail() {
     const toStore = tpl.id === 'escalate' || tpl.id === 'store-followup';
     try {
       const updated = await api.post(`/cases/${id}/email`, {
-        to: toStore ? store?.spocEmail : c.email,
+        to: toStore ? target?.email : c.email,
         subject: fillTemplate(tpl.subject, c, stores),
         body: fillTemplate(tpl.body, c, stores),
       });
@@ -100,7 +104,7 @@ export default function CaseDetail() {
   }
 
   const mailTo = tpl
-    ? `mailto:${tpl.id === 'escalate' || tpl.id === 'store-followup' ? store?.spocEmail || '' : c.email}?subject=${encodeURIComponent(fillTemplate(tpl.subject, c, stores))}&body=${encodeURIComponent(fillTemplate(tpl.body, c, stores))}`
+    ? `mailto:${tpl.id === 'escalate' || tpl.id === 'store-followup' ? target?.email || '' : c.email}?subject=${encodeURIComponent(fillTemplate(tpl.subject, c, stores))}&body=${encodeURIComponent(fillTemplate(tpl.body, c, stores))}`
     : '';
 
   return (
@@ -163,18 +167,18 @@ export default function CaseDetail() {
             <div className="row wrap">
               {(ACTIONS[c.status] || []).map((a) => (
                 <button key={a.to} className={`btn ${a.kind || ''} ${action?.to === a.to ? 'active' : ''}`} onClick={() => setAction(a)}>
-                  {a.label}
+                  {a.to === 'Escalated' && target ? a.label.replace('store', target.kind === 'team' ? target.name : 'store') : a.label}
                 </button>
               ))}
             </div>
             {action && (
               <div className="action-box">
-                <Field label={action.to === 'Escalated' ? 'What the store needs to do' : action.to === 'Waiting' ? 'Information requested from customer' : 'Note'} wide>
+                <Field label={action.to === 'Escalated' ? `What ${target?.kind === 'team' ? target.name : 'the store'} needs to do` : action.to === 'Waiting' ? 'Information requested from customer' : 'Note'} wide>
                   <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
                 </Field>
                 {action.to === 'Escalated' && (
                   <div className="muted small">
-                    Store: {store ? `${store.code} ${store.name} · SPOC ${store.spocName || '(not set)'} ${store.spocEmail}` : 'select a store in the details below first'}. Then send the “Escalation to store” template.
+                    Goes to: {target?.kind === 'store' && !target.code ? 'select a store in the details below first' : `${target?.name}${target?.contact ? ' · ' + target.contact : ''} ${target?.email || '(no email set: Stores & settings)'}`}. The escalation email is sent automatically when Automation has it on; otherwise send the “Escalation” template.
                   </div>
                 )}
                 <div className="row end">
@@ -189,6 +193,8 @@ export default function CaseDetail() {
             )}
             {err && <div className="error">{err}</div>}
           </section>
+
+          <WorkflowCard c={c} onTick={(body) => patch(body)} />
 
           <section className="card">
             <div className="row between">
@@ -310,7 +316,7 @@ export default function CaseDetail() {
                     Open in mail app
                   </a>
                   {integrations?.mail ? (
-                    <button className="btn primary" onClick={sendTemplate} disabled={sending || !((tpl.id === 'escalate' || tpl.id === 'store-followup') ? store?.spocEmail : c.email)}>
+                    <button className="btn primary" onClick={sendTemplate} disabled={sending || !((tpl.id === 'escalate' || tpl.id === 'store-followup') ? target?.email : c.email)}>
                       {sending ? 'Sending…' : 'Send now'}
                     </button>
                   ) : (

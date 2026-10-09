@@ -2,6 +2,7 @@
 import * as store from './db.js';
 import * as sparktg from './sparktg.js';
 import { extractRefs } from '../src/requirements.js';
+import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
 
 export const db = () => store.get();
 export const save = () => store.save();
@@ -152,10 +153,26 @@ export function fail(message, status = 400) {
   return Object.assign(new Error(message), { status });
 }
 
+/** Teams with their saved contact details (Stores & settings → Teams). */
+export function teams() {
+  const saved = db().teams || {};
+  return Object.fromEntries(Object.entries(TEAMS).map(([k, t]) => [k, { ...t, ...(saved[k] || {}) }]));
+}
+
+/** Where this case escalates to under its workflow (store contact or team). */
+export function targetFor(c) {
+  return escalationTarget(c, db().stores, teams(), db().members);
+}
+
 // Throws when a case cannot move to `to`; never changes the case.
 export function validateStatus(c, to) {
   if (!TRANSITIONS[c.status]?.includes(to)) throw fail(`Cannot move a case from ${c.status} to ${to}`);
-  if (to === 'Escalated' && !c.store) throw fail('Select the store before escalating');
+  if (to === 'Escalated') {
+    const blocker = escalationBlocker(c);
+    if (blocker) throw fail(blocker);
+    const t = targetFor(c);
+    if (t.kind === 'store' && !t.code) throw fail('Select the store before escalating');
+  }
   if (to === 'Closed' && (!c.caseType || !c.category)) throw fail('Categorise the case (type + category) before closing');
 }
 
@@ -164,10 +181,14 @@ export function applyStatus(c, to, by, note) {
   if (from === to) return;
   validateStatus(c, to);
   if (to === 'Escalated') {
+    const wf = workflowFor(c);
+    const t = targetFor(c);
     c.escalatedAt = now();
     c.escalationLevel = 1;
-    c.dueAt = addWorkingDays(c.escalatedAt, ESCALATION_L1_WORKING_DAYS);
+    c.dueAt = addWorkingDays(c.escalatedAt, wf?.tatDays || ESCALATION_L1_WORKING_DAYS); // TAT of the case type's workflow
     c.resolutionType = 'Store';
+    c.workflowKey = wf?.key || null;
+    c.escalatedTo = { kind: t.kind, code: t.code, name: t.name, email: t.email, contact: t.contact };
   }
   if (to === 'Closed') {
     if (from === 'Pending' || from === 'Waiting') c.resolutionType = 'ROT';
@@ -283,11 +304,30 @@ export function storeForSender(email) {
  * One incoming email → a new Pending case, or threaded onto an existing case when the subject carries its number.
  * Used by the manual "Log email" form and by the Microsoft 365 mailbox poller.
  */
-export function intakeEmail({ fromEmail = '', fromName = '', subject = '', body = '', receivedAt, attachments = [], messageId, hasAttachments }, by = 'System') {
-  const withFiles = Boolean(hasAttachments || attachments.length);
+/** The case a mailbox message already belongs to (imported before), if any. */
+export function caseForMessage(m) {
+  return db().cases.find((c) => (m.id && c.source?.graphIds?.includes(m.id)) || (m.messageId && (c.source?.messageId === m.messageId || c.source?.messageIds?.includes(m.messageId)))) || null;
+}
+
+/** Case a mail continues: case number in the subject, or the same email conversation (as in VMM). */
+export function threadTarget({ subject = '', conversationId }) {
   const ref = subject.match(/LWS-\d{6}/i);
-  const existing = ref && findCase(ref[0].toUpperCase());
+  return (ref && findCase(ref[0].toUpperCase())) || (conversationId && db().cases.find((c) => c.source?.conversationIds?.includes(conversationId))) || null;
+}
+
+export function intakeEmail({ fromEmail = '', fromName = '', subject = '', body = '', receivedAt, attachments = [], messageId, hasAttachments, graphId, conversationId }, by = 'System') {
+  const withFiles = Boolean(hasAttachments || attachments.length);
+  const remember = (c) => {
+    c.source ||= {};
+    if (graphId) c.source.graphIds = [...new Set([...(c.source.graphIds || []), graphId])];
+    if (messageId) c.source.messageIds = [...new Set([...(c.source.messageIds || []), messageId])];
+    if (conversationId) c.source.conversationIds = [...new Set([...(c.source.conversationIds || []), conversationId])];
+    // replies to the customer go into their latest mail's thread
+    if (graphId && fromEmail && (!c.email || fromEmail.toLowerCase() === String(c.email).toLowerCase())) c.source.lastInboundGraphId = graphId;
+  };
+  const existing = threadTarget({ subject, conversationId });
   if (existing) {
+    remember(existing);
     log(existing, { by, type: 'email-in', text: body, from: fromEmail, subject });
     existing.attachments = [...(existing.attachments || []), ...attachments];
     const staff = storeForSender(fromEmail);
@@ -325,6 +365,7 @@ export function intakeEmail({ fromEmail = '', fromName = '', subject = '', body 
     'System'
   );
   c.attachments = attachments;
+  remember(c);
   log(c, { by, type: 'email-in', text: body, from: fromEmail, subject });
   db().cases.push(c);
   emit('case:created', { c, by });

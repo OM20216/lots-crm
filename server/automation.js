@@ -8,6 +8,7 @@ import * as mail from './mail.js';
 import * as store from './db.js';
 import { EMAIL_TEMPLATES, fillTemplate } from '../src/knowledge.js';
 import { extractRefs, missingInfo } from '../src/requirements.js';
+import { workflowFor } from '../src/workflows.js';
 
 const { db, save, now, log, on, applyStatus } = core;
 const ATTACH_DIR = path.join(store.DATA_DIR, 'attachments');
@@ -16,6 +17,8 @@ const BOT = 'Automation';
 export const SHIFTS = { '9-18': [9, 18], '10-19': [10, 19], '11-20': [11, 20], '12-21': [12, 21] };
 
 export const DEFAULTS = {
+  autoImport: true, // every new mail becomes a Pending case (SOP); off = agents log cases from the Email inbox
+  mailTestTo: '', // test mode (like VMM's TEST_MODE): every outgoing email goes to this address instead
   autoCategorise: true,
   autoAssign: true,
   autoAck: true,
@@ -72,28 +75,85 @@ export function activity(text, caseId) {
 // ---------- email out ----------
 const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim());
 
-/** Send (or, without a mail connection, record as not sent) and put it on the case timeline. */
-export async function sendEmail({ to, cc = '', subject, body, caseId, kind, by = BOT }) {
+// LOTS-branded HTML around a plain-text message (like the VMM CRM's HTML emails).
+export function brandedHtml(text, c) {
+  const esc = mail.escapeHtml;
+  const paras = String(text || '')
+    .trim()
+    .split(/\n{2,}/)
+    .map((p) => `<p style="margin:0 0 12px">${esc(p).replace(/\n/g, '<br/>')}</p>`)
+    .join('');
+  const rows = c
+    ? [
+        ['Case number', c.id],
+        ['Concern', [c.caseType, c.category, c.subCategory].filter(Boolean).join(' › ')],
+        ['Status', c.status === 'Resolved' ? 'Resolution shared' : c.status],
+      ].filter(([, v]) => v)
+    : [];
+  return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1d2230;max-width:640px;margin:0 auto">
+  <div style="background:#d7141a;padding:16px 24px;border-radius:8px 8px 0 0">
+    <div style="color:#fecaca;font-size:11px;letter-spacing:.08em;text-transform:uppercase">LOTS Wholesale Solutions</div>
+    <div style="color:#ffffff;font-size:17px;font-weight:bold">Customer Care</div>
+  </div>
+  <div style="background:#ffffff;border:1px solid #e5e7eb;border-top:none;padding:20px 24px">
+    ${paras}
+    ${rows.length ? `<table style="border-collapse:collapse;margin-top:8px;font-size:13px">${rows.map(([k, v]) => `<tr><td style="padding:3px 16px 3px 0;color:#6b7280">${esc(k)}</td><td style="padding:3px 0;font-weight:bold">${esc(v)}</td></tr>`).join('')}</table>` : ''}
+  </div>
+  <div style="padding:10px 24px;background:#f8fafc;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 8px 8px;font-size:11px;color:#6b7280">
+    LOTS Wholesale Solutions · Customer care 1860-123-5687 · contactus@cpwi.in · Everyday 9 AM – 9 PM
+  </div>
+</div>`;
+}
+
+/**
+ * Send (or, without a mail connection, record as not sent) and put it on the case timeline.
+ * To the customer of an email case → a reply inside their own thread. Test mode → everything to the test address.
+ */
+export async function sendEmail({ to, cc = '', subject, body, caseId, kind, by = BOT, replyToId }) {
   const d = db();
   d.outbox ||= [];
-  const entry = { id: store.nextId('mail', 'OUT-', 6), at: now(), to, cc, subject, body, caseId: caseId || null, kind, by, status: 'sending' };
+  const c = caseId && core.findCase(caseId);
+  const test = settings().mailTestTo;
+  const entry = { id: store.nextId('mail', 'OUT-', 6), at: now(), to, cc, subject, body, caseId: caseId || null, kind, by, status: 'sending', test: test || undefined };
   d.outbox.push(entry);
   if (d.outbox.length > 2000) d.outbox = d.outbox.slice(-2000);
-  const c = caseId && core.findCase(caseId);
+
+  // thread: the customer's latest mail on this case, unless a specific message is given
+  const threadId = replyToId || (c && c.source?.lastInboundGraphId && String(to).toLowerCase() === String(c.email || '').toLowerCase() ? c.source.lastInboundGraphId : null);
+  const finalTo = test || to;
+  const finalCc = test ? '' : cc;
+  const finalSubject = test ? `[TEST] ${subject}` : subject;
+  const note = test ? `[TEST MODE — would have gone to ${to}${cc ? ', cc ' + cc : ''}]\n\n` : '';
+  const html = brandedHtml(note + body, c);
+
   if (!mail.configured()) {
     entry.status = 'not sent';
     entry.error = 'Mailbox not connected';
   } else {
     try {
-      await mail.send({ to, cc, subject, body });
+      if (threadId) {
+        await mail.reply(threadId, { to: finalTo, cc: finalCc, subject: finalSubject, html });
+        entry.inThread = true;
+      } else await mail.send({ to: finalTo, cc: finalCc, subject: finalSubject, html });
       entry.status = 'sent';
     } catch (e) {
-      entry.status = 'failed';
-      entry.error = e.message;
+      // a deleted / moved original can't be replied to: fall back to a new email
+      if (threadId) {
+        try {
+          await mail.send({ to: finalTo, cc: finalCc, subject: finalSubject, html });
+          entry.status = 'sent';
+        } catch (e2) {
+          entry.status = 'failed';
+          entry.error = e2.message;
+        }
+      } else {
+        entry.status = 'failed';
+        entry.error = e.message;
+      }
     }
   }
   if (c) {
-    const tag = entry.status === 'sent' ? 'Email sent' : `Email ${entry.status}${entry.error ? ' (' + entry.error + ')' : ''}`;
+    const tag = entry.status === 'sent' ? `Email sent${entry.inThread ? ' (in the customer’s thread)' : ''}${test ? ' [TEST to ' + test + ']' : ''}` : `Email ${entry.status}${entry.error ? ' (' + entry.error + ')' : ''}`;
     log(c, { by, type: 'email-out', subject, text: `${tag} to ${to}${cc ? ' cc ' + cc : ''}\n\n${body}` });
   }
   save();
@@ -242,6 +302,21 @@ async function onCaseCreated({ c }) {
   }
 }
 
+/**
+ * Who an escalated case is with: the store's SPOC or a team (E-commerce, IT, BDA, …),
+ * per the case type's workflow. Contact details are read fresh, so a team email
+ * added later in Settings is used by follow-ups too.
+ */
+function recipient(c) {
+  const t = c.escalatedTo || { kind: 'store', code: c.store };
+  if (t.kind === 'team') {
+    const team = core.teams()[t.code] || {};
+    return { key: `team:${t.code}`, label: team.name || t.name || t.code, email: team.email || t.email || '', contact: team.contact || '' };
+  }
+  const st = db().stores.find((x) => x.code === (t.code || c.store));
+  return { key: `store:${st?.code || c.store}`, label: st ? `store ${st.short || st.code}` : `store ${c.store}`, email: st?.spocEmail || '', contact: st?.spocName || '' };
+}
+
 function assign(c) {
   const a = pickAgent();
   if (!a) return activity(`${c.id} left unassigned — no agent on shift`, c.id);
@@ -252,14 +327,17 @@ function assign(c) {
 
 async function onStatus({ c, from, to, by, note }) {
   const s = settings();
-  const st = db().stores.find((x) => x.code === c.store);
 
   if (to === 'Escalated' && s.autoEscalationEmail) {
-    if (st?.spocEmail) {
+    const r = recipient(c);
+    if (r.email) {
       const t = template('escalate', c);
+      if (r.contact) t.body = t.body.replace(/^Dear [^,\n]*,/, `Dear ${r.contact},`);
+      const tat = workflowFor(c)?.tatDays || 1;
+      if (tat !== 1) t.body = t.body.replace('the TAT for Level 1 is 1 working day', `the TAT for this case is ${tat} working days`);
       if (note) t.body = t.body.replace('\n\nAs per the escalation matrix', `\nAction needed: ${note}\n\nAs per the escalation matrix`);
-      await sendEmail({ to: st.spocEmail, subject: t.subject, body: t.body, caseId: c.id, kind: 'Escalation to store' });
-    } else activity(`Escalation email for ${c.id} not sent — store ${c.store} has no SPOC email`, c.id);
+      await sendEmail({ to: r.email, subject: t.subject, body: t.body, caseId: c.id, kind: `Escalation to ${r.label}` });
+    } else activity(`Escalation email for ${c.id} not sent — ${r.label} has no email (Stores & settings)`, c.id);
   }
 
   if (to === 'Resolved') {
@@ -378,22 +456,26 @@ export async function pollMailbox(force = false) {
   lastMailPollAt = Date.now();
   polling = true;
   try {
-    const own = mail.mailbox().toLowerCase();
-    for (const m of await mail.fetchInbox()) {
-      if (m.fromEmail.toLowerCase() === own) {
-        await mail.markLogged(m.id);
-        continue;
-      }
-      if (db().cases.some((c) => c.source?.messageId && c.source.messageId === m.messageId)) {
-        await mail.markLogged(m.id); // already imported (crash between import and move)
-        continue;
-      }
-      const r = core.intakeEmail(m, 'Mailbox'); // m.hasAttachments tells the info check files are coming
-      if (m.hasAttachments) await saveAttachments(r.case, m.id);
-      await mail.markLogged(m.id);
-      mailState.imported++;
-      activity(`${r.threaded ? 'Reply added to' : 'New email case'} ${r.case.id} from ${m.fromEmail}`, r.case.id);
+    // Like VMM: Graph delta query on the inbox; mail stays in the inbox and is tagged "LOTS CRM" + case number.
+    // Only mail received after the mailbox was connected is picked up, so an existing inbox is not imported.
+    const d = db();
+    const ms = ((d.automationState ||= {}).mail ||= {});
+    const connectedAt = mail.signinStatus().connectedAt || 'app';
+    if (ms.connectedAt !== connectedAt) Object.assign(ms, { connectedAt, deltaLink: null, since: now() });
+    let r = await mail.inboxDelta(ms.deltaLink, ms.since);
+    if (r.reset) {
+      ms.deltaLink = null;
+      ms.since = mailState.lastPoll || now();
+      r = await mail.inboxDelta(null, ms.since);
     }
+    const own = mail.mailbox().toLowerCase();
+    for (const m of r.messages) {
+      if (m.fromEmail.toLowerCase() === own) continue; // our own replies
+      if (core.caseForMessage(m)) continue; // already on a case (delta also returns changed mail, e.g. our tags)
+      if (!settings().autoImport && !core.threadTarget(m)) continue; // new mail waits in the Email inbox for an agent
+      await importMessage(m, 'Mailbox');
+    }
+    if (r.deltaLink) ms.deltaLink = r.deltaLink;
     mailState.lastError = null;
   } catch (e) {
     mailState.lastError = e.message;
@@ -404,6 +486,17 @@ export async function pollMailbox(force = false) {
     save();
   }
   return mailState;
+}
+
+/** One mailbox message → case (new, or added to its case), attachments saved, tagged in the mailbox. */
+export async function importMessage(m, by) {
+  const r = core.intakeEmail({ ...m, graphId: m.id }, by); // m.hasAttachments tells the info check files are coming
+  if (m.hasAttachments) await saveAttachments(r.case, m.id).catch((e) => activity(`Attachments of ${r.case.id} not saved: ${e.message}`, r.case.id));
+  await mail.setCategories(m.id, [...new Set([...(m.categories || []), 'LOTS CRM', r.case.id])]).catch(() => {});
+  mailState.imported++;
+  activity(`${r.threaded ? 'Reply added to' : 'New email case'} ${r.case.id} from ${m.fromEmail}`, r.case.id);
+  save();
+  return r;
 }
 
 async function saveAttachments(c, messageId) {
@@ -436,18 +529,18 @@ const timeReached = (hhmm) => {
 async function overdueEscalations(s) {
   if (!s.overdueReminder) return;
   for (const c of db().cases.filter((c) => c.status === 'Escalated' && c.dueAt && c.dueAt < now())) {
-    const st = db().stores.find((x) => x.code === c.store);
+    const r = recipient(c);
     const level = (c.escalationLevel || 1) + 1;
     c.escalationLevel = level;
     c.dueAt = core.addWorkingDays(now(), 1);
     log(c, { by: BOT, type: 'status', from: 'Escalated', to: 'Escalated', text: `TAT breached — escalation level ${level}` });
-    activity(`${c.id} overdue at store ${c.store} — level ${level}`, c.id);
-    if (st?.spocEmail) {
+    activity(`${c.id} overdue with ${r.label} — level ${level}`, c.id);
+    if (r.email) {
       await sendEmail({
-        to: st.spocEmail,
+        to: r.email,
         cc: s.l2Email,
         subject: `OVERDUE (Level ${level}): pending case ${c.id} – ${c.category} / ${c.subCategory}`,
-        body: `Dear ${st.spocName || 'Sir'},\n\nThe case below has crossed its TAT and is now at escalation level ${level}. Kindly share the resolution with customer care today.\n\nCase: ${c.id}\nCustomer: ${c.name} (${c.businessName || '—'}) · ${c.phone || c.email}\nConcern: ${c.caseType} – ${c.category} – ${c.subCategory}\nDetails: ${c.description}\nEscalated on: ${new Date(c.escalatedAt).toLocaleString('en-IN')}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+        body: `Dear ${r.contact || 'Sir'},\n\nThe case below has crossed its TAT and is now at escalation level ${level}. Kindly share the resolution with customer care today.\n\nCase: ${c.id}\nCustomer: ${c.name} (${c.businessName || '—'}) · ${c.phone || c.email}\nConcern: ${c.caseType} – ${c.category} – ${c.subCategory}\nDetails: ${c.description}\nEscalated on: ${new Date(c.escalatedAt).toLocaleString('en-IN')}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
         caseId: c.id,
         kind: 'Overdue reminder',
       });
@@ -459,18 +552,24 @@ async function storeDigest(s) {
   const st8 = (db().automationState ||= {});
   if (!s.storeDigestTime || !timeReached(s.storeDigestTime) || st8.lastDigest === today()) return;
   st8.lastDigest = today();
-  for (const st of db().stores) {
-    const list = db().cases.filter((c) => c.store === st.code && c.status === 'Escalated');
-    if (!list.length || !st.spocEmail) continue;
+  // one email per store / team holding escalated cases
+  const groups = new Map();
+  for (const c of db().cases.filter((c) => c.status === 'Escalated')) {
+    const r = recipient(c);
+    if (!groups.has(r.key)) groups.set(r.key, { r, list: [] });
+    groups.get(r.key).list.push(c);
+  }
+  for (const { r, list } of groups.values()) {
+    if (!r.email) continue;
     const lines = list.map((c) => `• ${c.id} | ${c.businessName || c.name} | ${c.subCategory || c.category} | escalated ${new Date(c.escalatedAt).toLocaleDateString('en-IN')}${c.dueAt < now() ? ' | OVERDUE' : ''}`);
     await sendEmail({
-      to: st.spocEmail,
+      to: r.email,
       cc: list.some((c) => c.dueAt < now()) ? s.l2Email : '',
-      subject: `Pending customer cases – ${st.short} – ${new Date().toLocaleDateString('en-IN')}`,
-      body: `Dear ${st.spocName || 'Sir'},\n\nThe following customer cases are pending with your store. We kindly request you to share an update on each at the earliest.\n\n${lines.join('\n')}\n\nAccording to the existing escalation matrix, the TAT for Level 1 is 1 working day.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+      subject: `Pending customer cases – ${r.label} – ${new Date().toLocaleDateString('en-IN')}`,
+      body: `Dear ${r.contact || 'Sir'},\n\nThe following customer cases are pending with your ${r.key.startsWith('team:') ? 'team' : 'store'}. We kindly request you to share an update on each at the earliest.\n\n${lines.join('\n')}\n\nAccording to the existing escalation matrix, the TAT for Level 1 is 1 working day.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
       kind: 'Daily store follow-up',
     });
-    for (const c of list) log(c, { by: BOT, type: 'store-followup', text: `Included in daily follow-up email to ${st.short}` });
+    for (const c of list) log(c, { by: BOT, type: 'store-followup', text: `Included in daily follow-up email to ${r.label}` });
   }
   save();
 }

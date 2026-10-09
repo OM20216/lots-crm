@@ -30,6 +30,7 @@ function emptyDb() {
     sparktgEvents: [],
     calls: [],
     agentEmails: {},
+    teams: {}, // contact details per escalation team (src/workflows.js TEAMS)
     stores: STORES,
     members: [],
     cases: [],

@@ -49,6 +49,7 @@ api.get('/meta', (req, res) => {
     transitions: TRANSITIONS,
     integrations: { mail: mail.configured(), sparktg: sparktg.configured() },
     widgetUrl: process.env.SPARKTG_WIDGET_URL || '',
+    teams: core.teams(),
     database: store.status(),
     agentEmails: db().agentEmails,
   });
@@ -69,6 +70,16 @@ api.post('/agents', (req, res) => {
   if (name && req.body.email) db().agentEmails[name] = String(req.body.email).trim();
   save();
   res.json(db().agents);
+});
+
+// Escalation teams of the case workflows (E-commerce, IT, BDA, HR, …): contact details
+api.put('/teams/:key', (req, res) => {
+  if (!core.teams()[req.params.key]) return res.status(404).json({ error: 'Team not found' });
+  const d = db();
+  d.teams ||= {};
+  d.teams[req.params.key] = { ...(d.teams[req.params.key] || {}), ...Object.fromEntries(['contact', 'email', 'phone'].filter((k) => k in req.body).map((k) => [k, String(req.body[k] || '').trim()])) };
+  save();
+  res.json(core.teams());
 });
 
 api.put('/stores/:code', (req, res) => {
@@ -102,7 +113,7 @@ api.get('/cases/:id', (req, res) => {
   const history = db()
     .cases.filter((x) => x.id !== c.id && ((c.phone && phoneKey(x.phone) === phoneKey(c.phone)) || (c.email && x.email === c.email)))
     .map(summary);
-  res.json({ ...c, history });
+  res.json({ ...c, history, target: core.targetFor(c) }); // target: where an escalation would go under the case's workflow
 });
 
 api.post('/cases', (req, res) => {
@@ -122,10 +133,16 @@ api.patch('/cases/:id', (req, res) => {
   const changed = Object.keys(patch).filter((k) => patch[k] !== c[k]);
   for (const k of changed) c[k] = patch[k];
   if (changed.length) log(c, { by, type: 'edit', text: `Updated: ${changed.join(', ')}` });
+  if (req.body.checkStep) {
+    c.checklist ||= {};
+    const done = req.body.done !== false;
+    c.checklist[req.body.checkStep] = { done, by, at: now() };
+    log(c, { by, type: 'workflow', text: `${done ? '✓' : 'Unticked'}: ${req.body.stepLabel || req.body.checkStep}` });
+  }
   if (req.body.status && req.body.status !== c.status) applyStatus(c, req.body.status, by, req.body.note);
   else if (req.body.note) log(c, { by, type: req.body.noteType || 'note', text: req.body.note });
   save();
-  res.json(c);
+  res.json({ ...c, target: core.targetFor(c) });
 });
 
 // Agent sends an email from the case page (through the connected mailbox).
@@ -496,6 +513,118 @@ api.delete('/mail/signin', (req, res) => {
   save();
   res.json(mail.signinStatus());
 });
+
+// ----- Mailbox screen (like the VMM CRM): list, conversation, log case, reply in thread, read, attachments -----
+const needMail = () => {
+  if (!mail.configured()) throw core.fail('Mailbox not connected: Automation → Sign in with Microsoft', 503);
+};
+// "Being handled by …": an email opened by an agent is locked for 15 minutes so two agents don't answer it
+const claims = new Map();
+const claimOf = (id) => {
+  const c = claims.get(id);
+  if (c && Date.now() - c.at > 15 * 60000) claims.delete(id);
+  return claims.get(id) || null;
+};
+
+api.get(
+  '/mail/messages',
+  wrap(async (req, res) => {
+    needMail();
+    const list = await mail.listFolder(req.query.folder === 'sent' ? 'sent' : 'inbox', { q: String(req.query.q || '').slice(0, 100) });
+    res.json(
+      list.map((m) => {
+        const c = core.caseForMessage(m) || core.threadTarget(m);
+        const claim = claimOf(m.id);
+        return { ...m, caseId: c?.id || null, caseStatus: c?.status || null, claimedBy: claim?.agent || null };
+      })
+    );
+  })
+);
+
+api.get(
+  '/mail/thread/:conversationId',
+  wrap(async (req, res) => {
+    needMail();
+    res.json(await mail.getThread(req.params.conversationId));
+  })
+);
+
+api.post(
+  '/mail/messages/:id/read',
+  wrap(async (req, res) => {
+    needMail();
+    await mail.markRead(req.params.id, req.body.isRead !== false);
+    res.json({ ok: true });
+  })
+);
+
+api.post('/mail/messages/:id/claim', (req, res) => {
+  const c = claimOf(req.params.id);
+  if (c && c.agent !== agentOf(req)) return res.status(409).json({ error: `Being handled by ${c.agent}`, claimedBy: c.agent });
+  claims.set(req.params.id, { agent: agentOf(req), at: Date.now() });
+  res.json({ claimedBy: agentOf(req) });
+});
+api.delete('/mail/messages/:id/claim', (req, res) => {
+  if (claimOf(req.params.id)?.agent === agentOf(req)) claims.delete(req.params.id);
+  res.json({ ok: true });
+});
+
+// Log a case from this email (or return the case it already belongs to). The agent who logs it owns it.
+api.post(
+  '/mail/messages/:id/log',
+  wrap(async (req, res) => {
+    needMail();
+    const m = await mail.getMessage(req.params.id);
+    const already = core.caseForMessage(m);
+    if (already) return res.json({ case: already, existing: true });
+    const r = await auto.importMessage(m, agentOf(req));
+    if (!r.threaded) {
+      r.case.assignedTo = agentOf(req);
+      log(r.case, { by: agentOf(req), type: 'edit', text: `Logged from the mailbox by ${agentOf(req)}` });
+    }
+    await mail.markRead(m.id, true).catch(() => {});
+    save();
+    res.status(201).json({ case: r.case, threaded: r.threaded });
+  })
+);
+
+// Reply inside this email's thread; goes on the case timeline too.
+api.post(
+  '/mail/messages/:id/reply',
+  wrap(async (req, res) => {
+    needMail();
+    const text = String(req.body.body || '').trim();
+    if (!text) throw core.fail('Write the reply first');
+    const m = await mail.getMessage(req.params.id);
+    const c = (req.body.caseId && findCase(req.body.caseId)) || core.caseForMessage(m) || core.threadTarget(m);
+    const to = req.body.to || m.fromEmail;
+    let subject = /^re:/i.test(m.subject) ? m.subject : `RE: ${m.subject}`;
+    if (c && !subject.includes(c.id)) subject += ` [${c.id}]`;
+    const out = await auto.sendEmail({ to, cc: req.body.cc || '', subject, body: text, caseId: c?.id, kind: 'Agent reply', by: agentOf(req), replyToId: m.id });
+    if (out.status !== 'sent') throw core.fail(`Email ${out.status}: ${out.error}`, 502);
+    await mail.markRead(m.id, true).catch(() => {});
+    claims.delete(m.id);
+    res.json({ ok: true, caseId: c?.id || null, inThread: Boolean(out.inThread), test: out.test || null });
+  })
+);
+
+api.get(
+  '/mail/messages/:id/attachments',
+  wrap(async (req, res) => {
+    needMail();
+    res.json(await mail.listAttachments(req.params.id));
+  })
+);
+api.get(
+  '/mail/messages/:id/attachments/:attId',
+  wrap(async (req, res) => {
+    needMail();
+    const a = await mail.getAttachment(req.params.id, req.params.attId);
+    res.setHeader('Content-Type', a.contentType);
+    res.setHeader('Content-Disposition', `attachment; filename="${a.name.replace(/[^\w.\- ]+/g, '_')}"`);
+    res.send(a.bytes);
+  })
+);
 
 api.get(
   '/mail/test',

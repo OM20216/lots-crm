@@ -150,17 +150,18 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 | Channels | **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
 | Channels | **Email inbox** | Email cases by status, and logging an email by hand |
 | Channels | **Outbound leads** | Calling lists (new registration, inactive, order on call, LCC, confirmation, festival offers): import, **Call**, log the outcome. Confirmation calls close or re-open their case |
-| Store escalation | **Store follow-ups** | Escalated cases by store with deadlines, the daily call script, the CRM note template, and one follow-up email per store |
+| Escalation | **Follow-ups** | Escalated cases grouped by **store or team** (E-commerce, IT, BDA, …) with deadlines, the daily call script, the CRM note template, and one follow-up email per store / team |
 | Reference | **Contacts** | The member master: list, **+ Create Contact** / **Edit** (Vtiger-style form, §11), **Call**, **Cases**, CSV import |
 | Reference | **SOP knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
+| Reference | **Case workflows** | The workflow of every case type: owner team, TAT, steps, and the teams' email addresses (§6.6) |
 | Admin | **Automation** | Mailbox connection, rule switches, timers, agent shifts, activity log, outbox |
-| Admin | **Stores & settings** | Store contacts, agent SparkTG emails, SparkTG connection test, database status, backup download |
+| Admin | **Stores & settings** | Store contacts, **team contacts** (§6.6), agent SparkTG emails, SparkTG connection test, database status, backup download |
 
 **On every page:**
 - **Top bar:** dialer status (green = ready), the agent, **Switch agent**, and the **missed-call boxes** (§7.3).
 - **Dialer** (📞, bottom right) and the **caller panel** that pops up on every call (§7.1).
 
-**Case page:** status flow, next-step buttons, editable details, SOP checks, EDC, timeline, reply templates (copy / open in mail / send from contactus@cpwi.in), linked calls with recordings, attachments, customer history, **Call customer**.
+**Case page:** status flow, next-step buttons, the **Workflow checklist** (§6.6), editable details, SOP checks, EDC, timeline, reply templates (copy / open in mail / send from contactus@cpwi.in), linked calls with recordings, attachments, customer history, **Call customer**.
 
 ---
 
@@ -210,7 +211,7 @@ Closed ──► Reopen ──► Pending
 Two moves aren't drawn on the chart but are kept on purpose: **Reopen** and **Not satisfied → back to the store**. A confirmation call can close a case only once it's at Resolved. There are no auto-close rules, because the chart closes a case only on customer confirmation.
 
 Also enforced:
-- A case must have a **store** before it can be escalated.
+- A case is escalated to the store or team of its **workflow** (§6.6). Store cases need a **store**; app / e-commerce cases need the **order / invoice number**.
 - A case must have a **case type and category** before it can be closed.
 
 Every change is written to the case **timeline** with the agent's name and the time.
@@ -228,7 +229,7 @@ Every change is written to the case **timeline** with the agent's name and the t
 | Email → case auto-created · Pending | Every mail becomes a Pending case automatically (§9.2) |
 | "AI agent reads the mail" | Rule-based reader: case type, category, sub-category, store named in the mail, contact (by email, mobile or card number), invoice / order number |
 | Information complete? → auto email / auto-escalate | Built, but **off by default**, because the SOP says an agent calls the customer first. Can be switched on (§10.1) |
-| Escalate → Daily follow-up → Resolution → Confirmation call → Closed | Automation (§10) plus the Store follow-ups and Outbound leads screens |
+| Escalate → Daily follow-up → Resolution → Confirmation call → Closed | Automation (§10) plus the Follow-ups and Outbound leads screens |
 
 ### 6.4 Case numbers
 
@@ -243,6 +244,33 @@ Shown as an orange **SOP check** box on the New Case page and the case page. The
 | Request → **Return / exchange** | A **Purchase date** field appears. Warns for non-returnable items (oil, ghee, fresh dairy, fruit, vegetables, meat, fish, chilled or frozen), for purchases more than **7 working days** ago, and reminds about the stamped bill and credit-note rules |
 | Caller type **B2C customer** | Warns for stores other than **AKD / NSP**, **non-food** products, and **app / e-commerce** cases |
 | Caller type **Not registered** | Requests are limited to **new membership** and **new supplier registration** (enforced) |
+
+### 6.6 Workflow per case type
+
+Every case type, category and sub-category from the SOP has a **workflow**: who owns it, its TAT and its steps. They are defined in `src/workflows.js` and listed on the **Case workflows** screen. The most specific match wins (sub-category, then category, then case type).
+
+| Workflow | Owner (escalates to) | TAT | Needs before escalating |
+| --- | --- | --- | --- |
+| General enquiry · Supplier registration enquiry · New membership | Care desk (answered on the call, ROT) | — | — |
+| Product availability / price | Store team | 1 working day | — |
+| HR & jobs | HR / Careers (careers@cpwi.in) | 1 | — |
+| IT / website · Marketing · Admin enquiries | IT · Marketing · Administration | 1 | — |
+| Store complaint · Store request · Return / exchange | The case's **store** contact | 1 | Store |
+| App access problem (site / app not opening, OTP) | IT / Website team | 1 | — |
+| App / E-comm complaint · Cancel app order · App request | E-commerce / App team | 1 | Order / invoice no. |
+| Refund not received · Refund request (app) | E-commerce / App team | **7** (SOP: refund within 7 working days) | Order / invoice no. |
+| BDA complaint · BDA request | BDA team | 1 | — |
+| Membership request | The member's **home store** | 1 | — |
+| New supplier registration | Category / Supplier team | **7** (SOP: reply within 7 days) | — |
+
+**On the case page**, the **Workflow** card shows the owner, the TAT, where the case escalates to (with the contact's email, or a link to add it), and a **step checklist**:
+- Steps the CRM can see tick **themselves** (details captured, customer called, escalated, follow-up done, resolution, confirmation, closed, store / order number recorded).
+- The others (e.g. "Order status checked", "Return policy checked") the agent ticks; each tick goes on the timeline with the agent's name.
+- The **next step** is highlighted, with a progress bar.
+
+**When a case is escalated**, the CRM saves where it went (`escalatedTo`) and sets the EDC from the workflow's TAT. The **escalation email, overdue reminders and the daily follow-up email** go to that store or team (§10). The **Escalate** button names the team, and the **New case** form shows the workflow as soon as the category is chosen.
+
+**Team contacts:** Stores & settings → **Teams**: contact name, phone and email for E-commerce, IT, BDA, HR, Administration, Marketing and Supplier teams. Until a team's email is set, its escalation emails are not sent and the activity log says so.
 
 ---
 
@@ -334,19 +362,28 @@ When a number arrives (dialer, typed, or from a SparkTG call ID), the CRM looks 
 
 **Log new case → Source: Email**, or **Email inbox → Log an incoming email**: a *Pending* case is created. A reply with `[LWS-…]` in the subject is added to that case instead. On the case page, templates can be copied or opened in the mail app, then logged as sent.
 
-### 9.2 With the mailbox connected (as in the SOP)
+### 9.2 With the mailbox connected (works like the VMM CRM)
 
-The mail domain cpwi.in is on **Microsoft 365**, so the CRM uses the **Microsoft Graph API** (no IMAP).
+The mail domain cpwi.in is on **Microsoft 365**, so the CRM uses the **Microsoft Graph API**, with the same calls as the VMM CRM's mail code: delta inbox, conversation threads, reply in thread, categories, read / unread.
 
-1. The CRM checks contactus@cpwi.in **every 5 minutes** (as the SOP requires).
-2. Every new mail becomes a **Pending case** with a case number: sender, subject, message and **attachments** saved; the contact recognised (§8).
-3. It **suggests** case type, category, sub-category, the **store** named in the mail and the **invoice / order number**, and **assigns** the case to the agent on shift.
-4. The customer gets an **acknowledgement** with the case number, from contactus@cpwi.in.
-5. The mail moves to a **CRM-Logged** folder, so it's never imported twice.
-6. **The agent calls the customer** (SOP), checks the category and decides: ROT, Waiting (template asks for the details) or Escalate (the store gets the escalation email).
-7. Replies with `[LWS-…]` thread onto the case: a customer reply moves Waiting → Pending; a store reply moves Escalated → Resolved and the resolution goes to the customer.
+**Email inbox → Mailbox** (live view of contactus@cpwi.in):
+- **Inbox / Sent** tabs, search (sender, subject, text), unread in bold, refresh every minute.
+- Each email shows its **case number** (coloured by status), **Not logged**, or **Being handled by …** (an email opened by an agent is locked for 15 minutes, so two agents don't answer it).
+- **Open an email:** the whole **conversation** (latest first, *Sent by us* marked, To / CC), attachments to download, **+ Log case** or **Open case**, **Mark unread**. Opening marks it read. Email bodies are shown in a sandbox, so nothing in an email can run in the CRM.
+- **Reply in this thread:** write or pick a template; the reply goes **inside the customer's own email thread** as a LOTS-branded email, with the case number in the subject, and lands on the case timeline.
 
-Replies from the case page (**Send now**) and all automatic emails are sent from contactus@cpwi.in, with a copy in its Sent Items.
+**Automatic (the SOP: "a case is automatically created" for every mail):**
+1. The CRM checks the inbox **every 5 minutes** (SOP), with Graph's **delta** query: only mail that arrived **after the mailbox was connected** is picked up, so an existing inbox is never imported.
+2. Every new mail becomes a **Pending case**: attachments saved, contact recognised (§8), category, store and invoice / order number suggested, assigned, and an **acknowledgement** sent **in the customer's thread**.
+3. The mail **stays in the inbox**, tagged **LOTS CRM** and its **case number** (visible in Outlook too). It is never moved.
+4. **Replies are matched to their case by conversation**, even if the customer removes the case number from the subject. Nothing is imported twice.
+5. **The agent calls the customer** (SOP) and decides: ROT, Waiting or Escalate.
+
+Switch **Create cases from new emails** off (Automation → Rules) to have agents log each case themselves from the Mailbox, as in VMM.
+
+**All outgoing emails** (acknowledgements, templates, escalations, follow-ups, resolutions, agent replies) are **branded HTML**: LOTS header, the message, a case details box, and the care number in the footer. Emails to the customer of an email case go **in their thread**; others are new emails. A copy of everything is in Sent Items.
+
+**Test mode** (like VMM's `TEST_MODE`): **Automation → Timers & recipients → "Test mode: send all emails to"**. While an address is filled in, **every** outgoing email goes only to that address, with **[TEST]** in the subject and a note saying who it would have gone to. The Email inbox shows a banner. Empty = live.
 
 ### 9.3 Connecting: Sign in with Microsoft (recommended)
 
@@ -355,6 +392,8 @@ Replies from the case page (**Send now**) and all automatic emails are sent from
 3. The page shows *Connected … as <account>*. Click **Test mailbox connection**.
 
 The sign-in is kept only on this PC, in the private folder (`ms-signin.json`), and renews itself, so nobody needs to stay signed in. If it expires or the password changes, the Automation page says so: sign in again, or **Disconnect** to stop.
+
+**Which account:** contactus@cpwi.in is in **CP Wholesale's own Microsoft 365**, not Openmind's. The VMM CRM's Azure app only accepts Openmind accounts, and an Openmind account can't open a cpwi.in mailbox. So sign in with a **cpwi.in account** that can open contactus@cpwi.in, or with contactus@cpwi.in itself.
 
 **What the Microsoft 365 admin of cpwi.in may need to do, once:**
 - Give the signing-in account **Full Access** and **Send As** on contactus@cpwi.in (not needed if the account *is* contactus@cpwi.in).
@@ -569,11 +608,12 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 
 | Method | Path | Purpose |
 | --- | --- | --- |
-| GET | `/api/meta` | Stores, agents, agent emails, widget URL, integrations, database status |
+| GET | `/api/meta` | Stores, teams, agents, agent emails, widget URL, integrations, database status |
 | POST / PUT | `/api/agents`, `/api/agents/:name` | Add an agent / set their SparkTG email |
 | PUT | `/api/stores/:code` | Store contact and hours |
+| PUT | `/api/teams/:key` | Team contact (contact, phone, email) for workflow escalations |
 | GET / POST | `/api/cases` | List (filters: status, channel, store, caseType, assignedTo, q, overdue) / create |
-| GET / PATCH | `/api/cases/:id` | Case with history / edit, change status (only along the workflow), add a note |
+| GET / PATCH | `/api/cases/:id` | Case with history and escalation `target` / edit, change status (only along the workflow), add a note, tick a workflow step (`checkStep`, `done`) |
 | POST | `/api/cases/:id/email` | Send an email from the case (needs the mailbox) |
 | POST | `/api/cases/:id/calls` | Link a SparkTG call to a case |
 | GET | `/api/cases/:id/attachments/:file` | Download an attachment |
@@ -688,3 +728,5 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 23 | **Contacts** tab (replaces Members, same records): list with search, Call, Edit and Cases; the full **Creating / Editing Contact** form with the Vtiger sections and fields (Validation, Updated Contact Details, Contact Information, Membership Details, Custom Information, Address Details, up to 4 Add-on Members, Description, Socials), section menu, field search, required-field and format checks (mobile, email, PAN, GSTIN, pincode). Every phone and email on a contact, and its add-on members, are recognised on calls and emails |
 | 24 | **Registered numbers are unique.** A mobile (registered, alternate, extra or add-on member's) can belong to one contact only, and can't appear twice on the same contact. Enforced on the server for the form, import and any other route. The contact form warns as you type, names the contact the number belongs to (with a link), and blocks Save. Import skips and lists rows whose number belongs to another contact |
 | 25 | README rewritten to match the current CRM: Contacts, caller panel, top-bar missed calls, SOP email handling, credentials file, MySQL `lots`, tests and open items |
+| 26 | Email like the VMM CRM: **Mailbox** view in Email inbox (Inbox / Sent, search, conversation view, attachments, Log case, Mark unread, "Being handled by" lock, reply in thread with templates). Delta inbox (only mail after connecting), mail stays in the inbox tagged "LOTS CRM" + case number, replies matched by conversation, branded HTML emails sent in the customer's thread, **test mode**, switch for automatic case creation. Tested against a fake Microsoft Graph |
+| 27 | **Workflow per case type**: each SOP case type / category has an owner team, TAT and steps (`src/workflows.js`). Escalations go to the right store or team (E-commerce, IT, BDA, HR, home store, …) with that TAT; escalation, overdue and daily follow-up emails follow. Workflow checklist on the case page (auto-ticking steps, next step highlighted), workflow preview on New case, **Teams** in Stores & settings, **Follow-ups** grouped by store and team, **Case workflows** reference screen. Tested on a test copy of the data |
