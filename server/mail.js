@@ -301,10 +301,19 @@ export async function fetchAttachments(id) {
 
 const toRecipients = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\s]+/)).filter(Boolean).map((address) => ({ emailAddress: { address } }));
 
-/** New email (HTML) from the mailbox; a copy is kept in Sent Items. */
-export async function send({ to, cc = [], subject, html, body }) {
+// Files for Graph: [{ name, contentType, bytes }] → fileAttachment (each up to 3 MB; the caller keeps to that)
+const fileAttachment = (f) => ({ '@odata.type': '#microsoft.graph.fileAttachment', name: f.name, contentType: f.contentType || 'application/octet-stream', contentBytes: Buffer.from(f.bytes).toString('base64') });
+
+/** New email (HTML) from the mailbox, with any file attachments; a copy is kept in Sent Items. */
+export async function send({ to, cc = [], subject, html, body, attachments = [] }) {
   await graph('POST', `${mb()}/sendMail`, {
-    message: { subject, body: html ? { contentType: 'HTML', content: html } : { contentType: 'Text', content: body }, toRecipients: toRecipients(to), ccRecipients: toRecipients(cc) },
+    message: {
+      subject,
+      body: html ? { contentType: 'HTML', content: html } : { contentType: 'Text', content: body },
+      toRecipients: toRecipients(to),
+      ccRecipients: toRecipients(cc),
+      ...(attachments.length ? { attachments: attachments.map(fileAttachment) } : {}),
+    },
     saveToSentItems: true,
   });
 }
@@ -313,13 +322,14 @@ export async function send({ to, cc = [], subject, html, body }) {
  * Reply inside the customer's own thread (as VMM's replyOnThread): createReply → set body/subject/recipients → send.
  * The case number stays in the subject so replies always come back to the case.
  */
-export async function reply(messageId, { to, cc = [], subject, html }) {
+export async function reply(messageId, { to, cc = [], subject, html, attachments = [] }) {
   const draft = await graph('POST', `${mb()}/messages/${messageId}/createReply`, {});
   const patch = { body: { contentType: 'HTML', content: html } };
   if (subject) patch.subject = subject;
   if (to) patch.toRecipients = toRecipients(to);
   patch.ccRecipients = toRecipients(cc);
   await graph('PATCH', `${mb()}/messages/${draft.id}`, patch);
+  for (const f of attachments) await graph('POST', `${mb()}/messages/${draft.id}/attachments`, fileAttachment(f));
   await graph('POST', `${mb()}/messages/${draft.id}/send`);
   return { draftId: draft.id, conversationId: draft.conversationId };
 }

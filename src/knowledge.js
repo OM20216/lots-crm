@@ -47,7 +47,7 @@ export const KB = [
       '102 Ithum — Plot A40, Sector-62, Ithum Tower, Noida (near Fortis) · 7 AM–9 PM',
       '103 AKD — Parsvnath Mall, Akshardham Metro, New Delhi 110096 · 9 AM–9 PM',
       '104 SRV — NDRAVG Business Park, opp. Mohan Estate Metro, Sarita Vihar · 9 AM–8 PM',
-      '105 GZB — Duhai, Ghaziabad · online store',
+      '105 DH — Duhai, Ghaziabad · online store',
       '106 GNI — Plot 5, Knowledge Park 1, Greater Noida (near Cloud Nine) · 9 AM–8 PM',
     ],
   },

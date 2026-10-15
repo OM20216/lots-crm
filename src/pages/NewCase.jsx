@@ -40,7 +40,7 @@ export default function NewCase() {
 
   const [form, setForm] = useState({
     channel: params.get('channel') || (params.get('missedId') ? 'Missed call callback' : params.get('leadId') ? 'Outbound call' : 'Inbound call'),
-    callerType: 'Registered member',
+    callerType: 'Registered With Lots',
     phone: params.get('phone') || '',
     name: params.get('name') || '',
     businessName: params.get('business') || '',
@@ -143,7 +143,7 @@ export default function NewCase() {
       return {
         ...f,
         memberId: m.id,
-        callerType: 'Registered member',
+        callerType: 'Registered With Lots',
         name: via === 'add-on' ? addOn.name || m.ownerName : m.ownerName || f.name,
         phone: via === 'pick' ? m.phone : f.phone || m.phone,
         email: m.email || f.email,
@@ -177,7 +177,6 @@ export default function NewCase() {
     setErr('');
     if (form.channel === 'Email' && (!form.email || !form.subject.trim())) return setErr('Enter the sender’s email and the email subject.');
     if (form.channel !== 'Email' && !form.phone) return setErr('Enter the caller’s mobile number.');
-    if (form.caseType === 'Requests' && !allowedCategories('Requests', form.callerType, tree).includes(form.category)) return setErr('SOP: a caller who is not a registered member can only request a new membership (New Member) or a new supplier registration (New Supplier).');
     if (!form.caseType || !form.category) return setErr('Select case type and category.');
     if ((tree[form.caseType]?.[form.category] || []).length && !form.subCategory) return setErr('Select the sub-category.');
     if (!form.description.trim()) return setErr('Describe the query / concern.');
@@ -281,7 +280,7 @@ export default function NewCase() {
             )}
             {notFound && (
               <div className="identify-result">
-                Not a registered member. Choose <strong>Not registered</strong> (only new membership / supplier registration requests) or <strong>B2C customer</strong> (AKD &amp; NSP, food items of Indian origin), or{' '}
+                Not a registered member. Choose <strong>Not Registered</strong> or <strong>Others</strong> (e.g. B2C walk-in customers at AKD &amp; NSP, food items of Indian origin), or{' '}
                 <Link to={`/contacts/new?phone=${encodeURIComponent(form.phone)}`}>create the contact</Link>.
               </div>
             )}
@@ -319,7 +318,7 @@ export default function NewCase() {
           {/* SOP: communication channel */}
           <section className="card">
             <h2 className="section-h">
-              Source of case <span className="req">*</span>
+              <span className="step-no">1</span> How did they contact us? <span className="req">*</span>
             </h2>
             <div className="source-cards">
               {SOURCES.map((o) => (
@@ -350,10 +349,12 @@ export default function NewCase() {
           </section>
 
           <section className="card">
-            <h2 className="section-h">Caller details</h2>
+            <h2 className="section-h">
+              <span className="step-no">2</span> Who is it?
+            </h2>
             <div className="grid">
-              <Field label="Caller type">
-                <Select value={form.callerType} options={list('Caller Type')} onChange={(v) => set({ callerType: v, memberId: v === 'Registered member' ? form.memberId : null, ...(form.caseType === 'Requests' ? { category: '', subCategory: '' } : {}) })} />
+              <Field label="Type of contact">
+                <Select value={form.callerType} options={list('Caller Type')} onChange={(v) => set({ callerType: v, memberId: v === 'Registered With Lots' ? form.memberId : null })} />
               </Field>
               <Field label="Name">
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} />
@@ -376,7 +377,9 @@ export default function NewCase() {
 
           {/* SOP: select case type → category */}
           <section className="card">
-            <h2 className="section-h">Case details</h2>
+            <h2 className="section-h">
+              <span className="step-no">3</span> What is the concern?
+            </h2>
             <div className="grid">
               <Classifier value={form} onChange={setForm} />
               <div className="field wide">
@@ -395,7 +398,9 @@ export default function NewCase() {
 
           {/* SOP: resolve within TAT? */}
           <section className="card">
-            <h2 className="section-h">Resolve within TAT?</h2>
+            <h2 className="section-h">
+              <span className="step-no">4</span> What happens now?
+            </h2>
             <SopWarnings list={sopWarnings(form)} />
             <div className="outcomes">
               {OUTCOMES.map((o) => (
@@ -434,11 +439,11 @@ export default function NewCase() {
               <li>Closing: “Is there anything else I can assist you with?”</li>
             </ul>
           </div>
-          {requirementsFor(form.subCategory) && (
+          {requirementsFor(form) && (
             <div className="card req-card">
-              <h3>Request requirements · {form.subCategory}</h3>
+              <h3>Documents needed</h3>
               <ul className="tight">
-                {requirementsFor(form.subCategory).items.map((i) => (
+                {requirementsFor(form).items.map((i) => (
                   <li key={i}>{i}</li>
                 ))}
               </ul>

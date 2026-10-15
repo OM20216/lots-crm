@@ -11,7 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import mysql from 'mysql2/promise';
-import { CALLER_TYPES, CASE_TREE, CHANNELS, CONFIRMATION_OUTCOMES, CUSTOMER_GROUPS, LEAD_OUTCOMES, LEAD_TYPES, MISSED_REASONS, PRODUCT_CATEGORIES, STATUSES, STATUS_HELP } from '../src/taxonomy.js';
+import { CALLER_TYPES, CASE_TREE, CHANNELS, CONFIRMATION_OUTCOMES, CUSTOMER_GROUPS, FOLLOWUP_OUTCOMES, SURVEY_OUTCOMES, LEAD_OUTCOMES, LEAD_TYPES, MISSED_REASONS, PRODUCT_CATEGORIES, STATUSES, STATUS_HELP } from '../src/taxonomy.js';
 import { requirementsFor } from '../src/requirements.js';
 
 const SCHEMA_FILE = path.join(path.dirname(fileURLToPath(import.meta.url)), 'schema.sql');
@@ -192,7 +192,7 @@ async function seedReference() {
       caller_type: CALLER_TYPES.map((x) => [x, null]),
       product_category: PRODUCT_CATEGORIES.map((x) => [x, null]),
       lead_type: LEAD_TYPES.map((x) => [x, null]),
-      lead_outcome: [...new Set([...LEAD_OUTCOMES, ...CONFIRMATION_OUTCOMES])].map((x) => [x, CONFIRMATION_OUTCOMES.includes(x) && !LEAD_OUTCOMES.includes(x) ? 'Confirmation calls' : null]),
+      lead_outcome: [...new Set([...LEAD_OUTCOMES, ...CONFIRMATION_OUTCOMES, ...FOLLOWUP_OUTCOMES, ...SURVEY_OUTCOMES])].map((x) => [x, CONFIRMATION_OUTCOMES.includes(x) && !LEAD_OUTCOMES.includes(x) ? 'Confirmation calls' : null]),
       missed_reason: MISSED_REASONS.map((x) => [x, null]),
     };
     await insertRows(conn, 'ref_values', ['list', 'value', 'sort', 'description'], Object.entries(lists).flatMap(([list, vals]) => vals.map(([v, d], i) => [list, v, i + 1, d])));

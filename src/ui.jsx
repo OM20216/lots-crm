@@ -55,7 +55,10 @@ export function Due({ iso }) {
   return <span className={`due ${d.overdue ? 'over' : ''}`}>{d.text}</span>;
 }
 
+export const NOT_SPECIFIC = 'NS'; // case master store_name "Not Specific"
+
 export function storeLabel(stores, code) {
+  if (code === NOT_SPECIFIC) return 'Not Specific';
   const s = stores.find((x) => x.code === code);
   return s ? `${s.code} ${s.short}` : code || '—';
 }

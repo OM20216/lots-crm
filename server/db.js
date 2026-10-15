@@ -14,7 +14,7 @@ const STORES = [
   { code: '102', short: 'ITH', name: 'Ithum, Noida', address: 'Plot No-A40, Sector-62, Ithum Tower, Noida, Near Fortis Hospital', hours: '07:00 AM – 09:00 PM', spocName: '', spocEmail: '', spocPhone: '', b2c: false },
   { code: '103', short: 'AKD', name: 'Akshardham', address: 'Parsvnath Mall – Akshardham, Sandwich Floor, Akshardham Metro Station, New Delhi 110096', hours: '09:00 AM – 09:00 PM', spocName: '', spocEmail: '', spocPhone: '', b2c: true },
   { code: '104', short: 'SRV', name: 'Sarita Vihar', address: 'NDRAVG Business Park, Opp. Mohan Estate Metro Station, Plot No. A, PD Plot, Sarita Vihar, Delhi', hours: '09:00 AM – 08:00 PM', spocName: '', spocEmail: '', spocPhone: '', b2c: false },
-  { code: '105', short: 'GZB', name: 'Duhai, Ghaziabad (Online)', address: 'Pillar No. 777, Khasra No. 570, NH 34, Meerut Rd, Duhai, Ghaziabad, UP 201206', hours: 'Online store', spocName: '', spocEmail: '', spocPhone: '', b2c: false },
+  { code: '105', short: 'DH', name: 'Duhai, Ghaziabad (Online)', address: 'Pillar No. 777, Khasra No. 570, NH 34, Meerut Rd, Duhai, Ghaziabad, UP 201206', hours: 'Online store', spocName: '', spocEmail: '', spocPhone: '', b2c: false },
   { code: '106', short: 'GNI', name: 'Greater Noida', address: 'Plot No. 5, Knowledge Park 1, Phase-I, Near Cloud Nine Hospital, Greater Noida, UP 201308', hours: '09:00 AM – 08:00 PM', spocName: '', spocEmail: '', spocPhone: '', b2c: false },
 ];
 

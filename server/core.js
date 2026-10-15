@@ -2,6 +2,7 @@
 import * as store from './db.js';
 import * as sparktg from './sparktg.js';
 import { extractRefs } from '../src/requirements.js';
+import { normalizeCallerType } from '../src/taxonomy.js';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
 
 export const db = () => store.get();
@@ -37,14 +38,40 @@ export function emit(event, payload) {
   }
 }
 
+/** Holidays from Stores & settings (YYYY-MM-DD); they don't count as working days. */
+export const holidays = () => new Set(db().settings?.holidays || []);
+export const isWorkingDay = (d, hol = holidays()) => d.getDay() !== 0 && !hol.has(d.toLocaleDateString('en-CA'));
+
 export function addWorkingDays(from, days) {
   const d = new Date(from);
+  const hol = holidays();
   let left = days;
   while (left > 0) {
     d.setDate(d.getDate() + 1);
-    if (d.getDay() !== 0) left--; // Sunday is not counted
+    if (isWorkingDay(d, hol)) left--; // Sundays and holidays are not counted
   }
   return d.toISOString();
+}
+
+/** Working days between two dates (for reports), to one decimal. */
+export function workingDaysBetween(a, b) {
+  const start = new Date(a);
+  const end = new Date(b);
+  if (end <= start) return 0;
+  const hol = holidays();
+  let days = 0;
+  const d = new Date(start);
+  while (true) {
+    const next = new Date(d);
+    next.setDate(next.getDate() + 1);
+    if (next > end) {
+      if (isWorkingDay(d, hol)) days += (end - d) / 864e5;
+      break;
+    }
+    if (isWorkingDay(d, hol)) days += 1;
+    d.setDate(d.getDate() + 1);
+  }
+  return Math.round(days * 10) / 10;
 }
 
 // SparkTG sends numbers as 91XXXXXXXXXX / 0XXXXXXXXXX / +91 …; compare on the last 10 digits.
@@ -116,7 +143,7 @@ export function newCase(body, by) {
     createdAt: now(),
     updatedAt: now(),
     channel: body.channel || 'Inbound call',
-    callerType: body.callerType || 'Registered member',
+    callerType: normalizeCallerType(body.callerType) || 'Registered With Lots',
     memberId: body.memberId || null,
     name: body.name || '',
     phone: body.phone || '',
@@ -127,7 +154,11 @@ export function newCase(body, by) {
     caseType: body.caseType || '',
     category: body.category || '',
     subCategory: body.subCategory || '',
+    requestFor: body.requestFor || '', // case master: request_for
+    sub2: body.sub2 || '', // case master: sub2
+    closureType: body.closureType || '', // case master: resolution_type
     productCategory: body.productCategory || '',
+    productType: body.productType || '', // case master: product_type
     orderRef: body.orderRef || '',
     purchaseDate: body.purchaseDate || '', // return / exchange: SOP allows 7 working days
     subject: body.subject || '',
@@ -159,16 +190,99 @@ export function teams() {
   return Object.fromEntries(Object.entries(TEAMS).map(([k, t]) => [k, { ...t, ...(saved[k] || {}) }]));
 }
 
-/** Where this case escalates to under its workflow (store contact or team). */
+/** A store or team as an escalation target: { kind, code, name, email, phone, contact }. */
+export function targetByKey({ kind, code } = {}) {
+  if (kind === 'team') {
+    const t = teams()[code];
+    if (!t) throw fail('Unknown team');
+    return { kind: 'team', code, name: t.name, email: t.email || '', phone: t.phone || '', contact: t.contact || '' };
+  }
+  const s = db().stores.find((x) => x.code === code);
+  return { kind: 'store', code: code || '', name: s ? `${s.code} ${s.name}` : 'Store (not set)', email: s?.spocEmail || '', phone: s?.spocPhone || '', contact: s?.spocName || '' };
+}
+
+/** Where this case escalates to: the agent's choice if they picked one, else the case type's workflow. */
 export function targetFor(c) {
+  if (c.escalateTo?.kind) return targetByKey(c.escalateTo);
   return escalationTarget(c, db().stores, teams(), db().members);
+}
+
+/**
+ * Escalation matrix (Stores & settings): the contacts above Level 1 for a store or team,
+ * else the default levels, else the Level 2 email on the Automation page. Index 0 = Level 2.
+ */
+export function escalationLevels(target) {
+  const m = db().settings?.escalationMatrix || {};
+  const usable = (list) => (list || []).filter((l) => l?.email);
+  const own = target?.kind ? usable(m[`${target.kind}:${target.code}`]) : [];
+  if (own.length) return own;
+  const def = usable(m['*']);
+  if (def.length) return def;
+  const l2 = db().settings?.automation?.l2Email;
+  return l2 ? [{ name: 'Level 2', email: l2, tatDays: 1 }] : [];
+}
+
+/** Move an escalated case to another store or team (wrong team picked, or the store passed it on). */
+export function rerouteEscalation(c, target, by, note) {
+  if (c.status !== 'Escalated') throw fail('Only an escalated case can be re-assigned');
+  const t = targetByKey(target);
+  if (t.kind === 'store' && !t.code) throw fail('Pick the store');
+  const was = c.escalatedTo || { kind: 'store', code: c.store };
+  if (was.kind === t.kind && was.code === t.code) throw fail(`The case is already with ${t.name}`);
+  const wf = workflowFor(c);
+  c.escalatedTo = { kind: t.kind, code: t.code, name: t.name, email: t.email, contact: t.contact };
+  c.escalatedAt = now();
+  c.escalationLevel = 1;
+  c.dueAt = addWorkingDays(c.escalatedAt, wf?.tatDays || ESCALATION_L1_WORKING_DAYS);
+  c.firstDueAt = c.dueAt;
+  c.promisedAt = null;
+  c.storeReplyReview = null;
+  log(c, { by, type: 'escalation', text: `Re-assigned from ${was.name || was.code} to ${t.name}${note ? ' — ' + note : ''}` });
+  emit('escalation:rerouted', { c, by, note });
+}
+
+// ---------- reading a store's email reply ----------
+// A reply that only says "we are checking" must not close the loop with the customer.
+const INTERIM = /\b(will (check|update|revert|look|share|confirm|get back|arrange|process|inform|resolve|do)|checking|looking into|under (process|review|verification|observation)|in process|being processed|working on|we are (checking|verifying|looking|coordinating)|shortly|at the earliest|kindly allow|need (some )?(more )?time|pending (from|with|at)|awaiting|forwarded (to|the)|escalated (it )?to|following up|dekh (rahe|lenge|ke)|check kar|process (ho|chal) raha|update (de|kar) denge|kar denge|ho jayega)\b/i;
+const RESOLVED = /\b(resolved|has been (done|completed|resolved|processed|delivered|replaced|refunded|credited|issued|updated|exchanged|closed|fixed|sorted|cancelled|blocked|re-?issued|arranged|shared)|refund (has been |is )?(processed|initiated|credited|done|completed)|credit note (has been |is )?(issued|shared|generated|given)|replacement (done|given|delivered|sent|arranged)|(item|order|product|goods|material) (has been |is |was )?(delivered|replaced|exchanged|picked up|collected)|issue (is |has been )?(fixed|sorted|closed|resolved)|done from our (end|side)|card (has been |is )?(issued|blocked|re-?issued|activated|updated)|ho gaya|kar diya|de diya)\b/i;
+
+/** First part of an email reply, without the quoted history. */
+export const replyText = (body) => String(body || '').split(/\n-{2,}|\nFrom:|\nOn .+ wrote:|\n>/)[0].trim();
+
+/** 'resolved' only when the reply reads like a resolution and not like "we'll check"; otherwise 'update'. */
+export function classifyStoreReply(body) {
+  const t = replyText(body);
+  if (RESOLVED.test(t) && !INTERIM.test(t)) return 'resolved';
+  return 'update';
+}
+
+/** A date the store promised in a reply or on a call ("by tomorrow", "within 2 days", "by 18/10"), as YYYY-MM-DD. */
+export function promisedDate(body, from = new Date()) {
+  const t = replyText(body).toLowerCase();
+  const day = (d) => d.toLocaleDateString('en-CA');
+  const base = new Date(from);
+  if (/\b(today|aaj|by eod|end of (the )?day)\b/.test(t)) return day(base);
+  if (/\b(tomorrow|kal tak|kal)\b/.test(t)) {
+    base.setDate(base.getDate() + 1);
+    return day(base);
+  }
+  let m = t.match(/within (\d{1,2}) (working |business )?days?/);
+  if (m) return day(new Date(addWorkingDays(from, Number(m[1]))));
+  m = t.match(/\b(?:by|on|before|till|until)\s+(\d{1,2})[\/\-.](\d{1,2})(?:[\/\-.](\d{2,4}))?\b/);
+  if (m) {
+    const y = m[3] ? Number(m[3].length === 2 ? '20' + m[3] : m[3]) : base.getFullYear();
+    const d = new Date(y, Number(m[2]) - 1, Number(m[1]));
+    const days = (d - new Date(day(base))) / 864e5;
+    if (!isNaN(d) && days >= 0 && days <= 60) return day(d);
+  }
+  return null;
 }
 
 // Throws when a case cannot move to `to`; never changes the case.
 export function validateStatus(c, to) {
   if (!TRANSITIONS[c.status]?.includes(to)) throw fail(`Cannot move a case from ${c.status} to ${to}`);
   if (to === 'Escalated') {
-    const blocker = escalationBlocker(c);
+    const blocker = c.escalateTo?.kind ? null : escalationBlocker(c); // the agent picked where it goes
     if (blocker) throw fail(blocker);
     const t = targetFor(c);
     if (t.kind === 'store' && !t.code) throw fail('Select the store before escalating');
@@ -189,7 +303,12 @@ export function applyStatus(c, to, by, note) {
     c.resolutionType = 'Store';
     c.workflowKey = wf?.key || null;
     c.escalatedTo = { kind: t.kind, code: t.code, name: t.name, email: t.email, contact: t.contact };
+    c.firstDueAt = c.dueAt; // for the on-time report (dueAt moves with each level)
+    c.promisedAt = null;
+    c.storeReplyReview = null;
+    delete c.escalateTo;
   }
+  if (to === 'Resolved') c.storeReplyReview = null;
   if (to === 'Closed') {
     if (from === 'Pending' || from === 'Waiting') c.resolutionType = 'ROT';
     c.closedAt = now();
@@ -297,6 +416,12 @@ export function storeForSender(email) {
   if (!e) return null;
   const spoc = db().stores.find((s) => s.spocEmail && s.spocEmail.toLowerCase().split(/[,;\s]+/).includes(e));
   if (spoc) return spoc;
+  // team contacts and escalation-matrix contacts reply for their cases too
+  const listed = (v) => String(v || '').toLowerCase().split(/[,;\s]+/).includes(e);
+  const team = Object.entries(teams()).find(([, t]) => listed(t.email));
+  if (team) return { code: null, team: team[0] };
+  const matrix = Object.values(db().settings?.escalationMatrix || {}).flat();
+  if (matrix.some((l) => listed(l?.email))) return { code: null, internal: true };
   return e.endsWith('@cpwi.in') ? { code: null, internal: true } : null;
 }
 
@@ -354,7 +479,7 @@ export function intakeEmail({ fromEmail = '', fromName = '', subject = '', body 
       businessName: member?.businessName || '',
       cardNo: member?.cardNo || refs.cardNo,
       memberId: member?.id || null,
-      callerType: member ? 'Registered member' : 'Not registered',
+      callerType: member ? 'Registered With Lots' : 'Not Registered',
       store: '', // the store must come from the mail itself; the member's home store is only a hint
       orderRef: refs.orderRef,
       subject,

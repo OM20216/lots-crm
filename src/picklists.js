@@ -2,7 +2,7 @@
 // values of one field go with a value of another (Case Type → Category → Sub Category …).
 // The base lists come from src/taxonomy.js; values and pairs added from the
 // Picklists / Dependencies screens are stored by the server and merged in here.
-import { CALLER_TYPES, CASE_TREE, CHANNELS, CUSTOMER_GROUPS, PRODUCT_CATEGORIES, REQUEST_FOR, RESOLUTION_TYPES, SUPPLIER_TYPES } from './taxonomy.js';
+import { CALLER_TYPES, CASE_MASTER, CASE_TREE, CHANNELS, CUSTOMER_GROUPS, PRODUCT_CATEGORIES, PRODUCT_TYPES, REQUEST_FOR, RESOLUTION_TYPES, SUB2, SUPPLIER_TYPES } from './taxonomy.js';
 
 const uniq = (a) => [...new Set(a.filter(Boolean))];
 
@@ -13,9 +13,11 @@ export const BASE_LISTS = {
   'Caller Type': CALLER_TYPES,
   Channel: CHANNELS,
   'Product Category': PRODUCT_CATEGORIES,
+  'Product Type': uniq(Object.values(PRODUCT_TYPES).flat()),
   'Customer Group': Object.keys(CUSTOMER_GROUPS),
   'Customer Type': uniq(Object.values(CUSTOMER_GROUPS).flat()),
   'Request For': REQUEST_FOR,
+  'Sub Category 2': uniq([...SUB2, ...SUPPLIER_TYPES]),
   'Supplier Type': SUPPLIER_TYPES,
   'Resolution Type': RESOLUTION_TYPES,
 };
@@ -24,6 +26,10 @@ export const BASE_LISTS = {
 export const KNOWN_RELATIONSHIPS = [
   { mainField: 'Case Type', subField: 'Category' },
   { mainField: 'Category', subField: 'Sub Category' },
+  { mainField: 'Category', subField: 'Request For' },
+  { mainField: 'Category', subField: 'Sub Category 2' },
+  { mainField: 'Category', subField: 'Resolution Type' },
+  { mainField: 'Product Category', subField: 'Product Type' },
   { mainField: 'Customer Group', subField: 'Customer Type' },
 ];
 
@@ -32,6 +38,12 @@ const pair = (mainField, mainValue, subField, subValue) => ({ mainField, mainVal
 export const BASE_DEPENDENCIES = [
   ...Object.entries(CASE_TREE).flatMap(([type, cats]) => Object.keys(cats).map((cat) => pair('Case Type', type, 'Category', cat))),
   ...Object.values(CASE_TREE).flatMap((cats) => Object.entries(cats).flatMap(([cat, subs]) => subs.map((s) => pair('Category', cat, 'Sub Category', s)))),
+  ...Object.entries(CASE_MASTER).flatMap(([cat, m]) => [
+    ...(m.requestFor || []).map((v) => pair('Category', cat, 'Request For', v)),
+    ...(m.sub2 || []).map((v) => pair('Category', cat, 'Sub Category 2', v)),
+    ...(m.resolution || []).map((v) => pair('Category', cat, 'Resolution Type', v)),
+  ]),
+  ...Object.entries(PRODUCT_TYPES).flatMap(([pc, types]) => types.map((t) => pair('Product Category', pc, 'Product Type', t))),
   ...Object.entries(CUSTOMER_GROUPS).flatMap(([g, types]) => types.map((t) => pair('Customer Group', g, 'Customer Type', t))),
 ];
 

@@ -149,7 +149,7 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 | Case handling | **Search cases** | Search and filter all cases (status, channel, type, store, agent), CSV export |
 | Channels | **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
 | Channels | **Email inbox** | Email cases by status, and logging an email by hand |
-| Channels | **Outbound leads** | Calling lists (new registration, inactive, order on call, LCC, confirmation, festival offers): import, **Call**, log the outcome. Confirmation calls close or re-open their case |
+| Channels | **Outbound leads** | Calling lists for every SOP outbound purpose: new registration, inactive customer (non-buying activation), order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record ratings and comments, with a **Survey results** panel |
 | Escalation | **Follow-ups** | Escalated cases grouped by **store or team** (E-commerce, IT, BDA, …) with deadlines, the daily call script, the CRM note template, and one follow-up email per store / team |
 | Reference | **Contacts** | The member master: list, **+ Create Contact** / **Edit** (Vtiger-style form, §11), **Call**, **Cases**, CSV import |
 | Reference | **SOP knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
@@ -175,14 +175,16 @@ The case taxonomy is taken from LOTS's case master (**"lot cases excel.xlsx"** �
 
 | Case type | Categories |
 | --- | --- |
-| **Inquiry** | Admin Related · Festive Gifting · General Query · HR or Jobs · IT or Website · Legal · Marketing Related · Real Estate |
-| **Issues or Complaints - NR** | App Related · BDA Related · ECommerce Related · Membership Related · Membership Related - NR · Store Related |
+| **Inquiry** | Legal · Real Estate · HR or Jobs · General Query · IT or Website · Festive Gifting · Admin Related · Marketing Related |
+| **Issues or Complaints - NR** | Store Related · Membership Related · ECommerce Related · BDA Related · App Related · Membership Related - NR |
+
+**Case master columns** ("lot cases excel"), as dependent fields under the category: **Request for** (New Member → New Member - Customer · New Supplier → New Vendor - Supplier · other requests → Re-issuing of Lost Card), **Sub-category** (requests: Behavior of staff … Others (st)), **Sub-category 2** (requests: Add-On Cards / Address updation · New Supplier: the 4 supplier types), **Invoice detail required** (the 5 request categories), **Resolution type** (Inquiry: Answer Received / Clarity required from LOTS / Escalated and Auto Closed · New Member / Supplier: Information Provided · requests: Answer Received / Clarity required from LOTS · complaints: Escalated to LOTS). Every type of contact gets the same options. The SOP's sub-categories are kept for General Query, HR or Jobs and the Store / App / ECommerce / BDA complaints (the master has none there).
 | **Requests** | App Related Requests · BDA Related REQUESTS · E Commerce Related Request · Membership Related Request · New Member · New Supplier · Store Related Request |
 
 Sub-categories (Requests): *Behavior of staff · Delivery Related · Offer related · Operational issues · Others (st) · Payment or invoice · Pricing issue · Quality issue · Return Of Goods · Stock availability · Add-On Cards · Address updation* (New Member → *New Member - Customer*; New Supplier → *New Vendor - Supplier* and the four supplier types). Inquiry and complaint categories have no sub-category. The other case-master dimensions are also in `src/taxonomy.js`: `REQUEST_FOR`, `SUB1`, `SUB2`, `SUPPLIER_TYPES`, `RESOLUTION_TYPES`, `CALL_TYPES`.
 
 Other fields on a case:
-- Caller type: Registered member, Not registered, or B2C customer (the case master's `type_of_contact`: Registered With Lots, Not Registered, Others).
+- Type of contact (the case master's `type_of_contact`): Registered With Lots, Not Registered, or Others. Every type gets the same case types and categories.
 - Channel: Inbound call, Outbound call, Missed call callback, or Email.
 - Product category: Fresh, FMCG – Food, Commodities, FMCG – Non food, or Non food.
 
@@ -246,8 +248,7 @@ Shown as an orange **SOP check** box on the New Case page and the case page. The
 | Situation | Check |
 | --- | --- |
 | Request → **Return / exchange** | A **Purchase date** field appears. Warns for non-returnable items (oil, ghee, fresh dairy, fruit, vegetables, meat, fish, chilled or frozen), for purchases more than **7 working days** ago, and reminds about the stamped bill and credit-note rules |
-| Caller type **B2C customer** | Warns for stores other than **AKD / NSP**, **non-food** products, and **app / e-commerce** cases |
-| Caller type **Not registered** | Requests are limited to **New Member** and **New Supplier** (enforced) |
+| Type of contact **Others** (e.g. B2C walk-in customers) | Warns for stores other than **AKD / NSP**, **non-food** products, and **app / e-commerce** cases |
 
 ### 6.6 Workflow per case type
 
@@ -285,6 +286,24 @@ Every dropdown takes its values from a **picklist**, and dependent dropdowns (Ca
 - **On the case form:** **+ Add** next to *Category* and *Sub-category* adds a value under the chosen case type / category in one step, and selects it.
 - Removing an added value also removes its pairs. Cases already saved keep their values.
 - A category with no workflow of its own (§6.6) follows the standard workflow (store, 1 working day).
+
+### 6.8 Escalation
+
+**Level 1** is the store or team the case-type workflow picks (§6.6), with that workflow's TAT (1 working day; 7 for refunds and new suppliers). Working days skip **Sundays and the holidays** in Stores & settings.
+
+| Step | What happens |
+| --- | --- |
+| **Escalate** | The agent can keep the workflow's choice or pick **Send to** another store / team. The escalation email goes to that contact |
+| **Escalation matrix** (Stores & settings) | Level 2 and Level 3 contacts with their own TATs: a **default** for all, and optional rows per store and team. Empty = the Level 2 email on the Automation page |
+| **TAT passes** | The case moves up one level by itself: the Level 1 contact keeps it, the next level is copied on the email, and the new due date is that level's TAT. At the highest level it gets one reminder per working day instead (no endless levels) |
+| **Escalate to level N now** | From the case page, with a reason: an agent doesn't have to wait for the TAT |
+| **Re-assign** | From the case page: move an escalated case to another store / team (wrong team, or passed on). It starts again at Level 1 with a fresh TAT and a new escalation email |
+| **Daily follow-up call** (SOP) | Follow-ups shows **Not followed up today** for every case without an agent call today (the automatic daily email doesn't count). Logging the call can record the date the **store promised** |
+| **Store replies by email** | Only a reply that reads like a resolution ("refund processed", "replacement delivered", "issue resolved") moves the case to Resolved. "We are checking", "will update by tomorrow", "Noted" keep it Escalated and flag **Store replied — check** for an agent, who marks it as the resolution or keeps following up. A date in the reply ("by tomorrow", "within 2 days", "by 18/10") becomes the promised date |
+| **Promise missed** | When the promised date passes, the case is flagged (Follow-ups, Dashboard, daily email) and noted on the timeline |
+| **Report** (Follow-ups → Report) | Per store / team for 7, 30, 90 or 365 days: escalated, resolved, **on time %** (within the first TAT), average working days to resolve, open, overdue, above Level 1, promises missed |
+
+Replies are recognised from the store contacts, the team emails, the escalation-matrix contacts and any @cpwi.in address.
 
 ---
 
@@ -397,6 +416,8 @@ Switch **Create cases from new emails** off (Automation → Rules) to have agent
 
 **All outgoing emails** (acknowledgements, templates, escalations, follow-ups, resolutions, agent replies) are **branded HTML**: LOTS header, the message, a case details box, and the care number in the footer. Emails to the customer of an email case go **in their thread**; others are new emails. A copy of everything is in Sent Items.
 
+**Email previews in Microsoft Teams** (Automation → *Email previews in Microsoft Teams*): while `TEAMS_WEBHOOK_URL` (a Power Automate "post to a channel when a webhook request is received" workflow link) is in the **private secrets file** and the switch is on, **every email the CRM would send is posted to the Teams channel instead** — type, To, Cc, subject, case and the full text. Nobody receives an email. *Send a test message* and *Post a sample of every email* (acknowledgement, information request, membership, supplier, job, escalation, store follow-up, resolution, escalation level 2, daily store follow-up) show the team everything before going live. The Outbox and case timelines mark these as *Teams preview (not sent)*. The workflow link carries a signature: keep it only in the secrets file.
+
 **Test mode** (like VMM's `TEST_MODE`): **Automation → Timers & recipients → "Test mode: send all emails to"**. While an address is filled in, **every** outgoing email goes only to that address, with **[TEST]** in the subject and a note saying who it would have gone to. The Email inbox shows a banner. Empty = live.
 
 ### 9.3 Connecting: Sign in with Microsoft (recommended)
@@ -440,9 +461,11 @@ The **Automation** page switches each rule on or off. Everything the automation 
 | Assign cases & missed calls | To the agent on shift with the fewest open items | On | No |
 | Acknowledge every new email | Customer gets the case number | On | Yes |
 | Email the store on escalation | Escalation template to the store contact | On | Yes |
-| Store reply → Resolved | A reply from the store contact or any @cpwi.in address on an escalated case moves it to Resolved | On | Yes |
+| Store reply → Resolved | A reply from the store / team contact (or any @cpwi.in address) on an escalated case moves it to Resolved **only if it reads like a resolution**; otherwise the case stays Escalated and is flagged "Store replied — check" (§6.8) | On | Yes |
 | Email the resolution to the customer | Quotes the store's reply | On | Yes |
 | Queue the confirmation call | Resolved case → Outbound leads "Confirmation / resolution" | On | No |
+| Queue the follow-up call | Waiting case → Outbound leads "Follow-up" to ask for the missing details. **Info received** on the call moves the case back to Pending; **Update given** goes on the timeline. If the case goes back to Pending another way, the call closes itself | On | No |
+| Queue a customer survey call | Closed case → Outbound leads "Customer survey" (once per case). Ratings for overall, store and customer care, would-recommend, and comments; saved on the case timeline and in **Survey results** | **Off** | No |
 | Chase overdue escalations | Deadline passed: reminder to the store (cc Level 2 if set), escalation level +1, every working day | On | Yes (the level still goes up without it) |
 | Answer standard enquiries | Job, supplier and new-membership emails answered with the SOP template. **Not in the SOP** (call first) | **Off** | Yes |
 | Information complete? | Complaints / requests checked against the SOP requirements; missing → "information required" email, Waiting. **Not in the SOP** | **Off** | Yes |
@@ -626,6 +649,11 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | POST / PUT | `/api/agents`, `/api/agents/:name` | Add an agent / set their SparkTG email |
 | PUT | `/api/stores/:code` | Store contact and hours |
 | PUT | `/api/teams/:key` | Team contact (contact, phone, email) for workflow escalations |
+| PUT | `/api/escalation-matrix/:key` | Levels above Level 1 for `*` (default), `store:<code>` or `team:<key>`: `{ levels: [{ name, email, phone, tatDays }] }` |
+| PUT | `/api/holidays` | `{ dates: ["YYYY-MM-DD", …] }` — not counted as working days |
+| POST | `/api/cases/:id/reroute` | Move an escalated case to `{ kind: store \| team, code, note }` |
+| POST | `/api/cases/:id/raise-level` | Next escalation level now, `{ reason }` (400 if the matrix has no next level) |
+| GET | `/api/escalation-report?days=30` | Escalations per store / team: on time, average days, open, overdue, levels, promises missed |
 | POST / DELETE | `/api/picklists` | Add `{ field, value }` (409 if it exists) / remove an added value and its pairs |
 | POST / DELETE | `/api/dependencies` | Add `{ mainField, mainValue, subField, subValue }` (both values must be in their picklists; 409 if the pair exists) / remove an added pair |
 | GET / POST | `/api/cases` | List (filters: status, channel, store, caseType, assignedTo, q, overdue) / create |
@@ -689,6 +717,9 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [x] **MySQL password changed** (it had been shared in a chat; the same login opened other databases on that server). ✅ Done. The SparkTG password was left unchanged by choice.
 
 **From LOTS**
+- [ ] **Confirm the CRM's own additions** (kept until LOTS decides): the 5 customer-survey questions; the follow-up / survey call outcome labels (Info received, Update given, Survey completed, Refused survey); the 7-day TAT for refund and new-supplier escalations (taken from the FAQ promises; the SOP's escalation TAT is 1 working day).
+- [ ] **Confirm the SOP sub-categories** used where the case master has none (General Query, HR or Jobs, Store / App / ECommerce / BDA complaints). Editable on the Picklists page.
+- Settled 15 Oct 2026: Duhai store code is **DH** (case master).
 - [ ] The full **escalation matrix** (the SOP defines only Level 1, 1 working day).
 - [ ] **Calling lists** for outbound leads, and current **offers / schemes** for festival calls.
 - [ ] Official **email templates**, if LOTS has them.
@@ -747,3 +778,12 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 26 | Email like the VMM CRM: **Mailbox** view in Email inbox (Inbox / Sent, search, conversation view, attachments, Log case, Mark unread, "Being handled by" lock, reply in thread with templates). Delta inbox (only mail after connecting), mail stays in the inbox tagged "LOTS CRM" + case number, replies matched by conversation, branded HTML emails sent in the customer's thread, **test mode**, switch for automatic case creation. Tested against a fake Microsoft Graph |
 | 27 | **Workflow per case type**: each SOP case type / category has an owner team, TAT and steps (`src/workflows.js`). Escalations go to the right store or team (E-commerce, IT, BDA, HR, home store, …) with that TAT; escalation, overdue and daily follow-up emails follow. Workflow checklist on the case page (auto-ticking steps, next step highlighted), workflow preview on New case, **Teams** in Stores & settings, **Follow-ups** grouped by store and team, **Case workflows** reference screen. Tested on a test copy of the data |
 | 28 | **Picklists and dependencies, as in the PSRI CRM**: Picklists screen (values per dropdown, + Add, new lists, remove added values) and Dependencies screen (add a dependency pair, pairs grouped by relationship). Case form, case filters, caller type and contact segments read the merged lists; **+ Add** beside Category and Sub-category on the case form. Base values from the case master stay fixed. Tested on a test copy of the data |
+| 29 | **SOP outbound calls completed**: new call types **Follow-up** (queued automatically when a case goes to Waiting; "Info received" moves the case back to Pending) and **Customer survey** (5 questions: three star ratings, would-recommend, comments; Survey results panel; optional automatic survey call after a case closes). Tested on a test copy of the data, API and browser |
+| 30 | **Escalation completed**: escalation matrix (Level 2 / 3 contacts and TATs, default + per store / team), holidays in TATs, automatic level-up when a level's TAT passes (daily reminder at the top level), **Escalate to next level** and **Re-assign** on the case page, **Send to** choice when escalating, store replies read for a real resolution ("we are checking" no longer resolves the case) with promised dates picked up, promised date on follow-up calls and missed-promise flags, **Not followed up today** flag, dashboard tiles, **Report** tab on Follow-ups. Team and matrix contacts recognised as store replies. Tested on a test copy of the data (API, overdue run and browser) |
+| 31 | **Sub-categories for every category**: the case master has them only for Requests, so the categories the SOP describes got its sub-categories (the dropdown was empty); categories without an SOP sub-list have none. Email reader fills them; Refund not received (7 days) and product availability / price workflows restored |
+| 32 | **Cases follow the case master exactly** ("lot cases excel"): all 21 categories; Request for, Sub-category 2 and Resolution type as dependent fields; invoice details required for the 5 request categories; same options for every type of contact (the old "not registered → only new member / supplier" limit removed). Made-up sub-categories removed. Email reader fills Request for / Sub-category 2 |
+| 33 | **Matched to the documents**: type of contact uses the case master's labels (Registered With Lots / Not Registered / Others — saved cases converted once at start-up; Others get the B2C checks); store 105 is **DH** Duhai; **Not Specific** store option (a store complaint still needs a real store to escalate); **Product type** under product category (the SOP's examples, e.g. Fresh → Fruits); status help says store / team; the made-up B2C customer group removed |
+| 34 | **Email previews in Microsoft Teams**: every email the CRM would send is posted to a Teams channel (Power Automate workflow link in the secrets file) instead of being sent; test message and "sample of every email" buttons; switch on the Automation page. Tested against a fake Teams endpoint (9 of 9), then posted to the real channel |
+| 35 | **Attachments**: files can be added to a case (+ Add file — photos / bills from WhatsApp or phone); escalation, level-up and overdue emails carry the case's files automatically; template emails from the case page can attach chosen files; Teams cards list them. Up to 3 MB per file, 3.5 MB per email (Microsoft Graph's simple limit) — bigger files are named in the email as "available on request". Teams cards now mirror the branded email (header, template text, case box, footer). Tested with a stand-in for Microsoft Graph (9 of 9) and in the browser |
+| 36 | **Simpler screens**: case page = "What to do now" (next SOP step + only the buttons that apply, escalation inside it) + tabs (Details read-only with Edit · Timeline · Email · Files · Calls · Steps) + customer / store / documents on the side; menu 16 → 11 items with setup pages on one **Admin** page; New case in 4 numbered steps with rarely used fields under "More details" |
+| 37 | Decisions: CRM additions and SOP sub-categories kept until LOTS confirms; Duhai = DH; LWS-000003 reset from level 6 (old version's daily level-up) to level 1. New `POST /api/cases/:id/set-level` to correct a level by hand, with a reason on the timeline |
