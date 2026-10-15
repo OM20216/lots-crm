@@ -1,9 +1,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { CALLER_TYPES } from '../taxonomy.js';
 import { KB, SCRIPTS } from '../knowledge.js';
-import { Field, Select, StatusBadge, fmtDate, useMeta } from '../ui.jsx';
+import { Field, Select, StatusBadge, fmtDate, useMeta, usePicklists } from '../ui.jsx';
 import Classifier, { allowedCategories } from '../components/Classifier.jsx';
 import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
@@ -37,6 +36,7 @@ export default function NewCase() {
   const [params] = useSearchParams();
   const nav = useNavigate();
   const { refreshStats, agent } = useMeta();
+  const { tree, list } = usePicklists();
 
   const [form, setForm] = useState({
     channel: params.get('channel') || (params.get('missedId') ? 'Missed call callback' : params.get('leadId') ? 'Outbound call' : 'Inbound call'),
@@ -177,15 +177,16 @@ export default function NewCase() {
     setErr('');
     if (form.channel === 'Email' && (!form.email || !form.subject.trim())) return setErr('Enter the sender’s email and the email subject.');
     if (form.channel !== 'Email' && !form.phone) return setErr('Enter the caller’s mobile number.');
-    if (form.caseType === 'Request' && !allowedCategories('Request', form.callerType).includes(form.category)) return setErr('SOP: a caller who is not a registered member can only request a new membership or a new supplier registration.');
-    if (!form.caseType || !form.category || !form.subCategory) return setErr('Select case type, category and sub-category.');
+    if (form.caseType === 'Requests' && !allowedCategories('Requests', form.callerType, tree).includes(form.category)) return setErr('SOP: a caller who is not a registered member can only request a new membership (New Member) or a new supplier registration (New Supplier).');
+    if (!form.caseType || !form.category) return setErr('Select case type and category.');
+    if ((tree[form.caseType]?.[form.category] || []).length && !form.subCategory) return setErr('Select the sub-category.');
     if (!form.description.trim()) return setErr('Describe the query / concern.');
     if (outcome === 'Escalated' && !form.store) return setErr('Select the store to escalate to.');
     setSaving(true);
     try {
       const c = await api.post('/cases', {
         ...form,
-        subject: form.channel === 'Email' ? form.subject : form.subCategory,
+        subject: form.channel === 'Email' ? form.subject : form.subCategory || form.category,
         status: outcome,
         note: note || undefined,
         source: { missedCallId: params.get('missedId') || undefined, leadId: params.get('leadId') || undefined },
@@ -352,7 +353,7 @@ export default function NewCase() {
             <h2 className="section-h">Caller details</h2>
             <div className="grid">
               <Field label="Caller type">
-                <Select value={form.callerType} options={CALLER_TYPES} onChange={(v) => set({ callerType: v, memberId: v === 'Registered member' ? form.memberId : null, ...(form.caseType === 'Request' ? { category: '', subCategory: '' } : {}) })} />
+                <Select value={form.callerType} options={list('Caller Type')} onChange={(v) => set({ callerType: v, memberId: v === 'Registered member' ? form.memberId : null, ...(form.caseType === 'Requests' ? { category: '', subCategory: '' } : {}) })} />
               </Field>
               <Field label="Name">
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} />
@@ -381,7 +382,7 @@ export default function NewCase() {
               <div className="field wide">
                 <WorkflowHint c={form} />
               </div>
-              {form.subCategory === 'Return / exchange' && (
+              {form.subCategory === 'Return Of Goods' && (
                 <Field label="Purchase date" hint="SOP: returns within 7 working days">
                   <input type="date" value={form.purchaseDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set({ purchaseDate: e.target.value })} />
                 </Field>

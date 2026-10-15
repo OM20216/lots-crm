@@ -180,34 +180,34 @@ async function emailCustomer(c, templateId, kind, extra) {
 // First matching rule wins. `answer` = template sent automatically; `then` = status after answering.
 const APP = /\b(app|application|website|site|online|order\s*(id|no|number)?|delivery boy)\b/i;
 const RULES = [
-  { name: 'Job enquiry', re: /\b(job|jobs|vacanc\w*|career|resume|cv|hiring|naukri|interview)\b/i, caseType: 'Enquiry', category: 'HR & jobs', subCategory: 'Job vacancy', answer: 'hr', then: 'Closed' },
-  { name: 'Supplier registration', re: /\b(supplier|vendor|manufactur\w*|supply (our|my)|list (our|my) products?|distributorship)\b/i, caseType: 'Request', category: 'Not registered member', subCategory: 'New supplier registration', answer: 'supplier', then: 'Waiting' },
-  { name: 'Lost / block card', re: /(lost|block|stolen|misplace\w*).{0,25}card|card.{0,25}(lost|block|stolen|misplace)/i, caseType: 'Request', category: 'Membership related', subCategory: 'Block membership card / lost card' },
-  { name: 'Add-on card', re: /add[\s-]?on card|additional card|secondary card/i, caseType: 'Request', category: 'Membership related', subCategory: 'New add-on card' },
-  { name: 'Change mobile', re: /(change|update|modify).{0,30}(mobile|phone|contact) ?(no|number)?/i, caseType: 'Request', category: 'Membership related', subCategory: 'Change registered contact number' },
-  { name: 'Change address', re: /(change|update|modify).{0,30}address/i, caseType: 'Request', category: 'Membership related', subCategory: 'Update registered business address' },
-  { name: 'Cancel order', re: /cancel.{0,25}order|order.{0,25}cancel/i, caseType: 'Request', category: 'App / E-comm related', subCategory: 'Cancel order' },
-  { name: 'Refund', re: /\brefund\b|money (not|nahi) (received|aaya)|amount debited/i, caseType: 'Issue & Complaint', category: 'App / E-comm related', subCategory: 'Refund not received' },
-  { name: 'Login / OTP', re: /\b(otp|log ?in|sign ?in|password)\b/i, caseType: 'Issue & Complaint', category: 'App / E-comm related', subCategory: 'OTP / login issue' },
-  { name: 'App not working', re: /(app|website|site).{0,25}(not (working|opening|loading)|down|error|crash)/i, caseType: 'Issue & Complaint', category: 'App / E-comm related', subCategory: 'Site / app not opening' },
-  { name: 'BDA', re: /\bbda\b|sales ?(man|person|representative)|field (staff|executive)/i, caseType: 'Issue & Complaint', category: 'BDA related', subCategory: '' },
-  { name: 'Late delivery', re: /(not (yet )?(delivered|received)|late delivery|delay\w*|still waiting).{0,40}(order|delivery|goods)?/i, app: ['App / E-comm related', 'Delayed delivery – not dispatched'], shop: ['Store related', 'Late delivery'], caseType: 'Issue & Complaint' },
-  { name: 'Incomplete delivery', re: /(incomplete|missing|short) (order|delivery|items?|quantity)/i, app: ['App / E-comm related', 'Incomplete order delivered'], shop: ['Store related', 'Incomplete delivery'], caseType: 'Issue & Complaint' },
-  { name: 'Wrong product', re: /(wrong|different|incorrect) (product|item|article)/i, app: ['App / E-comm related', 'Wrong products received'], shop: ['Store related', 'Wrong product billed'], caseType: 'Issue & Complaint' },
-  { name: 'Expiry', re: /expir\w*|near.?expiry|stale|rotten|fungus|spoil\w*/i, app: ['App / E-comm related', 'Near expiry product'], shop: ['Store related', 'Near expiry product'], caseType: 'Issue & Complaint' },
-  { name: 'Quality', re: /(bad|poor|damaged|broken|leak\w*|kharab) (quality|product|item|packet|pack)|quality issue/i, app: ['App / E-comm related', 'Poor product quality'], shop: ['Store related', 'Poor product quality'], caseType: 'Issue & Complaint' },
-  { name: 'Overcharged / price', re: /overcharg\w*|extra (charged|amount)|price (mismatch|difference|different)|charged more|mrp/i, app: ['App / E-comm related', 'Amount overcharged'], shop: ['Store related', 'Price mismatch'], caseType: 'Issue & Complaint' },
-  { name: 'Staff behaviour', re: /\b(rude|misbehav\w*|behaviou?r|arrogant|shout\w*|abus\w*)\b/i, caseType: 'Issue & Complaint', category: 'Store related', subCategory: 'Rude staff behaviour' },
-  { name: 'Freebie / coupon', re: /(freebie|free (gift|item)|coupon|voucher).{0,30}(not|nahi)|(not|didn.?t) (get|receive).{0,20}(freebie|free|coupon|voucher)/i, caseType: 'Issue & Complaint', category: 'Store related', subCategory: 'SMS coupon not given' },
-  { name: 'Invoice copy', re: /(invoice|bill).{0,25}(copy|reissue|re-issue|again|resend|duplicate)|(copy|duplicate) (of )?(invoice|bill)/i, caseType: 'Request', category: 'Store related', subCategory: 'Reissue invoice' },
-  { name: 'GST', re: /\bgst(in)?\b/i, caseType: 'Request', category: 'Store related', subCategory: 'GST related' },
-  { name: 'Return / exchange', re: /\b(return|exchange|replace\w*)\b/i, caseType: 'Request', category: 'Store related', subCategory: 'Return / exchange' },
-  { name: 'Bulk booking', re: /\b(bulk|wholesale quantity|regular supply|book (the )?products?)\b/i, caseType: 'Request', category: 'Store related', subCategory: 'Bulk booking' },
-  { name: 'Privilege card', re: /privilege/i, caseType: 'Enquiry', category: 'General query', subCategory: 'Privilege card' },
-  { name: 'New membership', re: /\b(new membership|become a member|membership (card|registration|process)|register|registration|membership)\b/i, caseType: 'Request', category: 'Not registered member', subCategory: 'New membership', answer: 'membership', then: 'Closed', onlyNonMember: true },
-  { name: 'Offers', re: /\b(offers?|scheme|discount|sale)\b/i, caseType: 'Enquiry', category: 'General query', subCategory: 'Offers & schemes' },
-  { name: 'Delivery enquiry', re: /delivery (charge|fee|time|timing)|minimum order|\bmov\b|handling fee/i, caseType: 'Enquiry', category: 'General query', subCategory: 'Delivery enquiry / timings / charges' },
-  { name: 'Store timings / address', re: /\b(timing|timings|open|closing time|sunday|address|location|where is)\b/i, caseType: 'Enquiry', category: 'General query', subCategory: 'Store timings' },
+  { name: 'Job enquiry', re: /\b(job|jobs|vacanc\w*|career|resume|cv|hiring|naukri|interview)\b/i, caseType: 'Inquiry', category: 'HR or Jobs', subCategory: '', answer: 'hr', then: 'Closed' },
+  { name: 'Supplier registration', re: /\b(supplier|vendor|manufactur\w*|supply (our|my)|list (our|my) products?|distributorship)\b/i, caseType: 'Requests', category: 'New Supplier', subCategory: 'New Vendor - Supplier', answer: 'supplier', then: 'Waiting' },
+  { name: 'Lost / block card', re: /(lost|block|stolen|misplace\w*).{0,25}card|card.{0,25}(lost|block|stolen|misplace)/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Re-issuing of Lost Card' },
+  { name: 'Add-on card', re: /add[\s-]?on card|additional card|secondary card/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Add-On Cards' },
+  { name: 'Change mobile', re: /(change|update|modify).{0,30}(mobile|phone|contact) ?(no|number)?/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Operational issues' },
+  { name: 'Change address', re: /(change|update|modify).{0,30}address/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Address updation' },
+  { name: 'Cancel order', re: /cancel.{0,25}order|order.{0,25}cancel/i, caseType: 'Requests', category: 'E Commerce Related Request', subCategory: 'Operational issues' },
+  { name: 'Refund', re: /\brefund\b|money (not|nahi) (received|aaya)|amount debited/i, caseType: 'Issues or Complaints - NR', category: 'ECommerce Related', subCategory: '' },
+  { name: 'Login / OTP', re: /\b(otp|log ?in|sign ?in|password)\b/i, caseType: 'Issues or Complaints - NR', category: 'App Related', subCategory: '' },
+  { name: 'App not working', re: /(app|website|site).{0,25}(not (working|opening|loading)|down|error|crash)/i, caseType: 'Issues or Complaints - NR', category: 'App Related', subCategory: '' },
+  { name: 'BDA', re: /\bbda\b|sales ?(man|person|representative)|field (staff|executive)/i, caseType: 'Issues or Complaints - NR', category: 'BDA Related', subCategory: '' },
+  { name: 'Late delivery', re: /(not (yet )?(delivered|received)|late delivery|delay\w*|still waiting).{0,40}(order|delivery|goods)?/i, app: ['ECommerce Related', ''], shop: ['Store Related', ''], caseType: 'Issues or Complaints - NR' },
+  { name: 'Incomplete delivery', re: /(incomplete|missing|short) (order|delivery|items?|quantity)/i, app: ['ECommerce Related', ''], shop: ['Store Related', ''], caseType: 'Issues or Complaints - NR' },
+  { name: 'Wrong product', re: /(wrong|different|incorrect) (product|item|article)/i, app: ['ECommerce Related', ''], shop: ['Store Related', ''], caseType: 'Issues or Complaints - NR' },
+  { name: 'Expiry', re: /expir\w*|near.?expiry|stale|rotten|fungus|spoil\w*/i, app: ['ECommerce Related', ''], shop: ['Store Related', ''], caseType: 'Issues or Complaints - NR' },
+  { name: 'Quality', re: /(bad|poor|damaged|broken|leak\w*|kharab) (quality|product|item|packet|pack)|quality issue/i, app: ['ECommerce Related', ''], shop: ['Store Related', ''], caseType: 'Issues or Complaints - NR' },
+  { name: 'Overcharged / price', re: /overcharg\w*|extra (charged|amount)|price (mismatch|difference|different)|charged more|mrp/i, app: ['ECommerce Related', ''], shop: ['Store Related', ''], caseType: 'Issues or Complaints - NR' },
+  { name: 'Staff behaviour', re: /\b(rude|misbehav\w*|behaviou?r|arrogant|shout\w*|abus\w*)\b/i, caseType: 'Issues or Complaints - NR', category: 'Store Related', subCategory: '' },
+  { name: 'Freebie / coupon', re: /(freebie|free (gift|item)|coupon|voucher).{0,30}(not|nahi)|(not|didn.?t) (get|receive).{0,20}(freebie|free|coupon|voucher)/i, caseType: 'Issues or Complaints - NR', category: 'Store Related', subCategory: '' },
+  { name: 'Invoice copy', re: /(invoice|bill).{0,25}(copy|reissue|re-issue|again|resend|duplicate)|(copy|duplicate) (of )?(invoice|bill)/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Payment or invoice' },
+  { name: 'GST', re: /\bgst(in)?\b/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Payment or invoice' },
+  { name: 'Return / exchange', re: /\b(return|exchange|replace\w*)\b/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Return Of Goods' },
+  { name: 'Bulk booking', re: /\b(bulk|wholesale quantity|regular supply|book (the )?products?)\b/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Stock availability' },
+  { name: 'Privilege card', re: /privilege/i, caseType: 'Inquiry', category: 'General Query', subCategory: '' },
+  { name: 'New membership', re: /\b(new membership|become a member|membership (card|registration|process)|register|registration|membership)\b/i, caseType: 'Requests', category: 'New Member', subCategory: 'New Member - Customer', answer: 'membership', then: 'Closed', onlyNonMember: true },
+  { name: 'Offers', re: /\b(offers?|scheme|discount|sale)\b/i, caseType: 'Inquiry', category: 'General Query', subCategory: '' },
+  { name: 'Delivery enquiry', re: /delivery (charge|fee|time|timing)|minimum order|\bmov\b|handling fee/i, caseType: 'Inquiry', category: 'General Query', subCategory: '' },
+  { name: 'Store timings / address', re: /\b(timing|timings|open|closing time|sunday|address|location|where is)\b/i, caseType: 'Inquiry', category: 'General Query', subCategory: '' },
 ];
 
 const STORE_WORDS = [
@@ -407,9 +407,10 @@ function onThreaded({ c, staff, fromEmail, body, hasAttachments }) {
 
 // "Information complete?" — complaints and requests only (enquiries are answered, not escalated).
 // Returns 'requested' (asked the customer for missing items), 'escalated', or null (left for an agent).
+const STORE_REQUIRED = ['Store Related', 'BDA Related', 'Store Related Request', 'BDA Related REQUESTS'];
 async function infoStep(c) {
   const s = settings();
-  if (!s.autoInfoCheck || !['Issue & Complaint', 'Request'].includes(c.caseType) || c.category === 'Not registered member') return null;
+  if (!s.autoInfoCheck || !['Issues or Complaints - NR', 'Requests'].includes(c.caseType) || ['New Member', 'New Supplier'].includes(c.category)) return null;
   const missing = missingInfo(c);
   if (missing.length) {
     if ((c.infoRequests || 0) >= 2) {
@@ -428,7 +429,7 @@ async function infoStep(c) {
     return 'requested';
   }
   if (!s.autoEscalateComplete) return null;
-  if (!c.store && c.source?.homeStore && !['Store related', 'BDA related'].includes(c.category)) c.store = c.source.homeStore;
+  if (!c.store && c.source?.homeStore && !STORE_REQUIRED.includes(c.category)) c.store = c.source.homeStore;
   if (!c.store) return null;
   applyStatus(c, 'Escalated', BOT, 'Information complete — escalated to the store automatically');
   activity(`${c.id} complete — escalated to store ${c.store}`, c.id);

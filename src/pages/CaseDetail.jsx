@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { ACTIONS, CALLER_TYPES, STATUSES, STATUS_HELP } from '../taxonomy.js';
+import { ACTIONS, STATUSES, STATUS_HELP } from '../taxonomy.js';
 import { CRM_NOTE_TEMPLATES, EMAIL_TEMPLATES, fillTemplate } from '../knowledge.js';
-import { Due, Empty, Field, Select, StatusBadge, copy, fmtDate, storeLabel, useLoad, useMeta } from '../ui.jsx';
+import { Due, Empty, Field, Select, StatusBadge, copy, fmtDate, storeLabel, useLoad, useMeta, usePicklists } from '../ui.jsx';
 import Classifier from '../components/Classifier.jsx';
 import CallsCard from '../components/CallsCard.jsx';
 import { CallButton } from '../components/Dialer.jsx';
@@ -40,6 +40,7 @@ export default function CaseDetail() {
   const [flash, setFlash] = useState(loc.state?.created ? `Case saved.${loc.state.warning ? ' ' + loc.state.warning : ''}` : '');
 
   const target = useEscalationTarget(c);
+  const callerTypes = usePicklists().list('Caller Type');
 
   useEffect(() => {
     if (c) setEdit(pickEditable(c));
@@ -212,7 +213,7 @@ export default function CaseDetail() {
             </div>
             <div className="grid">
               <Field label="Caller type">
-                <Select value={edit.callerType} options={CALLER_TYPES} onChange={(v) => setEdit({ ...edit, callerType: v })} />
+                <Select value={edit.callerType} options={callerTypes} onChange={(v) => setEdit({ ...edit, callerType: v })} />
               </Field>
               <Field label="Name">
                 <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
@@ -230,7 +231,7 @@ export default function CaseDetail() {
                 <input value={edit.cardNo} onChange={(e) => setEdit({ ...edit, cardNo: e.target.value })} />
               </Field>
               <Classifier value={edit} onChange={setEdit} />
-              {edit.subCategory === 'Return / exchange' && (
+              {edit.subCategory === 'Return Of Goods' && (
                 <Field label="Purchase date" hint="SOP: returns within 7 working days">
                   <input type="date" value={edit.purchaseDate} onChange={(e) => setEdit({ ...edit, purchaseDate: e.target.value })} />
                 </Field>

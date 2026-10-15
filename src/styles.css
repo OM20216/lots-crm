@@ -81,9 +81,9 @@ textarea { resize: vertical; }
 
 .chips { display: flex; gap: 8px; flex-wrap: wrap; }
 .chip { padding: 8px 16px; border-radius: 20px; border: 1px solid #cfd4dc; background: #fff; cursor: pointer; font: inherit; font-weight: 600; }
-.chip.on.type-enquiry { background: #dcfce7; border-color: var(--ok); color: var(--ok); }
-.chip.on.type-issue { background: #ffedd5; border-color: #ea580c; color: #c2410c; }
-.chip.on.type-request { background: #fef9c3; border-color: #ca8a04; color: #a16207; }
+.chip.on.type-inquiry { background: #dcfce7; border-color: var(--ok); color: var(--ok); }
+.chip.on.type-issues { background: #ffedd5; border-color: #ea580c; color: #c2410c; }
+.chip.on.type-requests { background: #fef9c3; border-color: #ca8a04; color: #a16207; }
 
 .outcomes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .outcome { border: 1px solid var(--line); border-radius: 8px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
@@ -285,9 +285,9 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .type-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .type-card { display: flex; flex-direction: column; gap: 2px; text-align: left; padding: 12px 14px; border: 2px solid var(--line); border-radius: 12px; background: #fff; cursor: pointer; font: inherit; color: var(--ink); }
 .type-card span { color: var(--muted); font-size: 12px; }
-.type-card.on.type-enquiry { border-color: var(--ok); background: #f0fdf4; }
-.type-card.on.type-issue { border-color: #ea580c; background: #fff7ed; }
-.type-card.on.type-request { border-color: #ca8a04; background: #fefce8; }
+.type-card.on.type-inquiry { border-color: var(--ok); background: #f0fdf4; }
+.type-card.on.type-issues { border-color: #ea580c; background: #fff7ed; }
+.type-card.on.type-requests { border-color: #ca8a04; background: #fefce8; }
 .btn.big { padding: 11px 28px; font-size: 15px; }
 
 @media (max-width: 900px) {
@@ -480,3 +480,31 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .wf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 14px; margin: 14px 0; }
 .wf-grid .card { margin: 0; }
 .tag { background: #eef2ff; color: #3730a3; border-radius: 999px; padding: 1px 8px; font-size: 11px; font-weight: 600; vertical-align: middle; }
+
+/* ----- Picklists & dependencies (as in the PSRI CRM) ----- */
+.toast { position: fixed; top: 16px; right: 16px; z-index: 50; background: #065f46; color: #fff; padding: 9px 14px; border-radius: 8px; box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15); font-size: 13px; }
+.toast.bad { background: var(--red); }
+.pk-search { max-width: 260px; }
+.pk-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; margin-bottom: 14px; }
+.pk-grid .card { margin: 0; }
+.pk-card h3 { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.pk-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; min-height: 24px; }
+.pk-chip { display: inline-flex; align-items: center; gap: 4px; background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; border-radius: 999px; padding: 2px 10px; font-size: 12px; }
+.pk-chip.added { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+.pk-chip button { border: 0; background: none; color: inherit; cursor: pointer; font-size: 14px; line-height: 1; padding: 0 0 0 2px; opacity: 0.6; }
+.pk-chip button:hover { opacity: 1; color: var(--red); }
+.pk-add { display: flex; gap: 8px; }
+.pk-add input { flex: 1; min-width: 0; }
+.pk-new { border: 1.5px dashed #cbd5e1; box-shadow: none; }
+.pk-new-form { display: flex; flex-direction: column; gap: 8px; }
+.dep-form { display: grid; grid-template-columns: 1fr 1fr 1fr 1.3fr auto; gap: 8px; align-items: start; margin: 8px 0 6px; }
+.dep-sub { display: flex; flex-direction: column; gap: 6px; }
+.dep-block { margin-top: 18px; }
+.dep-title { font-size: 15px; margin: 0 0 10px; }
+.link-btn.add-option { border: 0; background: none; color: #2563eb; cursor: pointer; font-size: 12px; font-weight: 600; padding: 0 0 0 6px; }
+.link-btn.add-option:hover { text-decoration: underline; }
+.add-option-box { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 6px; font-weight: 400; }
+.add-option-box input { flex: 1; min-width: 160px; }
+@media (max-width: 900px) {
+  .dep-form { grid-template-columns: 1fr; }
+}

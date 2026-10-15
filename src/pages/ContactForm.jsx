@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { CUSTOMER_GROUPS } from '../taxonomy.js';
-import { useMeta } from '../ui.jsx';
+import { useMeta, usePicklists } from '../ui.jsx';
 import Icon from '../components/Icon.jsx';
 import { MAX_ADDON_CARDS } from './Members.jsx';
 
@@ -39,8 +38,8 @@ export const SECTIONS = [
       f('businessLicenceExpiry', 'Business License Expiry Date', 'date'),
       f('gstNumber', 'Business GSTI Number', 'text', { upper: true, pattern: /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/, patternMsg: 'GSTIN should be 15 characters, e.g. 07ABCDE1234F1Z5.' }),
       f('businessLandline', 'Business Landline'),
-      f('segment3', 'Segment3', 'datalist', { options: Object.keys(CUSTOMER_GROUPS), hint: 'Customer group' }),
-      f('segment4', 'Segment4', 'datalist', { optionsFrom: (v) => CUSTOMER_GROUPS[v.segment3] || [...new Set(Object.values(CUSTOMER_GROUPS).flat())], hint: 'Customer type' }),
+      f('segment3', 'Segment3', 'datalist', { optionsFrom: (v, pk) => pk.list('Customer Group'), hint: 'Customer group' }),
+      f('segment4', 'Segment4', 'datalist', { optionsFrom: (v, pk) => (v.segment3 && pk.dependents('Customer Type', 'Customer Group', v.segment3).length ? pk.dependents('Customer Type', 'Customer Group', v.segment3) : pk.list('Customer Type')), hint: 'Customer type' }),
       f('sourceOfInformation', 'Source of Information', 'select', { options: SOURCES, required: true }),
     ],
   },
@@ -421,6 +420,7 @@ function Taken({ n, taken }) {
 }
 
 function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
+  const pk = usePicklists();
   const err = errors[fl.key];
   const val = v[fl.key];
   const label = (
@@ -450,7 +450,7 @@ function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
         </select>
       );
     case 'datalist': {
-      const opts = fl.optionsFrom ? fl.optionsFrom(v) : fl.options;
+      const opts = fl.optionsFrom ? fl.optionsFrom(v, pk) : fl.options;
       return wrap(
         <>
           <input className={err ? 'bad' : ''} list={`dl-${fl.key}`} value={val || ''} onChange={(e) => set({ [fl.key]: e.target.value })} />
