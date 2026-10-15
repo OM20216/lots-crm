@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
-import { CONFIRMATION_OUTCOMES, LEAD_OUTCOMES, LEAD_TYPES } from '../taxonomy.js';
+import { LEAD_TYPES, SURVEY_QUESTIONS, outcomesFor } from '../taxonomy.js';
 import { Link } from 'react-router-dom';
 import { CallButton } from '../components/Dialer.jsx';
 import { SCRIPTS } from '../knowledge.js';
@@ -14,7 +14,80 @@ const LEAD_PITCH = {
   'LCC (Lots Club Card)': 'LCC benefits: delivery within 24 hours, zero delivery charges, personal assistance in store.',
   'Confirmation / resolution': 'Confirm the customer is satisfied and the concern is resolved.',
   'Festival & seasonal offers': 'Share the running festival / seasonal offers; invite them to the store or the LOTS app.',
+  'Follow-up': 'Give the customer an update, or ask for the missing details. “Info received” moves the case back to Pending.',
+  'Customer survey': 'Ask the survey questions below and note their answers. Any complaint → “Concern raised → case”.',
 };
+
+const EMPTY_SURVEY = { overall: 0, store: 0, care: 0, recommend: '', comments: '' };
+
+function Stars({ value, onChange }) {
+  return (
+    <span className="stars">
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button type="button" key={n} className={n <= value ? 'on' : ''} onClick={() => onChange(n)} aria-label={`${n} of 5`}>
+          ★
+        </button>
+      ))}
+    </span>
+  );
+}
+
+// SOP customer survey: the questions asked on the call
+function SurveyForm({ value, onChange }) {
+  return (
+    <div className="survey-form">
+      {SURVEY_QUESTIONS.map((q) => (
+        <div key={q.key} className="survey-q">
+          <span className="small">{q.label}</span>
+          {q.type === 'rating' && <Stars value={value[q.key]} onChange={(n) => onChange({ ...value, [q.key]: n })} />}
+          {q.type === 'yesno' && (
+            <span className="row">
+              {['Yes', 'No'].map((v) => (
+                <button type="button" key={v} className={`btn sm ${value[q.key] === v ? 'active' : ''}`} onClick={() => onChange({ ...value, [q.key]: v })}>
+                  {v}
+                </button>
+              ))}
+            </span>
+          )}
+          {q.type === 'text' && <textarea rows={2} value={value[q.key]} onChange={(e) => onChange({ ...value, [q.key]: e.target.value })} />}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SurveySummary() {
+  const [s] = useLoad(() => api.get('/leads/survey-summary'));
+  if (!s) return null;
+  const fmt = (v) => (v == null ? '—' : `${v}/5`);
+  return (
+    <section className="card">
+      <h2>Survey results</h2>
+      {s.count === 0 ? (
+        <span className="muted small">No surveys yet. Switch on “Queue a customer survey call” in Automation, or import a survey calling list.</span>
+      ) : (
+        <>
+          <div className="survey-stats">
+            <div><strong>{s.count}</strong><span>surveys</span></div>
+            <div><strong>{fmt(s.overall)}</strong><span>overall</span></div>
+            <div><strong>{fmt(s.store)}</strong><span>store</span></div>
+            <div><strong>{fmt(s.care)}</strong><span>customer care</span></div>
+            <div><strong>{s.recommendPct == null ? '—' : s.recommendPct + '%'}</strong><span>would recommend</span></div>
+          </div>
+          {s.comments.length > 0 && (
+            <ul className="tight survey-comments">
+              {s.comments.map((c) => (
+                <li key={c.id}>
+                  “{c.text}” <span className="muted small">— {c.name}{c.overall ? ` · ${c.overall}/5` : ''} · {fmtDate(c.at)}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </>
+      )}
+    </section>
+  );
+}
 
 export default function Leads() {
   const nav = useNavigate();
@@ -24,6 +97,7 @@ export default function Leads() {
   const [leads, reload] = useLoad(() => api.get(`/leads?type=${encodeURIComponent(type)}&status=${encodeURIComponent(status)}`), [type, status]);
   const [active, setActive] = useState(null);
   const [outcome, setOutcome] = useState({ outcome: '', note: '', callbackAt: '' });
+  const [survey, setSurvey] = useState(EMPTY_SURVEY);
   const [imp, setImp] = useState({ open: false, type: LEAD_TYPES[0], text: '' });
 
   const [err, setErr] = useState('');
@@ -32,12 +106,17 @@ export default function Leads() {
     if (!outcome.outcome) return;
     setErr('');
     try {
-      await api.patch('/leads/' + l.id, { ...outcome, callbackAt: outcome.callbackAt ? new Date(outcome.callbackAt).toISOString() : null });
+      await api.patch('/leads/' + l.id, {
+        ...outcome,
+        callbackAt: outcome.callbackAt ? new Date(outcome.callbackAt).toISOString() : null,
+        ...(outcome.outcome === 'Survey completed' ? { survey } : {}),
+      });
     } catch (e) {
       return setErr(`${l.id}: ${e.message}`);
     }
     setActive(null);
     setOutcome({ outcome: '', note: '', callbackAt: '' });
+    setSurvey(EMPTY_SURVEY);
     reload();
     refreshStats();
   }
@@ -95,12 +174,14 @@ export default function Leads() {
           onChange={setStatus}
           options={[
             { value: 'New,Call back', label: 'To call (new + call back)' },
-            ...['New', 'Call back', 'Not reachable', 'Interested', 'Order placed', 'Converted', 'Concern raised', 'Not interested', 'Confirmed resolved', 'Not satisfied', 'Case closed'].map((s) => ({ value: s, label: s })),
+            ...['New', 'Call back', 'Not reachable', 'Interested', 'Order placed', 'Converted', 'Concern raised', 'Not interested', 'Confirmed resolved', 'Not satisfied', 'Info received', 'Update given', 'Survey completed', 'Refused survey', 'Case closed'].map((s) => ({ value: s, label: s })),
           ]}
           placeholder="Any status"
         />
         {type && <span className="muted small">{LEAD_PITCH[type]}</span>}
       </div>
+
+      {type === 'Customer survey' && <SurveySummary />}
 
       {err && <div className="error">{err}</div>}
       <section className="card">
@@ -149,7 +230,8 @@ export default function Leads() {
                     <td>
                       {active === l.id ? (
                         <div className="followup-box">
-                          <Select value={outcome.outcome} options={l.caseId ? CONFIRMATION_OUTCOMES : LEAD_OUTCOMES} onChange={(v) => setOutcome({ ...outcome, outcome: v })} placeholder="Call outcome…" />
+                          <Select value={outcome.outcome} options={outcomesFor(l)} onChange={(v) => setOutcome({ ...outcome, outcome: v })} placeholder="Call outcome…" />
+                          {outcome.outcome === 'Survey completed' && <SurveyForm value={survey} onChange={setSurvey} />}
                           {outcome.outcome === 'Call back' && <input type="datetime-local" value={outcome.callbackAt} onChange={(e) => setOutcome({ ...outcome, callbackAt: e.target.value })} />}
                           <input value={outcome.note} onChange={(e) => setOutcome({ ...outcome, note: e.target.value })} placeholder={outcome.outcome === 'Order placed' ? 'OMS order no.' : 'Note'} />
                           <div className="small muted">{LEAD_PITCH[l.type]}</div>
@@ -165,7 +247,7 @@ export default function Leads() {
                       ) : (
                         <div className="row wrap">
                           <CallButton phone={l.phone} context={{ leadId: l.id, caseId: l.caseId }} />
-                          <button className="btn sm" onClick={() => setActive(l.id)}>
+                          <button className="btn sm" onClick={() => (setActive(l.id), setOutcome({ outcome: '', note: '', callbackAt: '' }), setSurvey(EMPTY_SURVEY))}>
                             Log call
                           </button>
                           <button

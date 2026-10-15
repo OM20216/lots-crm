@@ -32,6 +32,8 @@ export default function Dashboard() {
         <Tile label="Missed calls to call back" value={stats.missedOpen} to="/missed" alert={stats.missedBreached > 0} sub={stats.missedBreached ? `${stats.missedBreached} past 30-min TAT` : 'TAT 30 min'} />
         <Tile label="Pending emails" value={stats.pendingEmails} to="/emails" alert={stats.pendingEmails > 0} sub="Check every 5 min" />
         <Tile label="Escalations overdue" value={stats.overdueEscalations} to="/followups" alert={stats.overdueEscalations > 0} sub="L1 TAT 1 working day" />
+        <Tile label="Store follow-ups due today" value={stats.notFollowedUpToday} to="/followups" alert={stats.notFollowedUpToday > 0} sub="SOP: call the store daily" />
+        <Tile label="Store replies to check" value={stats.storeRepliesToReview} to="/followups" alert={stats.storeRepliesToReview > 0} sub={stats.promisesMissed ? `${stats.promisesMissed} promised dates missed` : 'Not a resolution yet?'} />
         <Tile label="Outbound leads due" value={stats.leadsDue} to="/leads" sub="New + call-backs + confirmations" />
         <Tile label="Unassigned open cases" value={stats.unassigned} to="/cases?assignedTo=-" alert={stats.unassigned > 0} sub="Auto-assign needs an agent on shift" />
         <Tile label="Automated actions today" value={stats.today.automated} to="/automation" sub="Categorised, assigned, emailed, chased" />

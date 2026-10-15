@@ -169,6 +169,112 @@ function TeamRow({ k, t, onSaved }) {
 // Teams used by the case workflows (src/workflows.js); store teams use the store SPOCs above.
 const NOT_TEAMS = ['careDesk', 'store', 'homeStore'];
 
+const EMPTY_LEVEL = { name: '', email: '', phone: '', tatDays: 1 };
+
+// One row of the escalation matrix: Level 2 and Level 3 contacts for a store / team (or the default)
+function MatrixRow({ k, label, sub, saved, onSaved }) {
+  const init = () => [0, 1].map((i) => ({ ...EMPTY_LEVEL, ...(saved?.[i] || {}) }));
+  const [v, setV] = useState(init);
+  const [err, setErr] = useState('');
+  const dirty = JSON.stringify(v) !== JSON.stringify(init());
+  const set = (i, patch) => setV(v.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  async function save() {
+    setErr('');
+    try {
+      await api.put('/escalation-matrix/' + encodeURIComponent(k), { levels: v.filter((l) => l.email || l.name) });
+      onSaved();
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
+  return (
+    <tr>
+      <td>
+        <strong>{label}</strong>
+        {sub && <div className="muted small">{sub}</div>}
+        {err && <div className="error small">{err}</div>}
+      </td>
+      {v.map((l, i) => (
+        <td key={i}>
+          <input value={l.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Name / designation" />
+          <input value={l.email} onChange={(e) => set(i, { email: e.target.value })} placeholder="Email" />
+          <label className="small muted">
+            TAT <input className="tat" type="number" min="1" max="30" value={l.tatDays} onChange={(e) => set(i, { tatDays: Number(e.target.value) || 1 })} /> working day(s)
+          </label>
+        </td>
+      ))}
+      <td>
+        <button className="btn sm primary" disabled={!dirty} onClick={save}>
+          Save
+        </button>
+      </td>
+    </tr>
+  );
+}
+
+function EscalationMatrixCard() {
+  const { stores, teams, escalationMatrix: m = {}, reloadMeta } = useMeta();
+  const rows = [
+    { k: '*', label: 'Default (all stores and teams)', sub: 'Used where a store / team has no levels of its own' },
+    ...stores.map((s) => ({ k: `store:${s.code}`, label: `${s.code} ${s.short}`, sub: s.name })),
+    ...Object.keys(TEAMS)
+      .filter((k) => !NOT_TEAMS.includes(k))
+      .map((k) => ({ k: `team:${k}`, label: teams?.[k]?.name || TEAMS[k].name })),
+  ];
+  return (
+    <section className="card">
+      <h2>Escalation matrix</h2>
+      <p className="muted small">
+        Level 1 is the store / team contact above, with the case type's TAT. When a level's TAT passes, the case goes to the next level automatically: the next contact is copied on the email and gets their own TAT. Agents can also raise a level from the case page. Fill the levels in order (Level 2 first). The SOP defines only Level 1 — ask LOTS for the rest.
+      </p>
+      <table className="table matrix-table">
+        <thead>
+          <tr>
+            <th>Store / team</th>
+            <th>Level 2</th>
+            <th>Level 3</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <MatrixRow key={r.k + JSON.stringify(m[r.k] || [])} {...r} saved={m[r.k]} onSaved={reloadMeta} />
+          ))}
+        </tbody>
+      </table>
+    </section>
+  );
+}
+
+function HolidaysCard() {
+  const { holidays = [], reloadMeta } = useMeta();
+  const [date, setDate] = useState('');
+  const put = (dates) => api.put('/holidays', { dates }).then(reloadMeta);
+  return (
+    <section className="card">
+      <h2>Holidays</h2>
+      <p className="muted small">Not counted as working days in escalation TATs and reports (Sundays never count).</p>
+      <div className="holiday-list">
+        {holidays.length === 0 && <span className="muted small">None added.</span>}
+        {holidays.map((d) => (
+          <span key={d} className="pk-chip added">
+            {new Date(d).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}
+            <button type="button" onClick={() => put(holidays.filter((x) => x !== d))} aria-label="Remove">
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <div className="row">
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        <button className="btn sm primary" disabled={!date || holidays.includes(date)} onClick={() => put([...holidays, date]).then(() => setDate(''))}>
+          + Add holiday
+        </button>
+      </div>
+    </section>
+  );
+}
+
 function DatabaseCard() {
   const { database: d } = useMeta();
   if (!d) return null;
@@ -240,6 +346,8 @@ export default function Settings() {
           </tbody>
         </table>
       </section>
+      <EscalationMatrixCard />
+      <HolidaysCard />
       <SparkTgPanel />
       <section className="card">
         <h2>Agents</h2>

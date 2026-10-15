@@ -29,8 +29,25 @@ const mail = await import('./mail.js');
 const auto = await import('./automation.js');
 const calls = await import('./calls.js');
 const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
+const { workflowFor } = await import('../src/workflows.js');
 
 const { db, save, now, log, findCase, applyStatus, phoneKey, TRANSITIONS } = core;
+const { normalizeCallerType } = await import('../src/taxonomy.js');
+{
+  // type of contact renamed to the case master's labels (15 Oct 2026): convert saved cases once
+  let n = 0;
+  for (const c of db().cases) {
+    const v = normalizeCallerType(c.callerType);
+    if (v !== c.callerType) (c.callerType = v), n++;
+  }
+  // store 105 is "DH Duhai" in the case master
+  const dh = db().stores.find((x) => x.code === '105');
+  if (dh && dh.short === 'GZB') (dh.short = 'DH'), n++;
+  if (n) {
+    save();
+    console.log(`Updated to the case master names (type of contact, DH store): ${n} change(s)`);
+  }
+}
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROD = process.argv.includes('--prod');
 const PORT = Number(process.env.PORT) || 4000;
@@ -48,10 +65,12 @@ api.get('/meta', (req, res) => {
     stores: db().stores,
     agents: db().agents,
     transitions: TRANSITIONS,
-    integrations: { mail: mail.configured(), sparktg: sparktg.configured() },
+    integrations: { mail: mail.configured(), sparktg: sparktg.configured(), teamsPreview: auto.previewing() },
     widgetUrl: process.env.SPARKTG_WIDGET_URL || '',
     teams: core.teams(),
     picklists: db().picklists || {},
+    escalationMatrix: db().settings?.escalationMatrix || {},
+    holidays: db().settings?.holidays || [],
     dependencies: db().dependencies || [],
     database: store.status(),
     agentEmails: db().agentEmails,
@@ -133,6 +152,21 @@ api.delete('/dependencies', (req, res) => {
   res.json({ picklists: d.picklists || {}, dependencies: d.dependencies });
 });
 
+// ----- Microsoft Teams preview (emails posted to a Teams channel instead of being sent) -----
+const teams = await import('./teams.js');
+api.get('/teams-preview', (req, res) => res.json({ configured: teams.configured(), enabled: Boolean(auto.settings().teamsPreview) }));
+api.post(
+  '/teams-preview/test',
+  wrap(async (req, res) => {
+    await teams.postCard({ title: '✅ LOTS CRM is connected to this channel', subtitle: `Test sent by ${agentOf(req)}`, lines: ['While “Email previews to Teams” is on, every email the CRM would send (acknowledgements, escalations, follow-ups, resolutions…) is posted here instead. Nobody receives an email.'] });
+    res.json({ ok: true });
+  })
+);
+api.post(
+  '/teams-preview/samples',
+  wrap(async (req, res) => res.json({ count: await auto.sendSamples(agentOf(req)) }))
+);
+
 // Escalation teams of the case workflows (E-commerce, IT, BDA, HR, …): contact details
 api.put('/teams/:key', (req, res) => {
   if (!core.teams()[req.params.key]) return res.status(404).json({ error: 'Team not found' });
@@ -165,8 +199,17 @@ api.get('/cases', (req, res) => {
     const s = q.toLowerCase();
     list = list.filter((c) => [c.id, c.name, c.phone, c.email, c.businessName, c.cardNo, c.subject, c.orderRef].some((v) => v && v.toLowerCase().includes(s)));
   }
-  res.json([...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(({ timeline, ...c }) => c));
+  res.json([...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(({ timeline, ...c }) => ({ ...c, lastFollowupAt: c.lastFollowupAt || lastFollowup(timeline) })));
 });
+
+// A case with where its escalation goes (target) and the levels above Level 1 (escalation matrix)
+function view(c) {
+  const target = core.targetFor(c);
+  return { ...c, target, levels: core.escalationLevels(c.status === 'Escalated' && c.escalatedTo ? c.escalatedTo : target) };
+}
+
+// SOP: a store follow-up is a call by an agent (the automatic daily email doesn't count)
+const lastFollowup = (timeline = []) => [...timeline].reverse().find((t) => t.type === 'store-followup' && t.by !== 'Automation')?.at || null;
 
 api.get('/cases/:id', (req, res) => {
   const c = findCase(req.params.id);
@@ -174,7 +217,7 @@ api.get('/cases/:id', (req, res) => {
   const history = db()
     .cases.filter((x) => x.id !== c.id && ((c.phone && phoneKey(x.phone) === phoneKey(c.phone)) || (c.email && x.email === c.email)))
     .map(summary);
-  res.json({ ...c, history, target: core.targetFor(c) }); // target: where an escalation would go under the case's workflow
+  res.json({ ...view(c), history }); // target: where an escalation would go under the case's workflow
 });
 
 api.post('/cases', (req, res) => {
@@ -183,14 +226,16 @@ api.post('/cases', (req, res) => {
   res.status(201).json({ ...c, warning });
 });
 
-const EDITABLE = ['callerType', 'memberId', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'productCategory', 'orderRef', 'purchaseDate', 'subject', 'description', 'assignedTo'];
+const EDITABLE = ['callerType', 'memberId', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'subject', 'description', 'assignedTo'];
 
 api.patch('/cases/:id', (req, res) => {
   const c = findCase(req.params.id);
   if (!c) return res.status(404).json({ error: 'Case not found' });
   const by = agentOf(req);
   const patch = Object.fromEntries(EDITABLE.filter((k) => k in req.body).map((k) => [k, req.body[k]]));
-  if (req.body.status && req.body.status !== c.status) core.validateStatus({ ...c, ...patch }, req.body.status); // reject before changing anything
+  if ('callerType' in patch) patch.callerType = normalizeCallerType(patch.callerType);
+  const escalateTo = req.body.status === 'Escalated' && req.body.escalateTo?.kind ? { kind: req.body.escalateTo.kind, code: String(req.body.escalateTo.code || '') } : null;
+  if (req.body.status && req.body.status !== c.status) core.validateStatus({ ...c, ...patch, ...(escalateTo ? { escalateTo } : {}) }, req.body.status); // reject before changing anything
   const changed = Object.keys(patch).filter((k) => patch[k] !== c[k]);
   for (const k of changed) c[k] = patch[k];
   if (changed.length) log(c, { by, type: 'edit', text: `Updated: ${changed.join(', ')}` });
@@ -200,10 +245,138 @@ api.patch('/cases/:id', (req, res) => {
     c.checklist[req.body.checkStep] = { done, by, at: now() };
     log(c, { by, type: 'workflow', text: `${done ? '✓' : 'Unticked'}: ${req.body.stepLabel || req.body.checkStep}` });
   }
+  if ('promisedAt' in req.body) {
+    const p = req.body.promisedAt && /^\d{4}-\d{2}-\d{2}$/.test(req.body.promisedAt) ? req.body.promisedAt : null;
+    if (p !== (c.promisedAt || null)) {
+      c.promisedAt = p;
+      if (!req.body.note) log(c, { by, type: 'escalation', text: p ? `Store promised the resolution by ${new Date(p).toLocaleDateString('en-IN')}` : 'Promised date cleared' });
+    }
+  }
+  if (req.body.storeReplyReviewed) c.storeReplyReview = null;
+  if (escalateTo) c.escalateTo = escalateTo;
   if (req.body.status && req.body.status !== c.status) applyStatus(c, req.body.status, by, req.body.note);
-  else if (req.body.note) log(c, { by, type: req.body.noteType || 'note', text: req.body.note });
+  else if (req.body.note) log(c, { by, type: req.body.noteType || 'note', text: req.body.note + (req.body.noteType === 'store-followup' && c.promisedAt && 'promisedAt' in req.body ? ` Promised by ${new Date(c.promisedAt).toLocaleDateString('en-IN')}.` : '') });
+  if (req.body.noteType === 'store-followup') c.lastFollowupAt = now();
   save();
-  res.json({ ...c, target: core.targetFor(c) });
+  res.json(view(c));
+});
+
+// Escalated to the wrong store / team, or passed on: move it (fresh Level 1 and TAT, escalation email to the new one)
+api.post('/cases/:id/reroute', (req, res) => {
+  const c = findCase(req.params.id);
+  if (!c) return res.status(404).json({ error: 'Case not found' });
+  core.rerouteEscalation(c, { kind: req.body.kind, code: String(req.body.code || '') }, agentOf(req), String(req.body.note || '').trim());
+  save();
+  res.json(view(c));
+});
+
+// Agent / team leader raises the escalation level now (instead of waiting for the TAT to pass)
+api.post(
+  '/cases/:id/raise-level',
+  wrap(async (req, res) => {
+    const c = findCase(req.params.id);
+    if (!c) return res.status(404).json({ error: 'Case not found' });
+    if (c.status !== 'Escalated') return res.status(400).json({ error: 'Only an escalated case can go to the next level' });
+    const reason = String(req.body.reason || '').trim();
+    if (!reason) return res.status(400).json({ error: 'Give a reason for escalating further' });
+    const level = await auto.raiseLevel(c, agentOf(req), reason);
+    if (!level) return res.status(400).json({ error: `No Level ${(c.escalationLevel || 1) + 1} contact in the escalation matrix (Stores & settings → Escalation matrix)` });
+    res.json(view(c));
+  })
+);
+
+// Correct an escalation level by hand (e.g. a level raised by mistake); the deadline is kept, the change is on the timeline
+api.post('/cases/:id/set-level', (req, res) => {
+  const c = findCase(req.params.id);
+  if (!c) return res.status(404).json({ error: 'Case not found' });
+  if (c.status !== 'Escalated') return res.status(400).json({ error: 'Only an escalated case has an escalation level' });
+  const level = Math.max(1, Math.min(10, Number(req.body.level) || 1));
+  const reason = String(req.body.reason || '').trim();
+  if (!reason) return res.status(400).json({ error: 'Give a reason' });
+  const was = c.escalationLevel || 1;
+  c.escalationLevel = level;
+  log(c, { by: agentOf(req), type: 'escalation', text: `Escalation level corrected from ${was} to ${level} — ${reason}` });
+  save();
+  res.json(view(c));
+});
+
+// Escalation matrix: contacts above Level 1, per store / team ('*' = default for all)
+api.put('/escalation-matrix/:key', (req, res) => {
+  const key = req.params.key;
+  const ok = key === '*' || (key.startsWith('store:') && db().stores.some((s) => 'store:' + s.code === key)) || (key.startsWith('team:') && core.teams()[key.slice(5)]);
+  if (!ok) return res.status(404).json({ error: 'Unknown store or team' });
+  const levels = (Array.isArray(req.body.levels) ? req.body.levels : []).slice(0, 4).map((l) => ({
+    name: String(l?.name || '').trim().slice(0, 100),
+    email: String(l?.email || '').trim().slice(0, 300),
+    phone: String(l?.phone || '').trim().slice(0, 30),
+    tatDays: Math.max(1, Math.min(30, Number(l?.tatDays) || 1)),
+  }));
+  const bad = levels.find((l) => l.email && !l.email.split(/[,;\s]+/).filter(Boolean).every((e) => /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(e)));
+  if (bad) return res.status(400).json({ error: `Not a valid email: ${bad.email}` });
+  // keep levels in order: an empty level in the middle would skip a level
+  while (levels.length && !levels[levels.length - 1].email && !levels[levels.length - 1].name) levels.pop();
+  if (levels.some((l) => !l.email)) return res.status(400).json({ error: 'Each level needs an email (fill the levels in order: 2, then 3, …)' });
+  const d = db();
+  d.settings ||= {};
+  d.settings.escalationMatrix = { ...(d.settings.escalationMatrix || {}), [key]: levels };
+  if (!levels.length) delete d.settings.escalationMatrix[key];
+  save();
+  res.json(d.settings.escalationMatrix);
+});
+
+// Holidays: not counted as working days in TATs
+api.put('/holidays', (req, res) => {
+  const dates = [...new Set((req.body.dates || []).filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x)))].sort();
+  const d = db();
+  d.settings ||= {};
+  d.settings.holidays = dates;
+  save();
+  res.json(dates);
+});
+
+// Escalation report per store / team: on time, days to resolve, overdue, levels
+api.get('/escalation-report', (req, res) => {
+  const days = Math.max(1, Math.min(365, Number(req.query.days) || 30));
+  const since = new Date(Date.now() - days * 864e5).toISOString();
+  const t = now();
+  const day = new Date().toLocaleDateString('en-CA');
+  const rows = new Map();
+  for (const c of db().cases) {
+    if (!c.escalatedAt) continue;
+    const open = c.status === 'Escalated';
+    if (!open && c.escalatedAt < since) continue;
+    const to = c.escalatedTo || { kind: 'store', code: c.store };
+    const key = `${to.kind}:${to.code || ''}`;
+    if (!rows.has(key)) {
+      const tgt = to.code || to.kind === 'team' ? core.targetByKey(to) : { name: 'Store not set' };
+      rows.set(key, { key, kind: to.kind, name: tgt.name, escalated: 0, resolved: 0, onTime: 0, daysSum: 0, open: 0, overdue: 0, aboveL1: 0, promisesMissed: 0 });
+    }
+    const r = rows.get(key);
+    if (c.escalatedAt >= since) r.escalated++;
+    const resolvedAt = [...c.timeline].find((e) => e.type === 'status' && e.to === 'Resolved' && e.at >= c.escalatedAt)?.at;
+    if (resolvedAt && resolvedAt >= since) {
+      r.resolved++;
+      const due = c.firstDueAt || core.addWorkingDays(c.escalatedAt, workflowTat(c));
+      if (resolvedAt <= due) r.onTime++;
+      r.daysSum += core.workingDaysBetween(c.escalatedAt, resolvedAt);
+    }
+    if (open) {
+      r.open++;
+      if (c.dueAt < t) r.overdue++;
+      if ((c.escalationLevel || 1) > 1) r.aboveL1++;
+      if (c.promisedAt && c.promisedAt < day) r.promisesMissed++;
+    }
+  }
+  const list = [...rows.values()]
+    .map((r) => ({ ...r, onTimePct: r.resolved ? Math.round((r.onTime / r.resolved) * 100) : null, avgDays: r.resolved ? Math.round((r.daysSum / r.resolved) * 10) / 10 : null }))
+    .sort((a, b) => b.open - a.open || b.escalated - a.escalated);
+  const sum = (k) => list.reduce((a, r) => a + r[k], 0);
+  const resolved = sum('resolved');
+  res.json({
+    days,
+    rows: list,
+    total: { escalated: sum('escalated'), resolved, onTimePct: resolved ? Math.round((sum('onTime') / resolved) * 100) : null, avgDays: resolved ? Math.round((sum('daysSum') / resolved) * 10) / 10 : null, open: sum('open'), overdue: sum('overdue'), aboveL1: sum('aboveL1'), promisesMissed: sum('promisesMissed') },
+  });
 });
 
 // Agent sends an email from the case page (through the connected mailbox).
@@ -212,13 +385,25 @@ api.post(
   wrap(async (req, res) => {
     const c = findCase(req.params.id);
     if (!c) return res.status(404).json({ error: 'Case not found' });
-    const { to, cc, subject, body } = req.body;
+    const { cc, subject, body, kind } = req.body;
+    // Teams preview: an email with no address is still shown in Teams (nobody receives it)
+    const to = req.body.to || (auto.previewing() ? '(not set — no email address on file)' : '');
     if (!to || !subject || !body) return res.status(400).json({ error: 'To, subject and message are required' });
-    const out = await auto.sendEmail({ to, cc, subject, body, caseId: c.id, kind: 'Agent email', by: agentOf(req) });
-    if (out.status !== 'sent') return res.status(502).json({ error: `Email ${out.status}: ${out.error}`, case: c });
-    res.json(c);
+    const files = (c.attachments || []).filter((a) => (req.body.attachments || []).includes(a.file));
+    const out = await auto.sendEmail({ to, cc, subject, body, caseId: c.id, kind: kind || 'Agent email', by: agentOf(req), files });
+    if (out.status !== 'sent' && out.status !== 'Teams preview') return res.status(502).json({ error: `Email ${out.status}: ${out.error}`, case: c });
+    res.json({ ...c, sentTo: out.status });
   })
 );
+
+// Add a file to a case (raw bytes; name in ?name=). Photos / bills that arrive by WhatsApp or phone.
+api.post('/cases/:id/attachments', express.raw({ type: () => true, limit: '15mb' }), (req, res) => {
+  const c = findCase(req.params.id);
+  if (!c) return res.status(404).json({ error: 'Case not found' });
+  if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file received' });
+  const a = auto.saveCaseFile(c, String(req.query.name || 'file'), req.body, req.get('content-type'), agentOf(req));
+  res.status(201).json({ attachment: a, case: view(c) });
+});
 
 api.get('/cases/:id/attachments/:file', (req, res) => {
   const a = auto.attachmentPath(req.params.id, req.params.file);
@@ -489,6 +674,24 @@ api.get('/leads', (req, res) => {
   res.json([...list].reverse());
 });
 
+// Customer survey results (SOP: collect feedback to improve our service)
+api.get('/leads/survey-summary', (req, res) => {
+  const done = db().leads.filter((l) => l.survey);
+  const avg = (k) => {
+    const v = done.map((l) => l.survey[k]).filter((x) => typeof x === 'number');
+    return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
+  };
+  const rec = done.filter((l) => l.survey.recommend);
+  res.json({
+    count: done.length,
+    overall: avg('overall'),
+    store: avg('store'),
+    care: avg('care'),
+    recommendPct: rec.length ? Math.round((rec.filter((l) => l.survey.recommend === 'Yes').length / rec.length) * 100) : null,
+    comments: done.filter((l) => l.survey.comments).slice(-20).reverse().map((l) => ({ id: l.id, name: l.businessName || l.name, store: l.store, at: l.survey.at, text: l.survey.comments, overall: l.survey.overall })),
+  });
+});
+
 api.post('/leads', (req, res) => {
   const rows = Array.isArray(req.body) ? req.body : [req.body];
   const created = rows.map((r) => {
@@ -525,6 +728,15 @@ api.patch('/leads/:id', (req, res) => {
       applyStatus(c, 'Closed', by, `Customer confirmed on call${note ? ': ' + note : ''}`);
     }
     if (c && outcome === 'Not satisfied' && c.status === 'Resolved') applyStatus(c, 'Escalated', by, `Customer not satisfied${note ? ': ' + note : ''}`);
+    // follow-up call: missing info received → back to Pending; update given → on the timeline
+    if (c && l.type === 'Follow-up' && outcome === 'Info received' && c.status === 'Waiting') applyStatus(c, 'Pending', by, `Customer gave the missing details on a follow-up call${note ? ': ' + note : ''}`);
+    else if (c && l.type === 'Follow-up' && outcome === 'Update given') log(c, { by, type: 'call', text: `Follow-up call: update given to the customer${note ? ' — ' + note : ''}` });
+    if (outcome === 'Survey completed') {
+      const sv = req.body.survey || {};
+      const clean = (k, v) => (['overall', 'store', 'care'].includes(k) ? Math.max(1, Math.min(5, Number(v) || 0)) || null : k === 'recommend' ? (['Yes', 'No'].includes(v) ? v : null) : String(v || '').slice(0, 2000));
+      l.survey = { ...Object.fromEntries(['overall', 'store', 'care', 'recommend', 'comments'].map((k) => [k, clean(k, sv[k])])), by, at: now() };
+      if (c) log(c, { by, type: 'call', text: `Customer survey: ${['overall', 'store', 'care'].filter((k) => l.survey[k]).map((k) => `${k} ${l.survey[k]}/5`).join(', ')}${l.survey.recommend ? `, recommends LOTS: ${l.survey.recommend}` : ''}${l.survey.comments ? ` — “${l.survey.comments}”` : ''}` });
+    }
     l.status = outcome;
     l.callbackAt = callbackAt || null;
     l.log.push({ at: now(), by, outcome, note: note || '' });
@@ -700,6 +912,17 @@ api.get(
 );
 
 // ----- dashboard -----
+const workflowTat = (c) => workflowFor(c)?.tatDays || 1;
+// SOP: call the store daily for every pending case; cases escalated today don't need one yet
+function needsFollowupToday(c) {
+  const start = new Date();
+  start.setHours(0, 0, 0, 0);
+  const s = start.toISOString();
+  if (c.escalatedAt >= s) return false;
+  const last = c.lastFollowupAt || lastFollowup(c.timeline);
+  return !last || last < s;
+}
+
 api.get('/stats', (req, res) => {
   const t = now();
   const today = t.slice(0, 10);
@@ -725,6 +948,9 @@ api.get('/stats', (req, res) => {
     },
     pendingEmails: cases.filter((c) => c.channel === 'Email' && c.status === 'Pending').length,
     overdueEscalations: escalated.filter((c) => c.dueAt < t).length,
+    notFollowedUpToday: escalated.filter((c) => needsFollowupToday(c)).length,
+    promisesMissed: escalated.filter((c) => c.promisedAt && c.promisedAt < new Date().toLocaleDateString('en-CA')).length,
+    storeRepliesToReview: escalated.filter((c) => c.storeReplyReview).length,
     escalatedByStore: count(escalated, 'store'),
     missedOpen: db().missedCalls.filter((m) => m.status === 'Open').length,
     missedBreached: db().missedCalls.filter((m) => m.status === 'Open' && m.dueAt < t).length,

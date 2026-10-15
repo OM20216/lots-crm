@@ -14,6 +14,7 @@ import Contacts from './pages/Contacts.jsx';
 import ContactForm from './pages/ContactForm.jsx';
 import Knowledge from './pages/Knowledge.jsx';
 import Workflows from './pages/Workflows.jsx';
+import Admin from './pages/Admin.jsx';
 import Picklists from './pages/Picklists.jsx';
 import Dependencies from './pages/Dependencies.jsx';
 import Settings from './pages/Settings.jsx';
@@ -163,33 +164,24 @@ export default function App() {
             <Icon name={collapsed ? 'chevronRight' : 'chevronLeft'} size={14} />
           </button>
           <nav>
-            {/* Grouped as in the SOP: case handling, the communication channels, store escalation, reference */}
+            {/* Only what agents use every day; setup pages are under Admin */}
             <NavItem to="/" end icon="dashboard" label="Dashboard" />
-            <NavItem to="/workflow" icon="workflow" label="LOTS Workflow" />
-
-            <div className="nav-group">Case handling</div>
             <NavItem to="/new" icon="cases" label="Log new case" accent />
-            <NavItem to={`/cases?assignedTo=${encodeURIComponent(agent)}&status=Pending,Waiting,Escalated,Resolved`} icon="user" label="My queue" count={stats?.mine} plain />
-            <NavItem to="/cases" icon="search" label="Search cases" />
-
-            <div className="nav-group">Channels</div>
-            <NavItem to="/calls" icon="incoming" label="Calls" />
-            <NavItem to="/emails" icon="mail" label="Email inbox" count={stats?.pendingEmails} />
-            <NavItem to="/leads" icon="outgoing" label="Outbound leads" count={stats?.leadsDue} />
-
-            <div className="nav-group">Escalation</div>
+            <NavItem to={`/cases?assignedTo=${encodeURIComponent(agent)}&status=Pending,Waiting,Escalated,Resolved`} icon="user" label="My cases" count={stats?.mine} plain />
+            <NavItem to="/cases" icon="search" label="All cases" />
             <NavItem to="/followups" icon="store" label="Follow-ups" count={stats?.byStatus?.Escalated} />
 
-            <div className="nav-group">Reference</div>
-            <NavItem to="/contacts" icon="members" label="Contacts" />
-            <NavItem to="/kb" icon="book" label="SOP knowledge base" />
-            <NavItem to="/case-workflows" icon="workflow" label="Case workflows" />
+            <div className="nav-group">Calls &amp; emails</div>
+            <NavItem to="/calls" icon="incoming" label="Calls" />
+            <NavItem to="/emails" icon="mail" label="Emails" count={stats?.pendingEmails} />
+            <NavItem to="/leads" icon="outgoing" label="Outbound calls" count={stats?.leadsDue} />
 
-            <div className="nav-group">Admin</div>
-            <NavItem to="/automation" icon="zap" label="Automation" />
-            <NavItem to="/picklists" icon="check" label="Picklists" />
-            <NavItem to="/dependencies" icon="swap" label="Dependencies" />
-            <NavItem to="/settings" icon="settings" label="Stores & settings" />
+            <div className="nav-group">Look up</div>
+            <NavItem to="/contacts" icon="members" label="Contacts" />
+            <NavItem to="/kb" icon="book" label="Knowledge base" />
+
+            <div className="nav-group" />
+            <NavItem to="/admin" icon="settings" label="Admin" />
           </nav>
           <div className="sidebar-foot">
             <div>Customer care 1860-123-5687</div>
@@ -227,6 +219,7 @@ export default function App() {
             <Route path="/picklists" element={<Picklists />} />
             <Route path="/dependencies" element={<Dependencies />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/admin" element={<Admin />} />
           </Routes>
         </main>
         </div>

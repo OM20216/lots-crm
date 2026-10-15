@@ -28,9 +28,9 @@ const A = {
   resolution: (c) => hasStatus(c, 'Resolved'),
   confirmed: (c) => c.status === 'Closed' && c.resolutionType === 'Store',
   closed: (c) => c.status === 'Closed',
-  store: (c) => Boolean(c.store),
+  store: (c) => Boolean(c.store) && c.store !== 'NS', // 'NS' = Not Specific (case master)
   orderRef: (c) => Boolean((c.orderRef || '').trim()),
-  member: (c) => Boolean(c.memberId) || c.callerType !== 'Registered member',
+  member: (c) => Boolean(c.memberId) || c.callerType !== 'Registered With Lots',
 };
 
 const step = (id, label, auto, hint) => ({ id, label, auto, hint });
@@ -62,6 +62,7 @@ const W = (key, title, owner, tatDays, steps, extra = {}) => ({ key, title, owne
 export const WORKFLOWS = [
   // ----- Inquiry -----
   W('inq-general', 'General query', 'careDesk', 0, answerPath('Answer from the SOP / FAQ (answers shown beside the case form)'), { match: { caseType: 'Inquiry', category: 'General Query' } }),
+  W('inq-stock', 'Product availability / price check', 'store', 1, escalationPath('the store team'), { match: { caseType: 'Inquiry', subCategory: ['Product availability / stock', 'Product price'] }, note: 'Answer on the call if known; otherwise check with the store.' }),
   W('inq-hr', 'HR & jobs enquiry', 'hr', 1, [
     step('identify', 'Identify the caller', A.member),
     step('details', 'Case type and details captured', A.details),
@@ -72,9 +73,9 @@ export const WORKFLOWS = [
   W('inq-it', 'IT / website enquiry', 'it', 1, escalationPath('the IT / Website team'), { match: { caseType: 'Inquiry', category: 'IT or Website' } }),
   W('inq-admin', 'Administration enquiry', 'admin', 1, escalationPath('Administration'), { match: { caseType: 'Inquiry', category: 'Admin Related' } }),
   W('inq-legal', 'Legal enquiry', 'admin', 1, escalationPath('Administration', [step('legal', 'Legal details recorded for the Legal team')]), { match: { caseType: 'Inquiry', category: 'Legal' }, note: 'Administration handles legal correspondence first.' }),
-  W('inq-marketing', 'Marketing enquiry', 'marketing', 1, escalationPath('the Marketing team'), { match: { caseType: 'Inquiry', category: 'Marketing Related' } }),
   W('inq-festive', 'Festive gifting enquiry', 'marketing', 1, escalationPath('the Marketing team'), { match: { caseType: 'Inquiry', category: 'Festive Gifting' } }),
   W('inq-realestate', 'Real estate enquiry', 'admin', 1, escalationPath('Administration'), { match: { caseType: 'Inquiry', category: 'Real Estate' } }),
+  W('inq-marketing', 'Marketing enquiry', 'marketing', 1, escalationPath('the Marketing team'), { match: { caseType: 'Inquiry', category: 'Marketing Related' } }),
 
   // ----- Issues or Complaints - NR -----
   W('cmp-store', 'Store complaint', 'store', 1, escalationPath('the store contact', [
@@ -82,12 +83,16 @@ export const WORKFLOWS = [
     step('bill', 'Bill / invoice number and purchase details taken', A.orderRef, 'Not always available: the store can verify'),
   ]), { match: { caseType: 'Issues or Complaints - NR', category: 'Store Related' }, requires: ['store'] }),
   W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaints - NR', category: 'App Related' } }),
+  W('cmp-ecom-refund', 'Refund not received', 'ecom', 7, escalationPath('the E-commerce / App team', [
+    step('order', 'App / website order number recorded', A.orderRef),
+    step('inform', 'Inform: the amount refunds automatically within 7 working days, or the customer contacts their bank (SOP)'),
+  ]), { match: { caseType: 'Issues or Complaints - NR', subCategory: 'Refund not received' }, requires: ['orderRef'] }),
   W('cmp-ecom', 'E-commerce complaint', 'ecom', 1, escalationPath('the E-commerce / App team', [
     step('order', 'App / website order number recorded', A.orderRef),
     step('status', 'Order status checked (dispatched / not dispatched)'),
   ]), { match: { caseType: 'Issues or Complaints - NR', category: 'ECommerce Related' }, requires: ['orderRef'] }),
-  W('cmp-bda', 'BDA complaint', 'bda', 1, escalationPath('the BDA team', [step('bdaorder', 'BDA order details / BDA name recorded')]), { match: { caseType: 'Issues or Complaints - NR', category: 'BDA Related' } }),
   W('cmp-membership', 'Membership complaint', 'homeStore', 1, escalationPath("the member's home store"), { match: { caseType: 'Issues or Complaints - NR', category: ['Membership Related', 'Membership Related - NR'] } }),
+  W('cmp-bda', 'BDA complaint', 'bda', 1, escalationPath('the BDA team', [step('bdaorder', 'BDA order details / BDA name recorded')]), { match: { caseType: 'Issues or Complaints - NR', category: 'BDA Related' } }),
 
   // ----- Requests -----
   W('req-membership', 'Membership request', 'homeStore', 1, escalationPath("the member's home store", [
@@ -139,7 +144,7 @@ export function escalationBlocker(c) {
   const wf = workflowFor(c);
   if (!wf) return null;
   if (wf.owner === 'careDesk') return null; // agent may still escalate to the case's store
-  for (const r of wf.requires || []) if (!String(c[r] || '').trim()) return `${wf.title}: record ${REQ_LABEL[r] || r} before escalating.`;
+  for (const r of wf.requires || []) if (!String(c[r] || '').trim() || (r === 'store' && c[r] === 'NS')) return `${wf.title}: record ${REQ_LABEL[r] || r} before escalating${r === 'store' ? ' (not “Not Specific”)' : ''}.`;
   return null;
 }
 

@@ -1,3 +1,4 @@
+import { CASE_MASTER } from './taxonomy.js';
 // "Request requirements" / "Information complete?" from the workflow — only what the SOP lists.
 // Used by the agent screens (checklist) and by the server's automatic email check.
 
@@ -51,8 +52,13 @@ export const REQUIREMENTS = {
   },
 };
 
-export function requirementsFor(subCategory) {
-  return REQUIREMENTS[subCategory] || null;
+/** Documents / details needed: by request for, sub-category 2 or sub-category (a case, or one value). */
+export function requirementsFor(x) {
+  if (!x || typeof x === 'string') return REQUIREMENTS[x] || null;
+  // the case master gives every request category "Re-issuing of Lost Card" as request for; only a membership request is about a card
+  const requestFor = x.requestFor === 'Re-issuing of Lost Card' && x.category !== 'Membership Related Request' ? '' : x.requestFor;
+  for (const v of [x.sub2, x.subCategory, requestFor]) if (REQUIREMENTS[v]) return REQUIREMENTS[v];
+  return null;
 }
 
 // Categories whose workflow needs a store / an order number (LOTS case master).
@@ -66,10 +72,10 @@ const APP_CATEGORIES = ['App Related', 'ECommerce Related', 'App Related Request
 export function missingInfo(c) {
   const missing = [];
   if (!c.caseType || !c.category) return ['Details of your query or concern'];
-  const req = REQUIREMENTS[c.subCategory];
+  const req = requirementsFor(c);
   if (req?.docs && !(c.attachments || []).length && !c.source?.hasAttachments) missing.push(...req.items.filter((i) => !/physically present|store verifies|^Maximum/i.test(i)));
 
-  const registered = c.callerType !== 'Not registered';
+  const registered = c.callerType === 'Registered With Lots';
   if (registered && !c.memberId && !c.phone && !c.cardNo) missing.push('Your registered mobile number or membership card number');
   if (STORE_CATEGORIES.includes(c.category) && !c.store) missing.push('The LOTS store concerned (NSP, Ithum, Akshardham, Sarita Vihar or Greater Noida)');
   if (APP_CATEGORIES.includes(c.category) && !c.orderRef) missing.push('Your app / website order number');
@@ -103,6 +109,12 @@ function workingDaysSince(dateStr) {
 }
 
 export function sopWarnings(c) {
+  const master = [];
+  if (CASE_MASTER[c.category]?.invoiceRequired && !String(c.orderRef || '').trim()) master.push('Case master: invoice details are required for this category — record the invoice / order no.');
+  return [...master, ...sopWarningsSop(c)];
+}
+
+function sopWarningsSop(c) {
   const w = [];
   const text = `${c.description || ''} ${c.subject || ''}`;
 
@@ -117,10 +129,10 @@ export function sopWarnings(c) {
   }
 
   // B2C outlets (AKD from Sep 2025, NSP from Nov 2025)
-  if (c.callerType === 'B2C customer') {
-    if (c.store && !B2C_STORES[c.store]) w.push('B2C: walk-in customers without membership can shop only at the Akshardham (AKD) and NSP B2C outlets.');
-    if (['FMCG – Non food', 'Non food'].includes(c.productCategory)) w.push('B2C: only food items of Indian origin can be sold to B2C customers.');
-    if (APP_CATEGORIES.includes(c.category)) w.push('B2C: e-commerce retail is not allowed for B2C customers. The app and website are for registered members only.');
+  if (c.callerType === 'Others') {
+    if (c.store && !B2C_STORES[c.store]) w.push('Others / B2C: customers without membership can shop only at the Akshardham (AKD) and NSP B2C outlets.');
+    if (['FMCG – Non food', 'Non food'].includes(c.productCategory)) w.push('Others / B2C: only food items of Indian origin can be sold to B2C customers.');
+    if (APP_CATEGORIES.includes(c.category)) w.push('Others / B2C: e-commerce retail is not allowed for B2C customers. The app and website are for registered members only.');
   }
   return w;
 }

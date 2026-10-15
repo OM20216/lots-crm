@@ -4,6 +4,52 @@ import { api } from '../api.js';
 import { Empty, Field, Select, fmtDate, useLoad, useMeta } from '../ui.jsx';
 import MailboxCard from '../components/MailboxCard.jsx';
 
+// Email previews in Microsoft Teams: what the CRM would send, posted to the team channel (nobody is emailed)
+function TeamsPreviewCard({ enabled, onToggle }) {
+  const [st] = useLoad(() => api.get('/teams-preview'));
+  const [busy, setBusy] = useState('');
+  const [msg, setMsg] = useState(null);
+  async function run(what) {
+    setBusy(what);
+    setMsg(null);
+    try {
+      const r = await api.post('/teams-preview/' + what);
+      setMsg({ ok: true, text: what === 'test' ? 'Test message posted — check the Teams channel.' : `${r.count} sample emails posted to Teams.` });
+    } catch (e) {
+      setMsg({ ok: false, text: e.message });
+    }
+    setBusy('');
+  }
+  if (!st) return null;
+  return (
+    <section className="card">
+      <h2>Email previews in Microsoft Teams</h2>
+      {!st.configured ? (
+        <div className="notice">Not connected: put the Teams workflow link in the private secrets file as TEAMS_WEBHOOK_URL and restart.</div>
+      ) : (
+        <>
+          <label className="switch-row">
+            <input type="checkbox" checked={enabled} onChange={(e) => onToggle(e.target.checked)} />
+            <span>
+              <strong>Post every email to Teams instead of sending it</strong>
+              <div className="muted small">The team sees exactly what each email says and who it would go to. No customer, store or team receives anything while this is on.</div>
+            </span>
+          </label>
+          <div className="row wrap">
+            <button className="btn" disabled={!!busy} onClick={() => run('test')}>
+              {busy === 'test' ? 'Sending…' : 'Send a test message'}
+            </button>
+            <button className="btn primary" disabled={!!busy} onClick={() => run('samples')}>
+              {busy === 'samples' ? 'Posting…' : 'Post a sample of every email'}
+            </button>
+          </div>
+          {msg && <div className={msg.ok ? 'notice ok' : 'error'}>{msg.text}</div>}
+        </>
+      )}
+    </section>
+  );
+}
+
 const SWITCHES = [
   ['autoImport', 'Create cases from new emails', 'Every new mail to the mailbox becomes a Pending case automatically (SOP). Off: mail waits in Email inbox → Mailbox until an agent clicks “Log case”.'],
   ['autoCategorise', 'Categorise new emails', 'Reads subject + body and sets case type, category, sub-category and store (rules from the SOP).'],
@@ -16,6 +62,8 @@ const SWITCHES = [
   ['autoStoreReplyResolve', 'Store reply → Resolved', 'A reply from the store SPOC (or any @cpwi.in address) on an escalated case moves it to Resolved.'],
   ['autoResolutionEmail', 'Email the resolution to the customer', 'Sent when a case moves to Resolved, with the store’s reply.'],
   ['autoConfirmationLead', 'Queue the confirmation call', 'Resolved case → Outbound leads “Confirmation / resolution”. The call outcome closes or re-escalates the case.'],
+  ['autoFollowupLead', 'Queue the follow-up call', 'Waiting case → Outbound leads “Follow-up” to ask for the missing details. “Info received” moves the case back to Pending.'],
+  ['autoSurveyLead', 'Queue a customer survey call', 'Closed case → Outbound leads “Customer survey” (SOP: collect feedback). Off by default.'],
   ['overdueReminder', 'Chase overdue escalations', 'TAT crossed → reminder to store SPOC (cc Level 2) and escalation level goes up, every working day.'],
 ];
 
@@ -79,6 +127,13 @@ export default function Automation() {
         </div>
       </div>
 
+      <TeamsPreviewCard
+        enabled={s.teamsPreview !== false}
+        onToggle={async (v) => {
+          await api.put('/automation', { ...data.settings, teamsPreview: v, agentShifts: data.agentShifts });
+          reload();
+        }}
+      />
       <MailboxCard mail={data.mail} onChange={reload} />
 
       <section className="card">
@@ -99,9 +154,9 @@ export default function Automation() {
       <section className="card">
         <h2>Timers &amp; recipients</h2>
         <div className="grid">
-          {text('mailTestTo', 'Test mode: send all emails to', 'Like VMM’s TEST_MODE. While filled in, every outgoing email goes only to this address (subject [TEST]). Empty = live', 'email')}
+          {text('mailTestTo', 'Test mode: send all emails to', 'While filled in, every outgoing email goes only to this address (subject [TEST]), so you can check emails without customers or stores receiving them. Empty = live', 'email')}
           {text('storeDigestTime', 'Daily store follow-up email at', 'Each store SPOC gets its pending list. Blank = off', 'time')}
-          {text('l2Email', 'Level 2 escalation email', 'Copied on overdue reminders', 'email')}
+          {text('l2Email', 'Level 2 escalation email', 'Used only while the escalation matrix (Stores & settings) is empty', 'email')}
           {num('waitingReminderHours', 'Remind customer after (hours in Waiting)', '0 = off')}
           {text('supervisorEmail', 'Daily report to', 'Supervisor / process lead', 'email')}
           {text('dailyReportTime', 'Daily report at', 'End of day', 'time')}
