@@ -47,6 +47,12 @@ Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch
 | Missed calls in the top bar (Recent missed / 2nd round), opening on a new missed call | ✅ Ready |
 | Email: every mail to contactus@cpwi.in becomes a Pending case automatically | ✅ Built. **Connect with "Sign in with Microsoft" on the Automation page** (§9.3) |
 | Automation engine (assign, acknowledge, escalation emails, chase stores, reports) | ✅ Ready. Email-based parts start once the mailbox is connected |
+| Cases follow LOTS's case master (21 categories, Request for, Sub-category 2, Resolution type, product type) with SOP sub-categories | ✅ Ready |
+| Workflow per case type and escalation: right store / team, TAT, escalation matrix (Level 2 / 3), holidays, re-assign, store-reply reading, promised dates, follow-up flags, report | ✅ Ready. **Store / team contacts and the matrix need filling in** |
+| Email previews in Microsoft Teams (every email the CRM would send, nobody emailed) | ✅ Live — on until the mailbox is connected |
+| Attachments: add files to a case; escalation emails carry them | ✅ Ready |
+| Picklists and dependencies (add values and pairs, as in the PSRI CRM) | ✅ Ready |
+| Simpler screens: case page "What to do now" + tabs, 11-item menu with an Admin page, 4-step New case | ✅ Ready |
 | MySQL storage on the company server (database `lots`) | ✅ Live |
 | Credentials kept outside the project | ✅ Done |
 | Logins / passwords for agents | ❌ Not yet. Agents pick their name (office network only) |
@@ -99,6 +105,7 @@ Zipping, copying or sharing the project folder never shares a password, and none
 | `SPARKTG_WEBHOOK_TOKEN` | Optional secret for `/api/sparktg/event` |
 | `MS_SIGNIN_CLIENT_ID` | Optional: own Microsoft app for "Sign in with Microsoft" (§9.3) |
 | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` | Alternative mailbox connection with an IT app secret (§9.4) |
+| `TEAMS_WEBHOOK_URL` | Microsoft Teams workflow link (Power Automate "post to a channel when a webhook request is received"): email previews are posted there (§9.2). The link carries a signature — treat it as a password |
 
 Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWORD='abc#123'`.
 
@@ -123,14 +130,16 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 
 1. `npm install`, create `.env` and `C:\Users\<you>\.lots-crm\secrets.env` (§3), then `npm run build` and `npm start`.
 2. **Sign in.** Each agent adds their name and **SparkTG login email** the first time.
-3. **Stores & settings:**
-   - store contacts (name, phone, email) for all six stores, used for escalation and follow-up emails
+3. **Admin → Stores & settings:**
+   - **store contacts** (name, phone, email) for all six stores, and **team contacts** (E-commerce, IT, BDA, HR, Admin, Marketing, Supplier) — escalation and follow-up emails go to them
+   - the **escalation matrix** (Level 2 / 3 names, emails, TATs) and **holidays**, once LOTS shares them
    - each agent's SparkTG login email, if not given at sign-in
    - **SparkTG → Test connection**, with a real call ID to see how the record is read
-4. **Automation:**
-   - **Mailbox → Sign in with Microsoft** with an account that can open contactus@cpwi.in (§9.3)
+4. **Admin → Automation:**
+   - **Email previews in Microsoft Teams**: *Send a test message* and *Post a sample of every email* to check the emails with the team
+   - **Mailbox → Sign in with Microsoft** with an account that can open contactus@cpwi.in (§9.3); then switch the Teams previews **off** to go live
    - agent shifts (9–6, 10–7, 11–8, 12–9 or Off)
-   - supervisor email (daily report); Level 2 escalation email only if LOTS has one
+   - supervisor email (daily report)
 5. **Contacts → Import CSV** with the member master, so callers are recognised.
 6. Make **one incoming and one outgoing test call** (§7.6).
 
@@ -138,32 +147,42 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 
 ## 5. Screens
 
-**Left menu**, grouped as in the SOP (collapses to icons with ‹):
+**Left menu** — only what agents use every day (collapses to icons with ‹):
 
-| Group | Screen | What it is for |
-| --- | --- | --- |
-| — | **Dashboard** | What needs attention now: missed calls past 30 minutes, pending emails, overdue escalations, leads due, unassigned cases, automated actions today. Open cases by status, today's totals, escalations by store, top categories |
-| — | **LOTS Workflow** | The SOP flow as an interactive chart. Every box shows its live count (red = needs attention). Click a box for its SOP options, what the CRM does at that step, and a link to the screen that handles it |
-| Case handling | **Log new case** | In the SOP order: **Identify caller** panel (mobile or card number → contact details fill in) → **Source of case** (inbound call, missed-call callback, email, outbound call) with the SOP greeting → caller details → **case type** cards (Inquiry / Issues or Complaints - NR / Requests) with category and sub-category → **Resolve within TAT?**: ROT, Info missing → Waiting, or Escalate to store team with the **EDC**. SOP checks (§6.5), request requirements and SOP answers on the side. Status pill: *Draft* or *On live call* |
-| Case handling | **My queue** | Open cases assigned to the signed-in agent |
-| Case handling | **Search cases** | Search and filter all cases (status, channel, type, store, agent), CSV export |
-| Channels | **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
-| Channels | **Email inbox** | Email cases by status, and logging an email by hand |
-| Channels | **Outbound leads** | Calling lists for every SOP outbound purpose: new registration, inactive customer (non-buying activation), order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record ratings and comments, with a **Survey results** panel |
-| Escalation | **Follow-ups** | Escalated cases grouped by **store or team** (E-commerce, IT, BDA, …) with deadlines, the daily call script, the CRM note template, and one follow-up email per store / team |
-| Reference | **Contacts** | The member master: list, **+ Create Contact** / **Edit** (Vtiger-style form, §11), **Call**, **Cases**, CSV import |
-| Reference | **SOP knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
-| Reference | **Case workflows** | The workflow of every case type: owner team, TAT, steps, and the teams' email addresses (§6.6) |
-| Admin | **Automation** | Mailbox connection, rule switches, timers, agent shifts, activity log, outbox |
-| Admin | **Picklists** | Values of every dropdown (case type, category, sub-category, caller type, channel, product category, customer group / type, …). **+ Add** a value to any list, or create a new list (§6.7) |
-| Admin | **Dependencies** | Which values go together: Case Type → Category, Category → Sub Category, Customer Group → Customer Type. **Add a dependency pair** (§6.7) |
-| Admin | **Stores & settings** | Store contacts, **team contacts** (§6.6), agent SparkTG emails, SparkTG connection test, database status, backup download |
+| Screen | What it is for |
+| --- | --- |
+| **Dashboard** | What needs attention now: missed calls past 30 minutes, pending emails, overdue escalations, follow-ups due today, store replies to check, leads due, unassigned cases, automated actions today. Open cases by status, today's totals, escalations by store, top categories |
+| **Log new case** | Four numbered steps in the SOP order, under the **Identify caller** panel (mobile or card number → contact details fill in): ① **How did they contact us?** (inbound call, missed-call callback, email, outbound call, with the SOP greeting) ② **Who is it?** (type of contact, name, business) ③ **What is the concern?** (case type cards → category → sub-category, store, invoice / order no.; the case master's other fields only when there's a real choice, product under *More details*; the workflow for the category) ④ **What happens now?** (resolved on call, info missing → Waiting, or escalate, with the EDC). SOP checks (§6.5), documents needed and SOP answers on the side |
+| **My cases** | Open cases assigned to the signed-in agent |
+| **All cases** | Search and filter all cases (status, channel, type, store, agent), CSV export |
+| **Follow-ups** | Escalated cases by **store or team** with deadlines, level, promised date and flags (*not followed up today*, *store replied — check*, *promise missed*); the daily call script, logging the call with the store's promised date, one follow-up email per store / team. **Report** tab: on time %, average days, overdue, levels, promises missed per store / team (§6.8) |
+| **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
+| **Emails** | Mailbox (once connected), email cases by status, logging an email by hand |
+| **Outbound calls** | Calling lists for every SOP outbound purpose: new registration, inactive customer, order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record ratings and comments, with a **Survey results** panel |
+| **Contacts** | The member master: list, **+ Create Contact** / **Edit** (Vtiger-style form, §11), **Call**, **Cases**, CSV import |
+| **Knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
+| **Admin** | One page linking the setup pages below |
+
+**Admin page** (for team leaders):
+
+| Page | What it is for |
+| --- | --- |
+| **Stores & settings** | Store contacts, team contacts (§6.6), **escalation matrix** and **holidays** (§6.8), agent SparkTG emails, SparkTG connection test, database status, backup download |
+| **Automation** | Mailbox connection, **Email previews in Microsoft Teams**, rule switches, timers, agent shifts, activity log, outbox |
+| **Case workflows** | The workflow of every case type: owner team, TAT, steps, and the teams' email addresses (§6.6) |
+| **LOTS workflow chart** | The SOP flow as an interactive chart; every box shows its live count (red = needs attention) |
+| **Picklists** | Values of every dropdown. **+ Add** a value, or create a new list (§6.7) |
+| **Dependencies** | Which values go together (case type → category → sub-category / request for / sub-category 2 / resolution type, product category → product type, customer group → customer type). **Add a dependency pair** (§6.7) |
 
 **On every page:**
 - **Top bar:** dialer status (green = ready), the agent, **Switch agent**, and the **missed-call boxes** (§7.3).
 - **Dialer** (📞, bottom right) and the **caller panel** that pops up on every call (§7.1).
 
-**Case page:** status flow, next-step buttons, the **Workflow checklist** (§6.6), editable details, SOP checks, EDC, timeline, reply templates (copy / open in mail / send from contactus@cpwi.in), linked calls with recordings, attachments, customer history, **Call customer**.
+**Case page** (kept simple):
+- **Header:** case number, status, one line with the concern · customer · store, **Call customer**, and the status flow.
+- **What to do now:** the next SOP step in one sentence and only the buttons that apply (resolve on call / waiting / escalate, store replied → resolution, confirm → close…). When escalated, the escalation sits inside it: who has it, level, due date, promised date, next level, **Re-assign**, **Escalate to the next level**, and the *store replied — check* banner.
+- **Tabs:** **Details** (read-only, **Edit** to change) · **Timeline** · **Email** (templates, tick case files to attach, send / preview in Teams) · **Files** (+ Add file) · **Calls** (linked calls, recordings) · **Steps** (workflow checklist).
+- **Side:** customer (with their other cases), store and its contact, documents needed.
 
 ---
 
@@ -248,6 +267,7 @@ Shown as an orange **SOP check** box on the New Case page and the case page. The
 | Situation | Check |
 | --- | --- |
 | Request → **Return / exchange** | A **Purchase date** field appears. Warns for non-returnable items (oil, ghee, fresh dairy, fruit, vegetables, meat, fish, chilled or frozen), for purchases more than **7 working days** ago, and reminds about the stamped bill and credit-note rules |
+| Request categories of the case master (Membership / Store / E Commerce / BDA / App requests) | Invoice / order no. marked required; the SOP check reminds if it's empty |
 | Type of contact **Others** (e.g. B2C walk-in customers) | Warns for stores other than **AKD / NSP**, **non-food** products, and **app / e-commerce** cases |
 
 ### 6.6 Workflow per case type
@@ -389,7 +409,7 @@ When a number arrives (dialer, typed, or from a SparkTG call ID), the CRM looks 
 
 ## 9. Email
 
-**Status: ready to connect.** A supervisor connects contactus@cpwi.in once with **Sign in with Microsoft** on the Automation page. Until then, emails are logged by hand and automatic emails wait in the outbox as *not sent*.
+**Status: ready to connect.** A supervisor connects contactus@cpwi.in once with **Sign in with Microsoft** on the Automation page. Until then, emails are logged by hand, and every email the CRM would send is **posted to the Microsoft Teams channel as a preview** (below), so the team can check it. Nobody receives an email.
 
 ### 9.1 Without a mailbox connection (manual)
 
@@ -416,7 +436,17 @@ Switch **Create cases from new emails** off (Automation → Rules) to have agent
 
 **All outgoing emails** (acknowledgements, templates, escalations, follow-ups, resolutions, agent replies) are **branded HTML**: LOTS header, the message, a case details box, and the care number in the footer. Emails to the customer of an email case go **in their thread**; others are new emails. A copy of everything is in Sent Items.
 
-**Email previews in Microsoft Teams** (Automation → *Email previews in Microsoft Teams*): while `TEAMS_WEBHOOK_URL` (a Power Automate "post to a channel when a webhook request is received" workflow link) is in the **private secrets file** and the switch is on, **every email the CRM would send is posted to the Teams channel instead** — type, To, Cc, subject, case and the full text. Nobody receives an email. *Send a test message* and *Post a sample of every email* (acknowledgement, information request, membership, supplier, job, escalation, store follow-up, resolution, escalation level 2, daily store follow-up) show the team everything before going live. The Outbox and case timelines mark these as *Teams preview (not sent)*. The workflow link carries a signature: keep it only in the secrets file.
+**Attachments:**
+- Files customers send are saved on the case.
+- Agents can add files too (**Files → + Add file**), for photos or bills from WhatsApp or phone.
+- **Escalation, level-up and overdue emails carry the case's files automatically.**
+- Template emails from the case page can attach chosen files.
+- Limits (Microsoft Graph's simple sending): up to **3 MB per file, 3.5 MB per email**. Bigger files are named in the email as *available on request* instead of being dropped.
+
+**Email previews in Microsoft Teams** (Automation → *Email previews in Microsoft Teams*): while `TEAMS_WEBHOOK_URL` (a Power Automate "post to a channel when a webhook request is received" workflow link) is in the **private secrets file** and the switch is on, **every email the CRM would send is posted to the Teams channel instead**. Nobody receives an email.
+- Each card shows **who it would go to** (To / Cc), the subject and the type, then the email **exactly as the recipient would see it**: the same LOTS header, template text, case details box and footer. Attachments are listed.
+- An email with no address yet (e.g. a store contact not filled in) still appears, with the recipient shown as *not set*.
+- On the case page, template emails become **Send now (preview in Teams)**. *Send a test message* and *Post a sample of every email* (acknowledgement, information request, membership, supplier, job, escalation, store follow-up, resolution, escalation level 2, daily store follow-up) show the team everything before going live. The Outbox and case timelines mark these as *Teams preview (not sent)*. The workflow link carries a signature: keep it only in the secrets file.
 
 **Test mode** (like VMM's `TEST_MODE`): **Automation → Timers & recipients → "Test mode: send all emails to"**. While an address is filled in, **every** outgoing email goes only to that address, with **[TEST]** in the subject and a note saying who it would have gone to. The Email inbox shows a banner. Empty = live.
 
@@ -460,13 +490,13 @@ The **Automation** page switches each rule on or off. Everything the automation 
 | Categorise new emails | Suggests case type, category, sub-category, store, invoice / order and card numbers (SOP keywords, English and some Hinglish) | On | No |
 | Assign cases & missed calls | To the agent on shift with the fewest open items | On | No |
 | Acknowledge every new email | Customer gets the case number | On | Yes |
-| Email the store on escalation | Escalation template to the store contact | On | Yes |
+| Email the store / team on escalation | Escalation template to the store or team the case is escalated to, with the case's files attached | On | Yes |
 | Store reply → Resolved | A reply from the store / team contact (or any @cpwi.in address) on an escalated case moves it to Resolved **only if it reads like a resolution**; otherwise the case stays Escalated and is flagged "Store replied — check" (§6.8) | On | Yes |
 | Email the resolution to the customer | Quotes the store's reply | On | Yes |
 | Queue the confirmation call | Resolved case → Outbound leads "Confirmation / resolution" | On | No |
 | Queue the follow-up call | Waiting case → Outbound leads "Follow-up" to ask for the missing details. **Info received** on the call moves the case back to Pending; **Update given** goes on the timeline. If the case goes back to Pending another way, the call closes itself | On | No |
 | Queue a customer survey call | Closed case → Outbound leads "Customer survey" (once per case). Ratings for overall, store and customer care, would-recommend, and comments; saved on the case timeline and in **Survey results** | **Off** | No |
-| Chase overdue escalations | Deadline passed: reminder to the store (cc Level 2 if set), escalation level +1, every working day | On | Yes (the level still goes up without it) |
+| Chase overdue escalations | A level's deadline passed: the case moves up one level of the **escalation matrix** (next contact copied in, that level's TAT). At the highest level (or with no matrix): one reminder per working day, the level stays. A **promised date** that passes is flagged | On | Yes (levels still change without it) |
 | Answer standard enquiries | Job, supplier and new-membership emails answered with the SOP template. **Not in the SOP** (call first) | **Off** | Yes |
 | Information complete? | Complaints / requests checked against the SOP requirements; missing → "information required" email, Waiting. **Not in the SOP** | **Off** | Yes |
 | Complete → escalate to store | A complete complaint / request with a known store is escalated automatically. **Not in the SOP** | **Off** | No |
@@ -476,7 +506,7 @@ The **Automation** page switches each rule on or off. Everything the automation 
 | Job | Default |
 | --- | --- |
 | Mailbox checked for new mail (every 5 minutes, SOP) | every 5 min |
-| Daily store follow-up email (one list per store) | 10:00 |
+| Daily follow-up email (one list per store / team; Level 2 copied when something is overdue or a promise was missed) | 10:00 |
 | Reminder to a customer in *Waiting* | after 48 hours |
 | Daily report to the supervisor (cases by channel and type, closed, ROT, open by status, overdue, missed calls and callback TAT, per agent, per store) | 21:00, once a supervisor email is set |
 
@@ -603,8 +633,8 @@ To browse the tables: VS Code extension **"MySQL" by Database Client**, MySQL Wo
 
 ### 13.2 Files, git and security
 
-- Email attachments are stored in `server/data/attachments/<case>/`.
-- **Credentials** are outside the project (§3). **No logins yet**: agents choose their name, so use the CRM only on the office network until logins are added.
+- Attachments (from emails and added by agents) are stored in `server/data/attachments/<case>/`.
+- **Credentials** are outside the project (§3), including the Microsoft Teams workflow link. **No logins yet**: agents choose their name, so use the CRM only on the office network until logins are added.
 - **Git:** `.gitignore` keeps out `server/data/` (all data and backups), `.env`, secrets files, the Microsoft sign-in file and logs. Save changes with `git add -A`, `git commit`, `git push`.
 - **GitHub repo `OM20216/lots-crm` is private.** An early upload contained `.env` with the SparkTG login. It was removed from `main`, and the repo is now private.
 
@@ -622,17 +652,20 @@ server/
   calls.js         Call log from the dialer, SparkTG record after each call, direction, missed calls, live-call check
   sparktg.js       SparkTG API client (call record, agents, recordings, field mapping)
   automation.js    Rules, assignment, categorisation, scheduled jobs, outbox, mailbox polling
-  mail.js          Microsoft 365: Sign in with Microsoft (device code) or app secret; read, move, send
+  mail.js          Microsoft 365: Sign in with Microsoft (device code) or app secret; read, send, reply in thread, attachments
+  teams.js         Microsoft Teams: email previews posted to a channel (Power Automate workflow link)
   data/            JSON data / backups / attachments (not in git)
 src/
   App.jsx          Layout: sidebar, top bar, routes, sign-in, dialer, caller panel
   sparktg.jsx      SparkTG widget connection (adapted from PSRI SparkTGContext)
-  taxonomy.js      Case types, categories, statuses, customer groups (LOTS case master + SOP)
+  taxonomy.js      Case types, categories, case master columns, statuses, customer groups, product types (LOTS case master + SOP)
+  workflows.js     Workflow per case type: owner team, TAT, steps, escalation target (also used by the server)
+  picklists.js     Picklists and dependencies: base values from taxonomy.js + the ones added on the screens
   knowledge.js     SOP / FAQ answers, scripts, email templates (also used by the server)
   requirements.js  Request requirements, SOP checks (return / B2C), reference-number reading (also used by the server)
   api.js, ui.jsx   Fetch helper, shared UI helpers
-  components/      Dialer (widget, caller panel, Call button), MissedBar, MailboxCard, Classifier, CallsCard, MemberImport, Icon
-  pages/           One file per screen. ContactForm.jsx = contact form; LotsFlow.jsx/.css = workflow chart
+  components/      Dialer (widget, caller panel, Call button), MissedBar, Mailbox, MailboxCard, Classifier, CallsCard, WorkflowCard, EscalationPanel, MemberImport, Icon
+  pages/           One file per screen. ContactForm.jsx = contact form; LotsFlow.jsx/.css = workflow chart; Admin.jsx = setup pages
 lots-workflow.svg  Static process chart of the SOP
 .env.example, secrets.env.example   Setting templates
 ```
@@ -658,7 +691,9 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | POST / DELETE | `/api/dependencies` | Add `{ mainField, mainValue, subField, subValue }` (both values must be in their picklists; 409 if the pair exists) / remove an added pair |
 | GET / POST | `/api/cases` | List (filters: status, channel, store, caseType, assignedTo, q, overdue) / create |
 | GET / PATCH | `/api/cases/:id` | Case with history and escalation `target` / edit, change status (only along the workflow), add a note, tick a workflow step (`checkStep`, `done`) |
-| POST | `/api/cases/:id/email` | Send an email from the case (needs the mailbox) |
+| POST | `/api/cases/:id/email` | Send an email from the case `{ to, subject, body, kind, attachments: [file] }` (mailbox, or Teams preview) |
+| POST | `/api/cases/:id/attachments?name=` | Add a file to a case (raw bytes, up to 15 MB) |
+| POST | `/api/cases/:id/set-level` | Correct an escalation level by hand `{ level, reason }` (kept on the timeline) |
 | POST | `/api/cases/:id/calls` | Link a SparkTG call to a case |
 | GET | `/api/cases/:id/attachments/:file` | Download an attachment |
 | POST | `/api/calls/event` | Dialer event `{ callId, status: started \| ended, direction, phone, context, widget }` |
@@ -675,6 +710,7 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | GET / PUT / POST | `/api/automation`, `/api/automation/run` | Settings, log, outbox / run the checks now |
 | GET / POST / DELETE | `/api/mail/signin` | Microsoft sign-in status / start (returns the code) / disconnect |
 | GET | `/api/mail/test` | Mailbox connection test |
+| GET / POST | `/api/teams-preview`, `/api/teams-preview/test`, `/api/teams-preview/samples` | Teams preview status / test message / one sample of every email |
 | GET | `/api/flow`, `/api/stats`, `/api/export` | Workflow live counts / dashboard / full backup |
 
 ---
@@ -698,7 +734,11 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | Microsoft sign-in (mock): code, sign-in, mail import and reply sent from contactus@cpwi.in, renewal after restart and expiry, revoked sign-in message, disconnect. Real Microsoft accepted the sign-in request | ✅ |
 | SOP checks: return policy (non-returnable item, 7 working days), B2C, settings moved to SOP defaults | ✅ |
 | Missed-call boxes: Recent missed vs 2nd round, contact name shown | ✅ |
-| **Screens in a browser** (new look, caller panel, missed-call pop-up, contact slide-in form) | ⏳ Built and served; not yet checked on screen by me |
+| Workflow per case type and escalation: routing to stores / teams, matrix levels after a restart with past due dates, top-of-matrix reminder, re-assign, raise level, store replies (interim vs resolution, promised dates), follow-up flags, report | ✅ |
+| Case master: all categories and dependent fields, contact types, old names converted on start-up, DH store, Not Specific store, product type | ✅ |
+| Teams previews: fake Teams endpoint, then the real channel (test, samples, a full sample case); cards match all 8 email templates | ✅ |
+| Attachments: upload, download, escalation email carries files byte-for-byte (Graph stand-in), too-big file named, Teams lists them | ✅ |
+| **Screens in a browser** (headless Edge): picklists, dependencies, + Add, escalation panel, follow-ups report, settings, survey form, attachments, simplified case page, menu, Admin page, New case steps | ✅ |
 | **Dialer widget with agents logged in** (SSO, show_dialer, click-to-call from the CRM, incoming call) | ⏳ Needs agents' SparkTG emails and a live test |
 | **Real mailbox** contactus@cpwi.in | ⏳ Needs "Sign in with Microsoft" |
 
@@ -712,7 +752,8 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [ ] **Connect the mailbox:** Automation → Sign in with Microsoft (§9.3).
 - [ ] Enter every agent's **SparkTG login email** and **shift**; then one live incoming and outgoing test call.
 - [ ] **Import the member master** (Contacts → Import CSV).
-- [ ] **Store contacts** for all six stores; **supervisor email**.
+- [ ] **Store contacts** for all six stores, **team contacts**, the **escalation matrix** and **holidays**; **supervisor email**.
+- [ ] When the mailbox is connected: switch **Email previews in Microsoft Teams** off so emails really go out.
 - [ ] Confirm the **SparkTG service**: the CRM uses 1672 (VMM's). If LOTS has its own service for 1860-123-5687, add its ID and login to the secrets file.
 - [x] **MySQL password changed** (it had been shared in a chat; the same login opened other databases on that server). ✅ Done. The SparkTG password was left unchanged by choice.
 
@@ -787,3 +828,4 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 35 | **Attachments**: files can be added to a case (+ Add file — photos / bills from WhatsApp or phone); escalation, level-up and overdue emails carry the case's files automatically; template emails from the case page can attach chosen files; Teams cards list them. Up to 3 MB per file, 3.5 MB per email (Microsoft Graph's simple limit) — bigger files are named in the email as "available on request". Teams cards now mirror the branded email (header, template text, case box, footer). Tested with a stand-in for Microsoft Graph (9 of 9) and in the browser |
 | 36 | **Simpler screens**: case page = "What to do now" (next SOP step + only the buttons that apply, escalation inside it) + tabs (Details read-only with Edit · Timeline · Email · Files · Calls · Steps) + customer / store / documents on the side; menu 16 → 11 items with setup pages on one **Admin** page; New case in 4 numbered steps with rarely used fields under "More details" |
 | 37 | Decisions: CRM additions and SOP sub-categories kept until LOTS confirms; Duhai = DH; LWS-000003 reset from level 6 (old version's daily level-up) to level 1. New `POST /api/cases/:id/set-level` to correct a level by hand, with a reason on the timeline |
+| 38 | README brought up to date with everything since 9 Oct: status, secrets (Teams link), setup checklist, screens (11-item menu, Admin page, simpler case page, 4-step New case), email previews in Teams, attachments, escalation rules, project files, API, tests, open items |
