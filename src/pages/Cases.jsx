@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { CASE_TREE, CHANNELS, STATUSES } from '../taxonomy.js';
-import { Due, Empty, Select, StatusBadge, ago, storeLabel, useLoad, useMeta } from '../ui.jsx';
+import { STATUSES } from '../taxonomy.js';
+import { Due, Empty, Select, StatusBadge, ago, storeLabel, useLoad, useMeta, usePicklists } from '../ui.jsx';
 
 export default function Cases() {
   const nav = useNavigate();
   const { stores, agents } = useMeta();
+  const { list } = usePicklists();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
   const filters = Object.fromEntries(params.entries());
@@ -47,8 +48,8 @@ export default function Cases() {
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search case no., phone, name, email, card, order…" />
         </form>
         <Select value={filters.status} options={STATUSES} onChange={(v) => setF('status', v)} placeholder="Any status" />
-        <Select value={filters.channel} options={CHANNELS} onChange={(v) => setF('channel', v)} placeholder="Any channel" />
-        <Select value={filters.caseType} options={Object.keys(CASE_TREE)} onChange={(v) => setF('caseType', v)} placeholder="Any type" />
+        <Select value={filters.channel} options={list('Channel')} onChange={(v) => setF('channel', v)} placeholder="Any channel" />
+        <Select value={filters.caseType} options={list('Case Type')} onChange={(v) => setF('caseType', v)} placeholder="Any type" />
         <Select value={filters.store} options={stores.map((s) => ({ value: s.code, label: `${s.code} ${s.short}` }))} onChange={(v) => setF('store', v)} placeholder="Any store" />
         <Select value={filters.assignedTo} options={agents} onChange={(v) => setF('assignedTo', v)} placeholder="Any agent" />
         {params.toString() && (

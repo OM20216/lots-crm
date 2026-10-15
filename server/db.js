@@ -31,6 +31,8 @@ function emptyDb() {
     calls: [],
     agentEmails: {},
     teams: {}, // contact details per escalation team (src/workflows.js TEAMS)
+    picklists: {}, // values added from the Picklists screen: { field: [{ value, by, at }] }
+    dependencies: [], // pairs added from the Dependencies screen: [{ mainField, mainValue, subField, subValue, by, at }]
     stores: STORES,
     members: [],
     cases: [],

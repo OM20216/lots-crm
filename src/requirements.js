@@ -1,19 +1,26 @@
 // "Request requirements" / "Information complete?" from the workflow — only what the SOP lists.
 // Used by the agent screens (checklist) and by the server's automatic email check.
 
-// Keyed by sub-category. `docs`: the customer must send documents (so an email needs attachments).
+// Keyed by sub-category (LOTS case master, src/taxonomy.js). `docs`: the customer must send documents (so an email needs attachments).
+const MEMBERSHIP_DOCS = {
+  docs: true,
+  items: [
+    'Any one business licence: GST · FSSAI · Drug licence · Certificate of Incorporation · Society / Public Trust registration · APMC · Govt department authorisation letter · MSME / Udyam · Weights & Measures · Trade licence · Shops & Establishments',
+    'No GST? A supporting document: visiting card · menu photo · copy of bill · hoarding board · flex board',
+    'Mandatory: PAN card · mobile no. · Aadhaar card · selfie · store preference',
+    'Customer must be physically present at the store at registration',
+    'Online application: signed consent form (store emails the PDF → print, sign, scan, send back)',
+  ],
+};
+
+const SUPPLIER_DOCS = {
+  docs: true,
+  items: ['Company profile / portfolio', 'Product catalogue (details and images of the products)'],
+};
+
 export const REQUIREMENTS = {
-  'New membership': {
-    docs: true,
-    items: [
-      'Any one business licence: GST · FSSAI · Drug licence · Certificate of Incorporation · Society / Public Trust registration · APMC · Govt department authorisation letter · MSME / Udyam · Weights & Measures · Trade licence · Shops & Establishments',
-      'No GST? A supporting document: visiting card · menu photo · copy of bill · hoarding board · flex board',
-      'Mandatory: PAN card · mobile no. · Aadhaar card · selfie · store preference',
-      'Customer must be physically present at the store at registration',
-      'Online application: signed consent form (store emails the PDF → print, sign, scan, send back)',
-    ],
-  },
-  'New add-on card': {
+  'New Member - Customer': MEMBERSHIP_DOCS,
+  'Add-On Cards': {
     docs: true,
     items: [
       'Maximum 4 add-on cards per member',
@@ -23,22 +30,23 @@ export const REQUIREMENTS = {
       'Mobile number of the person being added',
     ],
   },
-  'New supplier registration': {
-    docs: true,
-    items: ['Company profile / portfolio', 'Product catalogue (details and images of the products)'],
-  },
-  'Block membership card / lost card': {
+  'New Vendor - Supplier': SUPPLIER_DOCS,
+  'Suppliers - Fresh': SUPPLIER_DOCS,
+  'Suppliers - FMCG - Food': SUPPLIER_DOCS,
+  'Suppliers - FMCG - Commodities': SUPPLIER_DOCS,
+  'Suppliers - Non Food': SUPPLIER_DOCS,
+  'Re-issuing of Lost Card': {
     docs: true,
     items: ['Lost card application on business letterhead', 'Valid govt ID proof'],
   },
-  'Update registered business address': {
+  'Address updation': {
     docs: true,
     items: ['New address proof', 'Govt-approved business licence', 'Authority letter'],
   },
-  'Return / exchange': {
+  'Return Of Goods': {
     items: ['Original bill stamped by the store guard (no bill → the store verifies the purchase internally)', 'Within 7 working days · packaging intact, unused, saleable, with free articles · before expiry'],
   },
-  'Bulk booking': {
+  'Stock availability': {
     items: ['Product details', 'Quantity'],
   },
 };
@@ -46,6 +54,10 @@ export const REQUIREMENTS = {
 export function requirementsFor(subCategory) {
   return REQUIREMENTS[subCategory] || null;
 }
+
+// Categories whose workflow needs a store / an order number (LOTS case master).
+const STORE_CATEGORIES = ['Store Related', 'BDA Related', 'Store Related Request', 'BDA Related REQUESTS'];
+const APP_CATEGORIES = ['App Related', 'ECommerce Related', 'App Related Requests', 'E Commerce Related Request'];
 
 /**
  * What an email case still lacks before it can go to the store. Empty array = complete.
@@ -57,10 +69,10 @@ export function missingInfo(c) {
   const req = REQUIREMENTS[c.subCategory];
   if (req?.docs && !(c.attachments || []).length && !c.source?.hasAttachments) missing.push(...req.items.filter((i) => !/physically present|store verifies|^Maximum/i.test(i)));
 
-  const registered = c.category !== 'Not registered member';
+  const registered = c.callerType !== 'Not registered';
   if (registered && !c.memberId && !c.phone && !c.cardNo) missing.push('Your registered mobile number or membership card number');
-  if (['Store related', 'BDA related'].includes(c.category) && !c.store) missing.push('The LOTS store concerned (NSP, Ithum, Akshardham, Sarita Vihar or Greater Noida)');
-  if (c.category === 'App / E-comm related' && !c.orderRef) missing.push('Your app / website order number');
+  if (STORE_CATEGORIES.includes(c.category) && !c.store) missing.push('The LOTS store concerned (NSP, Ithum, Akshardham, Sarita Vihar or Greater Noida)');
+  if (APP_CATEGORIES.includes(c.category) && !c.orderRef) missing.push('Your app / website order number');
   return missing;
 }
 
@@ -95,7 +107,7 @@ export function sopWarnings(c) {
   const text = `${c.description || ''} ${c.subject || ''}`;
 
   // Return and exchange policy
-  if (c.subCategory === 'Return / exchange') {
+  if (c.subCategory === 'Return Of Goods') {
     if (c.productCategory === 'Fresh' || NON_RETURNABLE.test(text))
       w.push('Return policy: oil, ghee, fresh dairy, fruits, vegetables, meat, fish and temperature-controlled products cannot be returned or exchanged.');
     const days = c.purchaseDate ? workingDaysSince(c.purchaseDate) : null;
@@ -108,7 +120,7 @@ export function sopWarnings(c) {
   if (c.callerType === 'B2C customer') {
     if (c.store && !B2C_STORES[c.store]) w.push('B2C: walk-in customers without membership can shop only at the Akshardham (AKD) and NSP B2C outlets.');
     if (['FMCG – Non food', 'Non food'].includes(c.productCategory)) w.push('B2C: only food items of Indian origin can be sold to B2C customers.');
-    if (c.category === 'App / E-comm related') w.push('B2C: e-commerce retail is not allowed for B2C customers. The app and website are for registered members only.');
+    if (APP_CATEGORIES.includes(c.category)) w.push('B2C: e-commerce retail is not allowed for B2C customers. The app and website are for registered members only.');
   }
   return w;
 }

@@ -1,7 +1,24 @@
-import { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react';
+import { caseTree, dependentValues, mergeDependencies, mergeLists } from './picklists.js';
 
 export const MetaContext = createContext({ stores: [], agents: [], agent: '', stats: null, refreshStats: () => {} });
 export const useMeta = () => useContext(MetaContext);
+
+/** Picklists and dependencies: base values from the case master plus the ones added on the Picklists / Dependencies screens. */
+export function usePicklists() {
+  const { picklists, dependencies } = useMeta();
+  return useMemo(() => {
+    const lists = mergeLists(picklists);
+    const deps = mergeDependencies(dependencies);
+    return {
+      lists,
+      deps,
+      list: (field) => lists[field] || [],
+      dependents: (subField, mainField, mainValue) => dependentValues(lists, deps, subField, mainField, mainValue),
+      tree: caseTree(lists, deps),
+    };
+  }, [picklists, dependencies]);
+}
 
 export function fmtDate(iso) {
   if (!iso) return '—';

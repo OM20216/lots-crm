@@ -14,6 +14,8 @@ import Contacts from './pages/Contacts.jsx';
 import ContactForm from './pages/ContactForm.jsx';
 import Knowledge from './pages/Knowledge.jsx';
 import Workflows from './pages/Workflows.jsx';
+import Picklists from './pages/Picklists.jsx';
+import Dependencies from './pages/Dependencies.jsx';
 import Settings from './pages/Settings.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
@@ -185,6 +187,8 @@ export default function App() {
 
             <div className="nav-group">Admin</div>
             <NavItem to="/automation" icon="zap" label="Automation" />
+            <NavItem to="/picklists" icon="check" label="Picklists" />
+            <NavItem to="/dependencies" icon="swap" label="Dependencies" />
             <NavItem to="/settings" icon="settings" label="Stores & settings" />
           </nav>
           <div className="sidebar-foot">
@@ -220,6 +224,8 @@ export default function App() {
                 </Suspense>
               }
             />
+            <Route path="/picklists" element={<Picklists />} />
+            <Route path="/dependencies" element={<Dependencies />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>

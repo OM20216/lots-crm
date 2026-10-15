@@ -28,6 +28,7 @@ const sparktg = await import('./sparktg.js');
 const mail = await import('./mail.js');
 const auto = await import('./automation.js');
 const calls = await import('./calls.js');
+const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
 
 const { db, save, now, log, findCase, applyStatus, phoneKey, TRANSITIONS } = core;
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -50,6 +51,8 @@ api.get('/meta', (req, res) => {
     integrations: { mail: mail.configured(), sparktg: sparktg.configured() },
     widgetUrl: process.env.SPARKTG_WIDGET_URL || '',
     teams: core.teams(),
+    picklists: db().picklists || {},
+    dependencies: db().dependencies || [],
     database: store.status(),
     agentEmails: db().agentEmails,
   });
@@ -70,6 +73,64 @@ api.post('/agents', (req, res) => {
   if (name && req.body.email) db().agentEmails[name] = String(req.body.email).trim();
   save();
   res.json(db().agents);
+});
+
+// ----- Picklists and dependencies (as in the PSRI CRM) -----
+// Base values come from src/taxonomy.js and can't be removed; added ones can.
+const clean = (v) => String(v || '').trim().replace(/\s+/g, ' ');
+
+api.post('/picklists', (req, res) => {
+  const field = clean(req.body.field);
+  const value = clean(req.body.value);
+  if (!field || !value) return res.status(400).json({ error: 'Enter the list name and a value' });
+  if (field.length > 60 || value.length > 100) return res.status(400).json({ error: 'Name or value is too long' });
+  const lists = mergeLists(db().picklists);
+  const listName = Object.keys(lists).find((n) => sameValue(n, field)) || field;
+  const existing = (lists[listName] || []).find((v) => sameValue(v, value));
+  if (existing) return res.status(409).json({ error: `"${existing}" is already in ${listName}` });
+  const d = db();
+  d.picklists ||= {};
+  d.picklists[listName] = [...(d.picklists[listName] || []), { value, by: agentOf(req), at: now() }];
+  save();
+  res.status(201).json({ picklists: d.picklists, dependencies: d.dependencies || [] });
+});
+
+api.delete('/picklists', (req, res) => {
+  const { field, value } = req.body;
+  const d = db();
+  const list = d.picklists?.[field] || [];
+  if (!list.some((x) => x.value === value)) return res.status(400).json({ error: 'Only values added here can be removed (values from the case master stay)' });
+  d.picklists[field] = list.filter((x) => x.value !== value);
+  if (!d.picklists[field].length) delete d.picklists[field];
+  // pairs that used the value go too
+  d.dependencies = (d.dependencies || []).filter((p) => !((p.mainField === field && p.mainValue === value) || (p.subField === field && p.subValue === value)));
+  save();
+  res.json({ picklists: d.picklists, dependencies: d.dependencies });
+});
+
+api.post('/dependencies', (req, res) => {
+  const p = Object.fromEntries(['mainField', 'mainValue', 'subField', 'subValue'].map((k) => [k, clean(req.body[k])]));
+  if (Object.values(p).some((v) => !v)) return res.status(400).json({ error: 'All 4 fields are required' });
+  if (p.mainField === p.subField) return res.status(400).json({ error: 'Main field and sub field must be different' });
+  const lists = mergeLists(db().picklists);
+  if (!(lists[p.mainField] || []).includes(p.mainValue)) return res.status(400).json({ error: `"${p.mainValue}" is not in the ${p.mainField} picklist — add it there first` });
+  if (!(lists[p.subField] || []).includes(p.subValue)) return res.status(400).json({ error: `"${p.subValue}" is not in the ${p.subField} picklist — add it there first` });
+  const all = mergeDependencies(db().dependencies);
+  if (all.some((x) => x.mainField === p.mainField && x.mainValue === p.mainValue && x.subField === p.subField && x.subValue === p.subValue)) return res.status(409).json({ error: `${p.mainValue} → ${p.subValue} already exists` });
+  const d = db();
+  d.dependencies = [...(d.dependencies || []), { ...p, by: agentOf(req), at: now() }];
+  save();
+  res.status(201).json({ picklists: d.picklists || {}, dependencies: d.dependencies });
+});
+
+api.delete('/dependencies', (req, res) => {
+  const { mainField, mainValue, subField, subValue } = req.body;
+  const d = db();
+  const before = (d.dependencies || []).length;
+  d.dependencies = (d.dependencies || []).filter((x) => !(x.mainField === mainField && x.mainValue === mainValue && x.subField === subField && x.subValue === subValue));
+  if (d.dependencies.length === before) return res.status(400).json({ error: 'Only pairs added here can be removed (pairs from the case master stay)' });
+  save();
+  res.json({ picklists: d.picklists || {}, dependencies: d.dependencies });
 });
 
 // Escalation teams of the case workflows (E-commerce, IT, BDA, HR, …): contact details
@@ -694,7 +755,7 @@ api.get('/flow', (req, res) => {
     missed: n(openMissed.length, openMissed.some((m) => m.dueAt < t) ? `open · ${openMissed.filter((m) => m.dueAt < t).length} past 30 min` : 'open', openMissed.some((m) => m.dueAt < t)),
     email: n(by((c) => c.channel === 'Email' && c.status === 'Pending'), 'pending emails', by((c) => c.channel === 'Email' && c.status === 'Pending') > 0),
     airead: n(by((c) => c.channel === 'Email' && c.auto && isToday(c.createdAt)), 'read automatically today'),
-    aicheck: n(by((c) => c.channel === 'Email' && isToday(c.createdAt) && ['Issue & Complaint', 'Request'].includes(c.caseType)), 'checked today'),
+    aicheck: n(by((c) => c.channel === 'Email' && isToday(c.createdAt) && ['Issues or Complaints - NR', 'Requests'].includes(c.caseType)), 'checked today'),
     aiwait: n(by((c) => c.status === 'Waiting' && c.infoRequests), 'waiting for customer info'),
     ob: n(d.leads.filter(leadOpen).length, 'leads to call'),
     obpitch: n(d.calls.filter((r) => r.direction === 'outbound' && isToday(r.startedAt)).length, 'outbound calls today'),
@@ -702,11 +763,11 @@ api.get('/flow', (req, res) => {
     identify: n(d.members.length, 'registered members'),
     custtype: n(d.stores.length, 'stores'),
     casetype: n(open.filter((c) => !c.caseType).length, 'open, not categorised', open.some((c) => !c.caseType)),
-    enq: n(open.filter((c) => c.caseType === 'Enquiry').length, 'open'),
-    comp: n(open.filter((c) => c.caseType === 'Issue & Complaint').length, 'open'),
-    req: n(open.filter((c) => c.caseType === 'Request').length, 'open'),
-    kb: n(by((c) => c.caseType === 'Enquiry' && c.resolutionType === 'ROT' && isToday(c.closedAt)), 'answered today'),
-    reqdocs: n(open.filter((c) => c.caseType === 'Request').length, 'open requests'),
+    enq: n(open.filter((c) => c.caseType === 'Inquiry').length, 'open'),
+    comp: n(open.filter((c) => c.caseType === 'Issues or Complaints - NR').length, 'open'),
+    req: n(open.filter((c) => c.caseType === 'Requests').length, 'open'),
+    kb: n(by((c) => c.caseType === 'Inquiry' && c.resolutionType === 'ROT' && isToday(c.closedAt)), 'answered today'),
+    reqdocs: n(open.filter((c) => c.caseType === 'Requests').length, 'open requests'),
     createcase: n(by((c) => isToday(c.createdAt)), 'created today'),
     decide: n(by((c) => c.status === 'Pending'), 'pending decision', by((c) => c.status === 'Pending') > 0),
     rot: n(by((c) => c.resolutionType === 'ROT' && isToday(c.closedAt)), 'ROT today'),

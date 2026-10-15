@@ -144,7 +144,7 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 | --- | --- | --- |
 | — | **Dashboard** | What needs attention now: missed calls past 30 minutes, pending emails, overdue escalations, leads due, unassigned cases, automated actions today. Open cases by status, today's totals, escalations by store, top categories |
 | — | **LOTS Workflow** | The SOP flow as an interactive chart. Every box shows its live count (red = needs attention). Click a box for its SOP options, what the CRM does at that step, and a link to the screen that handles it |
-| Case handling | **Log new case** | In the SOP order: **Identify caller** panel (mobile or card number → contact details fill in) → **Source of case** (inbound call, missed-call callback, email, outbound call) with the SOP greeting → caller details → **case type** cards (Enquiry / Issue & Complaint / Request) with category and sub-category → **Resolve within TAT?**: ROT, Info missing → Waiting, or Escalate to store team with the **EDC**. SOP checks (§6.5), request requirements and SOP answers on the side. Status pill: *Draft* or *On live call* |
+| Case handling | **Log new case** | In the SOP order: **Identify caller** panel (mobile or card number → contact details fill in) → **Source of case** (inbound call, missed-call callback, email, outbound call) with the SOP greeting → caller details → **case type** cards (Inquiry / Issues or Complaints - NR / Requests) with category and sub-category → **Resolve within TAT?**: ROT, Info missing → Waiting, or Escalate to store team with the **EDC**. SOP checks (§6.5), request requirements and SOP answers on the side. Status pill: *Draft* or *On live call* |
 | Case handling | **My queue** | Open cases assigned to the signed-in agent |
 | Case handling | **Search cases** | Search and filter all cases (status, channel, type, store, agent), CSV export |
 | Channels | **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
@@ -155,6 +155,8 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 | Reference | **SOP knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
 | Reference | **Case workflows** | The workflow of every case type: owner team, TAT, steps, and the teams' email addresses (§6.6) |
 | Admin | **Automation** | Mailbox connection, rule switches, timers, agent shifts, activity log, outbox |
+| Admin | **Picklists** | Values of every dropdown (case type, category, sub-category, caller type, channel, product category, customer group / type, …). **+ Add** a value to any list, or create a new list (§6.7) |
+| Admin | **Dependencies** | Which values go together: Case Type → Category, Category → Sub Category, Customer Group → Customer Type. **Add a dependency pair** (§6.7) |
 | Admin | **Stores & settings** | Store contacts, **team contacts** (§6.6), agent SparkTG emails, SparkTG connection test, database status, backup download |
 
 **On every page:**
@@ -167,18 +169,20 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 
 ## 6. Case workflow (from the SOP)
 
-### 6.1 Case types (from the SOP)
+### 6.1 Case types (LOTS case master)
+
+The case taxonomy is taken from LOTS's case master (**"lot cases excel.xlsx"** — every possible case), and is defined in `src/taxonomy.js`. The SOP still drives the workflows, answers and requirements.
 
 | Case type | Categories |
 | --- | --- |
-| **Enquiry** | General query · HR & jobs · Admin, IT & marketing |
-| **Issue & Complaint** | Store related · App / E-comm related · BDA related |
-| **Request** | Membership related · Store related · App / E-comm related · BDA related · Not registered member |
+| **Inquiry** | Admin Related · Festive Gifting · General Query · HR or Jobs · IT or Website · Legal · Marketing Related · Real Estate |
+| **Issues or Complaints - NR** | App Related · BDA Related · ECommerce Related · Membership Related · Membership Related - NR · Store Related |
+| **Requests** | App Related Requests · BDA Related REQUESTS · E Commerce Related Request · Membership Related Request · New Member · New Supplier · Store Related Request |
 
-Every category has the sub-categories listed in the SOP, for example *Store related → Price mismatch, Wrong product billed, GST issue, Late delivery…*. The full list is in `src/taxonomy.js`.
+Sub-categories (Requests): *Behavior of staff · Delivery Related · Offer related · Operational issues · Others (st) · Payment or invoice · Pricing issue · Quality issue · Return Of Goods · Stock availability · Add-On Cards · Address updation* (New Member → *New Member - Customer*; New Supplier → *New Vendor - Supplier* and the four supplier types). Inquiry and complaint categories have no sub-category. The other case-master dimensions are also in `src/taxonomy.js`: `REQUEST_FOR`, `SUB1`, `SUB2`, `SUPPLIER_TYPES`, `RESOLUTION_TYPES`, `CALL_TYPES`.
 
 Other fields on a case:
-- Caller type: Registered member, Not registered, or B2C customer.
+- Caller type: Registered member, Not registered, or B2C customer (the case master's `type_of_contact`: Registered With Lots, Not Registered, Others).
 - Channel: Inbound call, Outbound call, Missed call callback, or Email.
 - Product category: Fresh, FMCG – Food, Commodities, FMCG – Non food, or Non food.
 
@@ -221,7 +225,7 @@ Every change is written to the case **timeline** with the agent's name and the t
 | Workflow box | How the CRM applies it |
 | --- | --- |
 | Registered member? | The caller's number is matched automatically (§8) |
-| Select case type → Enquiry / Complaint / Request | Case-type cards on the New Case page, with the SOP categories and sub-categories |
+| Select case type → Inquiry / Issues or Complaints - NR / Requests | Case-type cards on the New Case page, with the case-master categories and sub-categories |
 | Answer from SOP / FAQ | Matching SOP answers appear beside the case form |
 | **Request requirements** | For requests that need documents (new membership, add-on card, supplier, lost card, address change, return/exchange, bulk booking), the SOP checklist is shown in the case form and on the case page |
 | Resolve within TAT? | Three outcomes, as in the SOP: ROT · Info missing → Waiting · Escalate to store team (EDC = 1 working day) |
@@ -243,25 +247,25 @@ Shown as an orange **SOP check** box on the New Case page and the case page. The
 | --- | --- |
 | Request → **Return / exchange** | A **Purchase date** field appears. Warns for non-returnable items (oil, ghee, fresh dairy, fruit, vegetables, meat, fish, chilled or frozen), for purchases more than **7 working days** ago, and reminds about the stamped bill and credit-note rules |
 | Caller type **B2C customer** | Warns for stores other than **AKD / NSP**, **non-food** products, and **app / e-commerce** cases |
-| Caller type **Not registered** | Requests are limited to **new membership** and **new supplier registration** (enforced) |
+| Caller type **Not registered** | Requests are limited to **New Member** and **New Supplier** (enforced) |
 
 ### 6.6 Workflow per case type
 
-Every case type, category and sub-category from the SOP has a **workflow**: who owns it, its TAT and its steps. They are defined in `src/workflows.js` and listed on the **Case workflows** screen. The most specific match wins (sub-category, then category, then case type).
+Every case type, category and sub-category has a **workflow**: who owns it, its TAT and its steps. They are defined in `src/workflows.js` and listed on the **Case workflows** screen. The most specific match wins (sub-category, then category, then case type).
 
 | Workflow | Owner (escalates to) | TAT | Needs before escalating |
 | --- | --- | --- | --- |
-| General enquiry · Supplier registration enquiry · New membership | Care desk (answered on the call, ROT) | — | — |
-| Product availability / price | Store team | 1 working day | — |
-| HR & jobs | HR / Careers (careers@cpwi.in) | 1 | — |
-| IT / website · Marketing · Admin enquiries | IT · Marketing · Administration | 1 | — |
-| Store complaint · Store request · Return / exchange | The case's **store** contact | 1 | Store |
-| App access problem (site / app not opening, OTP) | IT / Website team | 1 | — |
-| App / E-comm complaint · Cancel app order · App request | E-commerce / App team | 1 | Order / invoice no. |
-| Refund not received · Refund request (app) | E-commerce / App team | **7** (SOP: refund within 7 working days) | Order / invoice no. |
-| BDA complaint · BDA request | BDA team | 1 | — |
-| Membership request | The member's **home store** | 1 | — |
-| New supplier registration | Category / Supplier team | **7** (SOP: reply within 7 days) | — |
+| General Query · New Member | Care desk (answered on the call, ROT) | — | — |
+| Stock availability · Pricing issue | Store team | 1 working day | — |
+| HR or Jobs | HR / Careers (careers@cpwi.in) | 1 | — |
+| IT or Website · App Related | IT / Website team | 1 | — |
+| Marketing Related · Festive Gifting | Marketing team | 1 | — |
+| Admin Related · Legal · Real Estate | Administration | 1 | — |
+| Store Related · Store Related Request · Return Of Goods | The case's **store** contact | 1 | Store |
+| ECommerce Related · E Commerce Related Request · App Related Requests | E-commerce / App team | 1 | Order / invoice no. |
+| BDA Related · BDA Related REQUESTS | BDA team | 1 | — |
+| Membership Related · Membership Related - NR · Membership Related Request | The member's **home store** | 1 | — |
+| New Supplier | Category / Supplier team | **7** (SOP: reply within 7 days) | — |
 
 **On the case page**, the **Workflow** card shows the owner, the TAT, where the case escalates to (with the contact's email, or a link to add it), and a **step checklist**:
 - Steps the CRM can see tick **themselves** (details captured, customer called, escalated, follow-up done, resolution, confirmation, closed, store / order number recorded).
@@ -271,6 +275,16 @@ Every case type, category and sub-category from the SOP has a **workflow**: who 
 **When a case is escalated**, the CRM saves where it went (`escalatedTo`) and sets the EDC from the workflow's TAT. The **escalation email, overdue reminders and the daily follow-up email** go to that store or team (§10). The **Escalate** button names the team, and the **New case** form shows the workflow as soon as the category is chosen.
 
 **Team contacts:** Stores & settings → **Teams**: contact name, phone and email for E-commerce, IT, BDA, HR, Administration, Marketing and Supplier teams. Until a team's email is set, its escalation emails are not sent and the activity log says so.
+
+### 6.7 Picklists and dependencies (as in the PSRI CRM)
+
+Every dropdown takes its values from a **picklist**, and dependent dropdowns (Category after Case Type, Sub-category after Category, Customer type after Customer group) follow the **dependency pairs**. The base values and pairs come from LOTS's case master (`src/taxonomy.js`); anything added is stored in the CRM's database and shows up in the forms straight away.
+
+- **Admin → Picklists:** one card per list. Grey chips come from the case master and can't be removed; **green chips were added** (hover shows who added it and when) and have a × to remove them. **+ Add** puts a value in a list; **+ New picklist** creates a list. Duplicates are refused whatever the capitals.
+- **Admin → Dependencies:** **Add a dependency pair**: main field → main value → sub field → sub value (or type a new sub value, which is added to its picklist too). The pairs are listed by relationship and main value.
+- **On the case form:** **+ Add** next to *Category* and *Sub-category* adds a value under the chosen case type / category in one step, and selects it.
+- Removing an added value also removes its pairs. Cases already saved keep their values.
+- A category with no workflow of its own (§6.6) follows the standard workflow (store, 1 working day).
 
 ---
 
@@ -547,7 +561,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER ON lots.* TO 'lots_cr
 | `agents` | Agent, with SparkTG login email and shift |
 | `automation_log` | Action taken by the automation engine |
 
-**Reference tables from the SOP** (rewritten from the CRM's code at every start): `ref_case_categories` (78 rows: case type → category → sub-category, with `needs_documents` and the SOP `requirements`), `ref_customer_types` (41 rows), `ref_values` (status, channel, caller type, product category, lead type and outcome, missed-call reason).
+**Reference tables from the SOP** (rewritten from the CRM's code at every start): `ref_case_categories` (66 rows: case type → category → sub-category, with `needs_documents` and the SOP `requirements`), `ref_customer_types` (41 rows), `ref_values` (status, channel, caller type, product category, lead type and outcome, missed-call reason).
 
 Times are UTC (add 5:30 for IST). Examples:
 ```sql
@@ -569,7 +583,7 @@ To browse the tables: VS Code extension **"MySQL" by Database Client**, MySQL Wo
 - Email attachments are stored in `server/data/attachments/<case>/`.
 - **Credentials** are outside the project (§3). **No logins yet**: agents choose their name, so use the CRM only on the office network until logins are added.
 - **Git:** `.gitignore` keeps out `server/data/` (all data and backups), `.env`, secrets files, the Microsoft sign-in file and logs. Save changes with `git add -A`, `git commit`, `git push`.
-- **GitHub repo `OM20216/lots-crm` should be private.** An early upload contained `.env` with the SparkTG login. It was removed from `main`, but it was public for a while.
+- **GitHub repo `OM20216/lots-crm` is private.** An early upload contained `.env` with the SparkTG login. It was removed from `main`, and the repo is now private.
 
 ---
 
@@ -590,7 +604,7 @@ server/
 src/
   App.jsx          Layout: sidebar, top bar, routes, sign-in, dialer, caller panel
   sparktg.jsx      SparkTG widget connection (adapted from PSRI SparkTGContext)
-  taxonomy.js      Case types, categories, statuses, customer groups (SOP)
+  taxonomy.js      Case types, categories, statuses, customer groups (LOTS case master + SOP)
   knowledge.js     SOP / FAQ answers, scripts, email templates (also used by the server)
   requirements.js  Request requirements, SOP checks (return / B2C), reference-number reading (also used by the server)
   api.js, ui.jsx   Fetch helper, shared UI helpers
@@ -612,6 +626,8 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | POST / PUT | `/api/agents`, `/api/agents/:name` | Add an agent / set their SparkTG email |
 | PUT | `/api/stores/:code` | Store contact and hours |
 | PUT | `/api/teams/:key` | Team contact (contact, phone, email) for workflow escalations |
+| POST / DELETE | `/api/picklists` | Add `{ field, value }` (409 if it exists) / remove an added value and its pairs |
+| POST / DELETE | `/api/dependencies` | Add `{ mainField, mainValue, subField, subValue }` (both values must be in their picklists; 409 if the pair exists) / remove an added pair |
 | GET / POST | `/api/cases` | List (filters: status, channel, store, caseType, assignedTo, q, overdue) / create |
 | GET / PATCH | `/api/cases/:id` | Case with history and escalation `target` / edit, change status (only along the workflow), add a note, tick a workflow step (`checkStep`, `done`) |
 | POST | `/api/cases/:id/email` | Send an email from the case (needs the mailbox) |
@@ -664,13 +680,13 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 
 **To go live**
 - [ ] Restart the CRM after updates; check the terminal says `Data: MySQL database "lots"`.
-- [ ] **Make the GitHub repo `OM20216/lots-crm` private** (Settings → Change visibility).
+- [x] **GitHub repo `OM20216/lots-crm` made private.** ✅ Done
 - [ ] **Connect the mailbox:** Automation → Sign in with Microsoft (§9.3).
 - [ ] Enter every agent's **SparkTG login email** and **shift**; then one live incoming and outgoing test call.
 - [ ] **Import the member master** (Contacts → Import CSV).
 - [ ] **Store contacts** for all six stores; **supervisor email**.
 - [ ] Confirm the **SparkTG service**: the CRM uses 1672 (VMM's). If LOTS has its own service for 1860-123-5687, add its ID and login to the secrets file.
-- [ ] Change the **MySQL password** (it was shared in a chat; the same login opens other databases on that server). The SparkTG password was left unchanged by choice.
+- [x] **MySQL password changed** (it had been shared in a chat; the same login opened other databases on that server). ✅ Done. The SparkTG password was left unchanged by choice.
 
 **From LOTS**
 - [ ] The full **escalation matrix** (the SOP defines only Level 1, 1 working day).
@@ -704,7 +720,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | Step | What was built |
 | --- | --- |
 | 1 | Workflow chart of the SOP (`lots-workflow.svg`) |
-| 2 | The CRM: React + Node, case taxonomy from the SOP, New case, Email inbox (manual), Missed calls, All cases, Case page, Store follow-ups, Outbound leads, Members, Knowledge base, Settings |
+| 2 | The CRM: React + Node, case taxonomy from the LOTS case master, New case, Email inbox (manual), Missed calls, All cases, Case page, Store follow-ups, Outbound leads, Members, Knowledge base, Settings |
 | 3 | Email design: cpwi.in confirmed on Microsoft 365 → Graph API approach |
 | 4 | SparkTG API: link call to case, outcome / talk time / recording, recording streamed through the server, connection test, missed-call webhook |
 | 5 | Automatic caller identification: exact number match (all formats, add-on holders, card number), member card, caller from a SparkTG call ID |
@@ -730,3 +746,4 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 25 | README rewritten to match the current CRM: Contacts, caller panel, top-bar missed calls, SOP email handling, credentials file, MySQL `lots`, tests and open items |
 | 26 | Email like the VMM CRM: **Mailbox** view in Email inbox (Inbox / Sent, search, conversation view, attachments, Log case, Mark unread, "Being handled by" lock, reply in thread with templates). Delta inbox (only mail after connecting), mail stays in the inbox tagged "LOTS CRM" + case number, replies matched by conversation, branded HTML emails sent in the customer's thread, **test mode**, switch for automatic case creation. Tested against a fake Microsoft Graph |
 | 27 | **Workflow per case type**: each SOP case type / category has an owner team, TAT and steps (`src/workflows.js`). Escalations go to the right store or team (E-commerce, IT, BDA, HR, home store, …) with that TAT; escalation, overdue and daily follow-up emails follow. Workflow checklist on the case page (auto-ticking steps, next step highlighted), workflow preview on New case, **Teams** in Stores & settings, **Follow-ups** grouped by store and team, **Case workflows** reference screen. Tested on a test copy of the data |
+| 28 | **Picklists and dependencies, as in the PSRI CRM**: Picklists screen (values per dropdown, + Add, new lists, remove added values) and Dependencies screen (add a dependency pair, pairs grouped by relationship). Case form, case filters, caller type and contact segments read the merged lists; **+ Add** beside Category and Sub-category on the case form. Base values from the case master stay fixed. Tested on a test copy of the data |

@@ -1,7 +1,13 @@
-// Everything here comes from "Lots Process Documents 2026".
+// Case taxonomy, aligned to LOTS's case master "lot cases excel.xlsx"
+// (every possible case: case_type → case_category → sub-categories, plus the
+// request / resolution / channel dimensions that file lists).
+// The SOP ("Lots Process Documents 2026") still drives the workflow rules
+// (src/workflows.js) and the answers / templates (src/knowledge.js).
 
 export const CHANNELS = ['Inbound call', 'Outbound call', 'Missed call callback', 'Email'];
 
+// Excel `type_of_contact` maps: "Registered With Lots" → Registered member ·
+// "Not Registered" → Not registered · "Others" → B2C customer.
 export const CALLER_TYPES = ['Registered member', 'Not registered', 'B2C customer'];
 
 export const STATUSES = ['Pending', 'Waiting', 'Escalated', 'Resolved', 'Closed'];
@@ -14,84 +20,66 @@ export const STATUS_HELP = {
   Closed: 'Customer confirmed / resolved on call',
 };
 
-// caseType → category → sub-categories
+// ---------- dimensions from the case master ----------
+
+// Excel `request_for`
+export const REQUEST_FOR = ['New Member - Customer', 'New Vendor - Supplier', 'Re-issuing of Lost Card'];
+
+// Excel `sub1` (generic request / complaint sub-categories)
+export const SUB1 = [
+  'Behavior of staff',
+  'Delivery Related',
+  'Offer related',
+  'Operational issues',
+  'Others (st)',
+  'Payment or invoice',
+  'Pricing issue',
+  'Quality issue',
+  'Return Of Goods',
+  'Stock availability',
+];
+
+// Excel `sub2` (membership sub-categories; the supplier sub-types are separate)
+export const SUB2 = ['Add-On Cards', 'Address updation'];
+
+// Excel `sub2` for New Supplier
+export const SUPPLIER_TYPES = ['Suppliers - Fresh', 'Suppliers - FMCG - Food', 'Suppliers - FMCG - Commodities', 'Suppliers - Non Food'];
+
+// Excel `resolution_type`
+export const RESOLUTION_TYPES = ['Answer Received', 'Clarity required from LOTS', 'Escalated and Auto Closed', 'Escalated to LOTS', 'Information Provided'];
+
+export const CALL_TYPES = ['Inbound'];
+
+const REQUEST_SUBS = [...SUB1, ...SUB2];
+
+// case_type → case_category → sub-categories (exactly the case master)
 export const CASE_TREE = {
-  Enquiry: {
-    'General query': [
-      'Store timings',
-      'Store address',
-      'Membership registration process',
-      'Documents for new membership',
-      'Supplier registration',
-      'Documents for supplier registration',
-      'Product availability / stock',
-      'Product price',
-      'Mode of payment',
-      'Add-on card',
-      'Delivery enquiry / timings / charges',
-      'Privilege card',
-      'B2C outlet',
-      'Offers & schemes',
-      'Other',
-    ],
-    'HR & jobs': ['Job vacancy', 'HR contact details', 'Jobs in store', 'Jobs in corporate office'],
-    'Admin, IT & marketing': ['Administration', 'IT / website', 'Marketing', 'Other'],
+  Inquiry: {
+    'Admin Related': [],
+    'Festive Gifting': [],
+    'General Query': [],
+    'HR or Jobs': [],
+    'IT or Website': [],
+    Legal: [],
+    'Marketing Related': [],
+    'Real Estate': [],
   },
-  'Issue & Complaint': {
-    'Store related': [
-      'Rude staff behaviour',
-      'Unsupportive staff',
-      'Price mismatch',
-      'Wrong product billed',
-      'GST issue',
-      'Late delivery',
-      'Incomplete delivery',
-      'Poor product quality',
-      'Near expiry product',
-      'Freebie not given',
-      'SMS coupon not given',
-      'Other',
-    ],
-    'App / E-comm related': [
-      'Site / app not opening',
-      'Wrong profile details',
-      'OTP / login issue',
-      'Incomplete order delivered',
-      'Wrong products received',
-      'Amount overcharged',
-      'Incorrect invoice details',
-      'Refund not received',
-      'Poor product quality',
-      'Near expiry product',
-      'Delayed delivery – dispatched',
-      'Delayed delivery – not dispatched',
-      'Other',
-    ],
-    'BDA related': [
-      'Incomplete order',
-      'Wrong products delivered',
-      'Order cancelled without communication',
-      'Rude / unsupportive BDA',
-      'BDA pricing issue',
-      'BDA product quality issue',
-      'Delayed delivery – dispatched',
-      'Delayed delivery – not dispatched',
-      'Other',
-    ],
+  'Issues or Complaints - NR': {
+    'App Related': [],
+    'BDA Related': [],
+    'ECommerce Related': [],
+    'Membership Related': [],
+    'Membership Related - NR': [],
+    'Store Related': [],
   },
-  Request: {
-    'Membership related': [
-      'Change registered contact number',
-      'Update registered business address',
-      'Update business licence',
-      'New add-on card',
-      'Reissue membership card',
-      'Block membership card / lost card',
-    ],
-    'Store related': ['Reissue invoice', 'GST related', 'Return / exchange', 'Increase stock', 'Bulk booking', 'Other'],
-    'App / E-comm related': ['Cancel order', 'Return order', 'Refund', 'Other'],
-    'BDA related': ['Cancel BDA order', 'Return BDA order', 'Other'],
-    'Not registered member': ['New membership', 'New supplier registration'],
+  Requests: {
+    'App Related Requests': REQUEST_SUBS,
+    'BDA Related REQUESTS': REQUEST_SUBS,
+    'E Commerce Related Request': REQUEST_SUBS,
+    'Membership Related Request': REQUEST_SUBS,
+    'New Member': ['New Member - Customer'],
+    'New Supplier': ['New Vendor - Supplier', ...SUPPLIER_TYPES],
+    'Store Related Request': REQUEST_SUBS,
   },
 };
 
