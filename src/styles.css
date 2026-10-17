@@ -570,3 +570,39 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 /* ----- simpler new case ----- */
 .step-no { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--red); color: #fff; font-size: 13px; margin-right: 8px; vertical-align: middle; }
 .more-fields summary { cursor: pointer; color: #2563eb; font-size: 13px; font-weight: 600; margin: 4px 0 8px; }
+
+/* ----- HO escalation matrix ----- */
+.table-wrap { overflow-x: auto; }
+.hom-table td { vertical-align: top; min-width: 170px; }
+.hom-table td:first-child { min-width: 190px; }
+.hom-table textarea { width: 100%; font-size: 12px; margin-bottom: 4px; }
+.hom-table .tat { width: 56px; }
+.hom-to { font-weight: 600; word-break: break-word; }
+.hom-table .muted { word-break: break-word; }
+.hom-tat { margin-top: 4px; color: var(--red); font-weight: 600; }
+.hom-flag { margin-top: 4px; color: #92400e; background: #fef3c7; border-radius: 4px; padding: 2px 6px; }
+.hom-edited td:first-child { box-shadow: inset 3px 0 0 #f59e0b; }
+.hom-actions { margin-top: 6px; gap: 6px; }
+.hom-hours { gap: 6px; align-items: center; margin-bottom: 10px; }
+.esc-stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin: 8px 0; }
+.esc-stage { border: 1px solid #e2e8f0; border-radius: 6px; padding: 6px 8px; font-size: 12px; word-break: break-word; }
+.esc-stage.now { border-color: var(--red); background: #fff5f5; }
+.esc-stage.done { opacity: 0.6; }
+.esc-stage strong { display: block; }
+@media (max-width: 700px) { .esc-stages { grid-template-columns: 1fr; } }
+
+/* ----- escalation matrix: update from Excel ----- */
+.mx-import { border: 1px dashed #cbd5e1; border-radius: 8px; padding: 10px 12px; margin: 8px 0 12px; }
+.mx-import label.btn { cursor: pointer; }
+.mx-preview { margin-top: 10px; border-top: 1px solid #e2e8f0; padding-top: 10px; }
+.mx-row { margin: 8px 0; padding: 8px; background: #f8fafc; border-radius: 6px; }
+.mx-changes td { font-size: 12px; vertical-align: top; word-break: break-word; }
+.mx-from { color: #64748b; text-decoration: line-through; }
+.mx-to { color: #166534; font-weight: 600; }
+.mx-history { margin-top: 8px; }
+
+.mx-link { padding: 8px 10px; border-radius: 6px; background: #f8fafc; margin-bottom: 8px; }
+.mx-link.good { background: #f0fdf4; }
+.mx-link.bad { background: #fef2f2; }
+.mx-url { flex: 1; min-width: 260px; }
+.hom-hours input[type=time] { width: auto; flex: 0 0 auto; }

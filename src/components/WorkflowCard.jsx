@@ -1,23 +1,44 @@
 import { Link } from 'react-router-dom';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor, workflowSteps } from '../workflows.js';
 import { fmtDate, useMeta } from '../ui.jsx';
+import { matrixRowFor } from '../escalationMatrix.js';
 
 const tatText = (d) => (d ? `TAT ${d} working day${d > 1 ? 's' : ''}` : 'Resolve on the call');
+// HO escalation matrix: "First Time Resolution 4 working hours → Level 1 1 working day → Level 2 2 working days"
+const stagesText = (row) => row.stages.map((s) => `${s.label} ${s.tatText}`).join(' → ');
 
-/** Who an escalation goes to: saved on the case once escalated, else worked out from the workflow. */
+/** The HO escalation matrix row for the case as it is on screen (null = the sheet has no row for it). */
+export function useHoRow(c) {
+  const { hoMatrix } = useMeta();
+  return c ? matrixRowFor(c, hoMatrix?.rows || []) : null;
+}
+
+const matrixTarget = (row) => ({ kind: 'matrix', code: row.key, name: `${row.row} (HO matrix)`, email: row.stages[0].to.join(', '), contact: '' });
+
+/** Who an escalation goes to: saved on the case once escalated, else the HO matrix row, else worked out from the workflow. */
 export function useEscalationTarget(c) {
   const { stores, teams } = useMeta();
+  const row = useHoRow(c);
   if (!c) return null;
   if (c.status === 'Escalated' && c.escalatedTo) return c.escalatedTo;
-  return c.target || escalationTarget(c, stores, teams || TEAMS);
+  if (row) return matrixTarget(row);
+  return (c.target?.kind !== 'matrix' && c.target) || escalationTarget(c, stores, teams || TEAMS);
 }
 
 /** One-line workflow preview, used on the New case form. */
 export function WorkflowHint({ c }) {
   const { stores, teams } = useMeta();
   const wf = workflowFor(c);
+  const row = useHoRow(c);
   if (!wf) return null;
   const t = escalationTarget(c, stores, teams || TEAMS);
+  if (row)
+    return (
+      <div className="wf-hint">
+        <strong>Workflow: {wf.title}</strong> · escalates to <strong>{row.stages[0].to.join(', ')}</strong> (HO escalation matrix – {row.row})
+        <div className="muted small">{stagesText(row)}</div>
+      </div>
+    );
   return (
     <div className="wf-hint">
       <strong>Workflow: {wf.title}</strong> · owner <span className="wf-owner">{TEAMS[wf.owner]?.name}</span> · {tatText(wf.tatDays)}
@@ -31,6 +52,7 @@ export function WorkflowHint({ c }) {
 export default function WorkflowCard({ c, onTick }) {
   const wf = workflowFor(c);
   const target = useEscalationTarget(c);
+  const row = useHoRow(c);
   if (!wf) return (
     <section className="card">
       <h2>Workflow</h2>
@@ -50,7 +72,15 @@ export default function WorkflowCard({ c, onTick }) {
         </span>
       </div>
       <div className="wf-meta small">
-        Owner <span className="wf-owner">{TEAMS[wf.owner]?.name}</span> · {tatText(wf.tatDays)}
+        {target?.kind === 'matrix' && row ? (
+          <>
+            HO escalation matrix – {row.row}: {stagesText(row)}
+          </>
+        ) : (
+          <>
+            Owner <span className="wf-owner">{TEAMS[wf.owner]?.name}</span> · {tatText(wf.tatDays)}
+          </>
+        )}
         {wf.owner !== 'careDesk' && target && (
           <>
             {' '}

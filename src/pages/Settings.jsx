@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { fmtDate, useLoad, useMeta } from '../ui.jsx';
 import { TEAMS } from '../workflows.js';
+import HoMatrixCard, { ContactMatrixCard } from '../components/HoMatrixCard.jsx';
 
 function SparkTgPanel() {
   const [status, reload] = useLoad(() => api.get('/sparktg/status'));
@@ -119,7 +120,7 @@ function AgentRow({ name, email, onSaved }) {
 }
 
 function StoreRow({ s, onSaved }) {
-  const [v, setV] = useState({ spocName: s.spocName, spocPhone: s.spocPhone, spocEmail: s.spocEmail, hours: s.hours });
+  const [v, setV] = useState({ spocName: s.spocName, spocPhone: s.spocPhone, hours: s.hours });
   const dirty = Object.keys(v).some((k) => v[k] !== s[k]);
   return (
     <tr>
@@ -129,7 +130,7 @@ function StoreRow({ s, onSaved }) {
         </strong>
         <div className="muted small">{s.name}</div>
       </td>
-      {['hours', 'spocName', 'spocPhone', 'spocEmail'].map((k) => (
+      {['hours', 'spocName', 'spocPhone'].map((k) => (
         <td key={k}>
           <input value={v[k] || ''} onChange={(e) => setV({ ...v, [k]: e.target.value })} />
         </td>
@@ -144,7 +145,7 @@ function StoreRow({ s, onSaved }) {
 }
 
 function TeamRow({ k, t, onSaved }) {
-  const [v, setV] = useState({ contact: t.contact || '', phone: t.phone || '', email: t.email || '' });
+  const [v, setV] = useState({ contact: t.contact || '', phone: t.phone || '' });
   const dirty = Object.keys(v).some((x) => v[x] !== (t[x] || ''));
   return (
     <tr>
@@ -152,7 +153,7 @@ function TeamRow({ k, t, onSaved }) {
         <strong>{t.name}</strong>
         <div className="muted small">{t.note}</div>
       </td>
-      {['contact', 'phone', 'email'].map((x) => (
+      {['contact', 'phone'].map((x) => (
         <td key={x}>
           <input value={v[x]} onChange={(e) => setV({ ...v, [x]: e.target.value })} />
         </td>
@@ -168,83 +169,6 @@ function TeamRow({ k, t, onSaved }) {
 
 // Teams used by the case workflows (src/workflows.js); store teams use the store SPOCs above.
 const NOT_TEAMS = ['careDesk', 'store', 'homeStore'];
-
-const EMPTY_LEVEL = { name: '', email: '', phone: '', tatDays: 1 };
-
-// One row of the escalation matrix: Level 2 and Level 3 contacts for a store / team (or the default)
-function MatrixRow({ k, label, sub, saved, onSaved }) {
-  const init = () => [0, 1].map((i) => ({ ...EMPTY_LEVEL, ...(saved?.[i] || {}) }));
-  const [v, setV] = useState(init);
-  const [err, setErr] = useState('');
-  const dirty = JSON.stringify(v) !== JSON.stringify(init());
-  const set = (i, patch) => setV(v.map((l, j) => (j === i ? { ...l, ...patch } : l)));
-  async function save() {
-    setErr('');
-    try {
-      await api.put('/escalation-matrix/' + encodeURIComponent(k), { levels: v.filter((l) => l.email || l.name) });
-      onSaved();
-    } catch (e) {
-      setErr(e.message);
-    }
-  }
-  return (
-    <tr>
-      <td>
-        <strong>{label}</strong>
-        {sub && <div className="muted small">{sub}</div>}
-        {err && <div className="error small">{err}</div>}
-      </td>
-      {v.map((l, i) => (
-        <td key={i}>
-          <input value={l.name} onChange={(e) => set(i, { name: e.target.value })} placeholder="Name / designation" />
-          <input value={l.email} onChange={(e) => set(i, { email: e.target.value })} placeholder="Email" />
-          <label className="small muted">
-            TAT <input className="tat" type="number" min="1" max="30" value={l.tatDays} onChange={(e) => set(i, { tatDays: Number(e.target.value) || 1 })} /> working day(s)
-          </label>
-        </td>
-      ))}
-      <td>
-        <button className="btn sm primary" disabled={!dirty} onClick={save}>
-          Save
-        </button>
-      </td>
-    </tr>
-  );
-}
-
-function EscalationMatrixCard() {
-  const { stores, teams, escalationMatrix: m = {}, reloadMeta } = useMeta();
-  const rows = [
-    { k: '*', label: 'Default (all stores and teams)', sub: 'Used where a store / team has no levels of its own' },
-    ...stores.map((s) => ({ k: `store:${s.code}`, label: `${s.code} ${s.short}`, sub: s.name })),
-    ...Object.keys(TEAMS)
-      .filter((k) => !NOT_TEAMS.includes(k))
-      .map((k) => ({ k: `team:${k}`, label: teams?.[k]?.name || TEAMS[k].name })),
-  ];
-  return (
-    <section className="card">
-      <h2>Escalation matrix</h2>
-      <p className="muted small">
-        Level 1 is the store / team contact above, with the case type's TAT. When a level's TAT passes, the case goes to the next level automatically: the next contact is copied on the email and gets their own TAT. Agents can also raise a level from the case page. Fill the levels in order (Level 2 first). The SOP defines only Level 1 — ask LOTS for the rest.
-      </p>
-      <table className="table matrix-table">
-        <thead>
-          <tr>
-            <th>Store / team</th>
-            <th>Level 2</th>
-            <th>Level 3</th>
-            <th></th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <MatrixRow key={r.k + JSON.stringify(m[r.k] || [])} {...r} saved={m[r.k]} onSaved={reloadMeta} />
-          ))}
-        </tbody>
-      </table>
-    </section>
-  );
-}
 
 function HolidaysCard() {
   const { holidays = [], reloadMeta } = useMeta();
@@ -303,7 +227,8 @@ export default function Settings() {
         <h1>Stores &amp; settings</h1>
       </div>
       <section className="card">
-        <h2>Store SPOCs (used for escalations and daily follow-ups)</h2>
+        <h2>Store SPOCs</h2>
+        <p className="muted small">Name and phone for calls. Emails (who gets each escalation) are in <strong>Escalation matrix – stores &amp; teams</strong> below.</p>
         <table className="table">
           <thead>
             <tr>
@@ -311,7 +236,6 @@ export default function Settings() {
               <th>Hours</th>
               <th>SPOC name</th>
               <th>SPOC phone</th>
-              <th>SPOC email</th>
               <th></th>
             </tr>
           </thead>
@@ -325,7 +249,7 @@ export default function Settings() {
       <section className="card">
         <h2>Teams (escalations other than stores)</h2>
         <p className="muted small">
-          Each case type escalates to its own team (see <a href="/case-workflows">Case workflows</a>). Escalation, overdue and daily follow-up emails go to the email set here.
+          Each case type escalates to its own team (see <a href="/case-workflows">Case workflows</a>). Name and phone here; emails in <strong>Escalation matrix – stores &amp; teams</strong> below.
         </p>
         <table className="table">
           <thead>
@@ -333,7 +257,6 @@ export default function Settings() {
               <th>Team</th>
               <th>Contact name</th>
               <th>Phone</th>
-              <th>Email</th>
               <th></th>
             </tr>
           </thead>
@@ -346,7 +269,8 @@ export default function Settings() {
           </tbody>
         </table>
       </section>
-      <EscalationMatrixCard />
+      <HoMatrixCard />
+      <ContactMatrixCard />
       <HolidaysCard />
       <SparkTgPanel />
       <section className="card">

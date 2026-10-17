@@ -6,11 +6,12 @@ import { fileURLToPath } from 'node:url';
 import * as core from './core.js';
 import * as mail from './mail.js';
 import * as teams from './teams.js';
+import * as matrixImport from './matrixImport.js';
+import * as matrixLink from './matrixLink.js';
 import * as store from './db.js';
 import { EMAIL_TEMPLATES, fillTemplate } from '../src/knowledge.js';
 import { extractRefs, missingInfo } from '../src/requirements.js';
 import { workflowFor } from '../src/workflows.js';
-import { REQUEST_FOR, SUB2, SUPPLIER_TYPES } from '../src/taxonomy.js';
 
 const { db, save, now, log, on, applyStatus } = core;
 const ATTACH_DIR = path.join(store.DATA_DIR, 'attachments');
@@ -195,9 +196,10 @@ const SAMPLE_CASE = {
   email: 'customer@example.com',
   cardNo: '1030001234',
   callerType: 'Registered With Lots',
-  caseType: 'Issues or Complaints - NR',
-  category: 'Store Related',
-  subCategory: 'Price mismatch',
+  caseType: 'Issues or Complaint',
+  category: 'Store related',
+  subCategory: 'Payment or invoice',
+  sub2: 'price mismatch',
   store: '103',
   orderRef: 'INV-103-45821',
   description: 'Billed ₹540 for an item marked ₹499 on the shelf at the Akshardham store.',
@@ -209,18 +211,18 @@ export async function sendSamples(by) {
   const c = { ...SAMPLE_CASE, escalatedAt: now() };
   const st = db().stores.find((x) => x.code === c.store);
   const storeTo = st?.spocEmail || '(store contact not set — Stores & settings)';
-  const levels = core.escalationLevels({ kind: 'store', code: c.store });
+  const levels = core.escalationLevels({ kind: 'store', code: c.store }); // Level 1 / Level 2 of the store's row
   const out = [];
   for (const t of EMAIL_TEMPLATES) {
     const toStore = t.id === 'escalate' || t.id === 'store-followup';
     out.push({ kind: `Sample: ${t.title}`, to: toStore ? storeTo : c.email, subject: fillTemplate(t.subject, c, db().stores), body: fillTemplate(t.body, c, db().stores) });
   }
   out.push({
-    kind: 'Sample: Escalation level 2 (automatic when the TAT passes)',
+    kind: 'Sample: Escalation Level 1 (automatic when the TAT passes)',
     to: storeTo,
-    cc: levels[0]?.email || '(Level 2 contact not set — Escalation matrix)',
-    subject: `ESCALATION Level 2: pending case ${c.id} – ${c.category} / ${c.subCategory}`,
-    body: `Dear ${levels[0]?.name || 'Sir'}${st?.spocName ? ` / ${st.spocName}` : ''},\n\nThe case below has been escalated to Level 2 (TAT crossed at level 1). Kindly ensure the resolution is shared with customer care by ${new Date(core.addWorkingDays(now(), Number(levels[0]?.tatDays) || 1)).toLocaleDateString('en-IN')}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+    cc: levels[0]?.email || '(Level 1 contact not set — Escalation matrix)',
+    subject: `ESCALATION Level 1: pending case ${c.id} – ${c.category} / ${c.subCategory}`,
+    body: `Dear ${levels[0]?.name || 'Sir'}${st?.spocName ? ` / ${st.spocName}` : ''},\n\nThe case below has been escalated to Level 1 (First Time Resolution TAT crossed). Kindly ensure the resolution is shared with customer care by ${new Date(core.addWorkingDays(now(), Number(levels[0]?.tatDays) || 1)).toLocaleDateString('en-IN')}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
   });
   out.push({
     kind: 'Sample: Daily store follow-up (every morning)',
@@ -230,6 +232,47 @@ export async function sendSamples(by) {
   });
   for (const e of out) await teams.postEmailPreview({ ...e, paragraphs: emailParagraphs(e.body), rows: emailRows({ ...c, status: e.status || (e.kind.includes('Resolution') ? 'Resolved' : 'Pending') }), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, sample: true });
   activity(`${out.length} sample emails posted to Teams by ${by}`);
+  return out.length;
+}
+
+/** "Dushyant Gupta / Satish Thaker" from the SPOC addresses (first.last@…); "Sir / Madam" when an address has no name. */
+function greet(emails = []) {
+  const names = emails.map((e) => String(e).split('@')[0]).filter((u) => /^[a-z]+\.[a-z]+$/i.test(u)).map((u) => u.split('.').map((w) => w[0].toUpperCase() + w.slice(1).toLowerCase()).join(' '));
+  return names.length && names.length === emails.length ? names.join(' / ') : 'Sir / Madam';
+}
+
+/** A deadline as people read it: the date, plus the time when the TAT is in hours. */
+function dueText(iso, tat) {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return tat?.unit === 'hours' ? d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString('en-IN');
+}
+
+/** Post the emails of one HO matrix row (First Time Resolution, Level 1, Level 2) to Teams, for a sample case. */
+export async function sendMatrixSamples(key, by) {
+  const [kind, ...rest] = key.split(':');
+  const code = rest.join(':');
+  const row = kind === 'store' || kind === 'team' ? core.escalationRow({ kind, code }) : core.hoRow(key);
+  if (!row) throw core.fail('Unknown escalation matrix row', 404);
+  const c = row.match
+    ? { ...SAMPLE_CASE, ...row.match, subCategory: '', store: '', orderRef: '', escalatedAt: now(), escalatedTo: { kind: 'matrix', code: key }, description: `Sample case for the escalation matrix row “${row.row}”.` }
+    : { ...SAMPLE_CASE, store: kind === 'store' ? code : '', escalatedAt: now(), escalatedTo: { kind, code } };
+  const out = [];
+  let due = now();
+  for (let i = 0; i < 3; i++) {
+    const s = core.hoStage(row, i);
+    if (!s) break;
+    const prev = core.hoStage(row, i - 1);
+    due = core.addTat(due, s.tat);
+    if (!s.to.length && i) break; // Level 1 / Level 2 not filled in
+    const subject = `${i ? `ESCALATION ${s.label}: pending case` : 'Customer concern –'} ${c.id} – ${c.category}${c.sub2 ? ' / ' + c.sub2 : c.subCategory ? ' / ' + c.subCategory : ''}`;
+    const body = i
+      ? `Dear ${greet(s.to)},\n\nThe case below was not resolved within the ${prev.label} TAT (${prev.tatText}) and is escalated to ${s.label} as per the escalation matrix (HO). The ${s.label} TAT is ${s.tatText}: kindly ensure the resolution is shared with customer care by ${dueText(due, s.tat)}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`
+      : `Dear ${greet(s.to)},\n\nPlease find below a customer concern for your action.\n\n${caseBlock(c)}\n\nAs per the escalation matrix (HO), the First Time Resolution TAT for this case is ${s.tatText} (by ${dueText(due, s.tat)}). Kindly share the resolution with customer care.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+    out.push({ kind: `Sample: ${row.row} – ${s.label}`, to: s.to.join(', ') || noAddress('First Time Resolution email not set'), cc: s.cc.join(', '), subject, body: row.match ? body : body.replaceAll(' (HO)', '') });
+  }
+  for (const e of out) await teams.postEmailPreview({ ...e, paragraphs: emailParagraphs(e.body), rows: emailRows({ ...c, status: 'Escalated' }), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, sample: true });
+  activity(`${out.length} sample emails of the escalation matrix row “${row.row}” posted to Teams by ${by}`);
   return out.length;
 }
 
@@ -253,38 +296,51 @@ async function emailCustomer(c, templateId, kind, extra) {
   return sendEmail({ to: validEmail(c.email) ? c.email : noAddress('no customer email on the case'), ...t, caseId: c.id, kind });
 }
 
-// ---------- categorisation ----------
+/// ---------- categorisation ----------
 // First matching rule wins. `answer` = template sent automatically; `then` = status after answering.
+// Names are the case master's ("Case catergory" sheet): category › sub-category (sub-1) › sub-category 2 (sub-2).
 const APP = /\b(app|application|website|site|online|order\s*(id|no|number)?|delivery boy)\b/i;
+const MOBILE_APP = /\b(app|application|play ?store|android|iphone|ios)\b/i;
+// app / website complaint or request: the sheet has the same rows for both, named "Lots-App …" / "Website …"
+const online = (text) => (MOBILE_APP.test(text) ? { P: 'Lots-App', complaint: 'LOTS-App Related', request: 'Lots-App Related Request' } : { P: 'Website', complaint: 'E-Comm Related', request: 'E Commerce Related Request' });
+const C = (category, subCategory = '', sub2 = '') => () => ({ category, subCategory, sub2 });
+const appC = (sub1, sub2 = '') => (t) => {
+  const o = online(t);
+  return { category: o.complaint, subCategory: sub1.replace('{P}', o.P), sub2 };
+};
+const appR = (sub1, sub2 = '') => (t) => {
+  const o = online(t);
+  return { category: o.request, subCategory: sub1.replace('{P}', o.P), sub2 };
+};
 const RULES = [
-  { name: 'Job enquiry', re: /\b(job|jobs|vacanc\w*|career|resume|cv|hiring|naukri|interview)\b/i, caseType: 'Inquiry', category: 'HR or Jobs', subCategory: 'Job vacancy', answer: 'hr', then: 'Closed' },
-  { name: 'Supplier registration', re: /\b(supplier|vendor|manufactur\w*|supply (our|my)|list (our|my) products?|distributorship)\b/i, caseType: 'Requests', category: 'New Supplier', subCategory: 'New Vendor - Supplier', answer: 'supplier', then: 'Waiting' },
-  { name: 'Lost / block card', re: /(lost|block|stolen|misplace\w*).{0,25}card|card.{0,25}(lost|block|stolen|misplace)/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Re-issuing of Lost Card' },
-  { name: 'Add-on card', re: /add[\s-]?on card|additional card|secondary card/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Add-On Cards' },
-  { name: 'Change mobile', re: /(change|update|modify).{0,30}(mobile|phone|contact) ?(no|number)?/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Operational issues' },
-  { name: 'Change address', re: /(change|update|modify).{0,30}address/i, caseType: 'Requests', category: 'Membership Related Request', subCategory: 'Address updation' },
-  { name: 'Refund', re: /\brefund\b.{0,40}\b(not|nahi|pending|still|yet|kab|awaited)\b|\b(not|never|didn.?t|haven.?t|nahi)\b.{0,25}\b(received|got|get|mila|aaya)\b.{0,25}\brefund|money (not|nahi) (received|aaya)|amount (got |was |is )?debited/i, caseType: 'Issues or Complaints - NR', category: 'ECommerce Related', subCategory: 'Refund not received' }, // a refund that hasn’t come (checked before “cancel order”); “please refund the difference” is not one
-  { name: 'Cancel order', re: /cancel.{0,25}order|order.{0,25}cancel/i, caseType: 'Requests', category: 'E Commerce Related Request', subCategory: 'Operational issues' },
-  { name: 'Login / OTP', re: /\b(otp|log ?in|sign ?in|password)\b/i, caseType: 'Issues or Complaints - NR', category: 'App Related', subCategory: 'OTP / login issue' },
-  { name: 'App not working', re: /(app|website|site).{0,25}(not (working|opening|loading)|down|error|crash)/i, caseType: 'Issues or Complaints - NR', category: 'App Related', subCategory: 'Site / app not opening' },
-  { name: 'BDA', re: /\bbda\b|sales ?(man|person|representative)|field (staff|executive)/i, caseType: 'Issues or Complaints - NR', category: 'BDA Related', subCategory: '' },
-  { name: 'Late delivery', re: /(not (yet )?(delivered|received)|late delivery|delay\w*|still waiting).{0,40}(order|delivery|goods)?/i, app: ['ECommerce Related', 'Delayed delivery – not dispatched'], shop: ['Store Related', 'Late delivery'], caseType: 'Issues or Complaints - NR' },
-  { name: 'Incomplete delivery', re: /(incomplete|missing|short) (order|delivery|items?|quantity)/i, app: ['ECommerce Related', 'Incomplete order delivered'], shop: ['Store Related', 'Incomplete delivery'], caseType: 'Issues or Complaints - NR' },
-  { name: 'Wrong product', re: /(wrong|different|incorrect) (product|item|article)/i, app: ['ECommerce Related', 'Wrong products received'], shop: ['Store Related', 'Wrong product billed'], caseType: 'Issues or Complaints - NR' },
-  { name: 'Expiry', re: /expir\w*|near.?expiry|stale|rotten|fungus|spoil\w*/i, app: ['ECommerce Related', 'Near expiry product'], shop: ['Store Related', 'Near expiry product'], caseType: 'Issues or Complaints - NR' },
-  { name: 'Quality', re: /(bad|poor|damaged|broken|leak\w*|kharab) (quality|product|item|packet|pack)|quality issue/i, app: ['ECommerce Related', 'Poor product quality'], shop: ['Store Related', 'Poor product quality'], caseType: 'Issues or Complaints - NR' },
-  { name: 'Overcharged / price', re: /overcharg\w*|extra (charged|amount)|price (mismatch|difference|different)|charged more|mrp/i, app: ['ECommerce Related', 'Amount overcharged'], shop: ['Store Related', 'Price mismatch'], caseType: 'Issues or Complaints - NR' },
-  { name: 'Staff behaviour', re: /\b(rude|misbehav\w*|behaviou?r|arrogant|shout\w*|abus\w*)\b/i, caseType: 'Issues or Complaints - NR', category: 'Store Related', subCategory: 'Rude staff behaviour' },
-  { name: 'Freebie / coupon', re: /(freebie|free (gift|item)|coupon|voucher).{0,30}(not|nahi)|(not|didn.?t) (get|receive).{0,20}(freebie|free|coupon|voucher)/i, caseType: 'Issues or Complaints - NR', category: 'Store Related', subCategory: 'Freebie not given' },
-  { name: 'Invoice copy', re: /(invoice|bill).{0,25}(copy|reissue|re-issue|again|resend|duplicate)|(copy|duplicate) (of )?(invoice|bill)/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Payment or invoice' },
-  { name: 'GST', re: /\bgst(in)?\b/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Payment or invoice' },
-  { name: 'Return / exchange', re: /\b(return|exchange|replace\w*)\b/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Return Of Goods' },
-  { name: 'Bulk booking', re: /\b(bulk|wholesale quantity|regular supply|book (the )?products?)\b/i, caseType: 'Requests', category: 'Store Related Request', subCategory: 'Stock availability' },
-  { name: 'Privilege card', re: /privilege/i, caseType: 'Inquiry', category: 'General Query', subCategory: 'Privilege card' },
-  { name: 'New membership', re: /\b(new membership|become a member|membership (card|registration|process)|register|registration|membership)\b/i, caseType: 'Requests', category: 'New Member', subCategory: 'New Member - Customer', answer: 'membership', then: 'Closed', onlyNonMember: true },
-  { name: 'Offers', re: /\b(offers?|scheme|discount|sale)\b/i, caseType: 'Inquiry', category: 'General Query', subCategory: 'Offers & schemes' },
-  { name: 'Delivery enquiry', re: /delivery (charge|fee|time|timing)|minimum order|\bmov\b|handling fee/i, caseType: 'Inquiry', category: 'General Query', subCategory: 'Delivery enquiry / timings / charges' },
-  { name: 'Store timings / address', re: /\b(timing|timings|open|closing time|sunday|address|location|where is)\b/i, caseType: 'Inquiry', category: 'General Query', subCategory: 'Store timings' },
+  { name: 'Job enquiry', re: /\b(job|jobs|vacanc\w*|career|resume|cv|hiring|naukri|interview)\b/i, caseType: 'Inquiry', to: C('HR or Jobs'), answer: 'hr', then: 'Closed' },
+  { name: 'Supplier registration', re: /\b(supplier|vendor|manufactur\w*|supply (our|my)|list (our|my) products?|distributorship)\b/i, caseType: 'Request', to: C('New Supplier', 'New Vendor- Supplier Request'), requestFor: 'New Vendor - Supplier', answer: 'supplier', then: 'Waiting' },
+  { name: 'Lost / block card', re: /(lost|block|stolen|misplace\w*).{0,25}card|card.{0,25}(lost|block|stolen|misplace)/i, caseType: 'Request', to: C('Membership related Request', 'Member request', 'Request related to Membership card'), requestFor: 'Re-issuing of Lost Card' },
+  { name: 'Add-on card', re: /add[\s-]?on card|additional card|secondary card/i, caseType: 'Request', to: C('Membership related Request', 'Member request', 'Request for Add on card') },
+  { name: 'Change mobile', re: /(change|update|modify).{0,30}(mobile|phone|contact) ?(no|number)?/i, caseType: 'Request', to: C('Membership related Request', 'Member request', 'Request related to Membership data') },
+  { name: 'Change address', re: /(change|update|modify).{0,30}address/i, caseType: 'Request', to: C('Membership related Request', 'Member request', 'Request related to Membership data') },
+  { name: 'Refund', re: /\brefund\b.{0,40}\b(not|nahi|pending|still|yet|kab|awaited)\b|\b(not|never|didn.?t|haven.?t|nahi)\b.{0,25}\b(received|got|get|mila|aaya)\b.{0,25}\brefund|money (not|nahi) (received|aaya)|amount (got |was |is )?debited/i, caseType: 'Issues or Complaint', to: appC('{P} Payment & Refund Related', 'Refund Related') }, // a refund that hasn’t come (checked before “cancel order”); “please refund the difference” is not one
+  { name: 'Cancel order', re: /cancel.{0,25}order|order.{0,25}cancel/i, caseType: 'Request', to: appR('{P} Cancellation & Refund related request', 'Request to cancel order') },
+  { name: 'Login / OTP', re: /\b(otp|log ?in|sign ?in|password)\b/i, caseType: 'Issues or Complaint', to: (t) => appC('{P} Account/ Profile Related', /\botp\b/i.test(t) ? 'Otp issue' : 'login issues')(t) },
+  { name: 'App not working', re: /(app|website|site).{0,25}(not (working|opening|loading)|down|error|crash)/i, caseType: 'Issues or Complaint', to: appC('{P} Technical issues and Pricing Issue', 'Site not opening') },
+  { name: 'BDA', re: /\bbda\b|sales ?(man|person|representative)|field (staff|executive)/i, caseType: 'Issues or Complaint', to: C('BDA related') },
+  { name: 'Late delivery', re: /(not (yet )?(delivered|received)|late delivery|delay\w*|still waiting).{0,40}(order|delivery|goods)?/i, caseType: 'Issues or Complaint', app: appC('{P} Order-Delivery Related (order status not dispatched)', 'Delayed Delivery'), shop: C('Store related', 'Delivery related', 'Late delivery') },
+  { name: 'Incomplete delivery', re: /(incomplete|missing|short) (order|delivery|items?|quantity)/i, caseType: 'Issues or Complaint', app: appC('{P} Order Related', 'order not complete'), shop: C('Store related', 'Delivery related', 'order not complete') },
+  { name: 'Wrong product', re: /(wrong|different|incorrect) (product|item|article)/i, caseType: 'Issues or Complaint', app: appC('{P} Order Related', 'Wrong products received'), shop: C('Store related', 'Payment or invoice', 'wrong product billed') },
+  { name: 'Expiry', re: /expir\w*|near.?expiry|stale|rotten|fungus|spoil\w*/i, caseType: 'Issues or Complaint', app: appC('{P} Product Quality Related', 'Product Quality'), shop: C('Store related', 'Quality issue', 'near to expired product') },
+  { name: 'Quality', re: /(bad|poor|damaged|broken|leak\w*|kharab) (quality|product|item|packet|pack)|quality issue/i, caseType: 'Issues or Complaint', app: appC('{P} Product Quality Related', 'Product Quality'), shop: C('Store related', 'Quality issue', 'Poor product quality') },
+  { name: 'Overcharged / price', re: /overcharg\w*|extra (charged|amount)|price (mismatch|difference|different)|charged more|mrp/i, caseType: 'Issues or Complaint', app: appC('{P} Pricing Related', 'Price higher than market/store charged'), shop: C('Store related', 'Payment or invoice', 'price mismatch') },
+  { name: 'Staff behaviour', re: /\b(rude|misbehav\w*|behaviou?r|arrogant|shout\w*|abus\w*)\b/i, caseType: 'Issues or Complaint', to: C('Store related', 'Behaviour of staff', 'rude behaviour') },
+  { name: 'Freebie / coupon', re: /(freebie|free (gift|item)|coupon|voucher).{0,30}(not|nahi)|(not|didn.?t) (get|receive).{0,20}(freebie|free|coupon|voucher)/i, caseType: 'Issues or Complaint', to: C('Store related', 'Offer related', 'freebie not given') },
+  { name: 'Invoice copy', re: /(invoice|bill).{0,25}(copy|reissue|re-issue|again|resend|duplicate)|(copy|duplicate) (of )?(invoice|bill)/i, caseType: 'Request', to: C('Store related Request', 'Payment or invoice Related Request', 're-issue invoive') },
+  { name: 'GST', re: /\bgst(in)?\b/i, caseType: 'Request', to: C('Store related Request', 'Payment or invoice Related Request', 'Gst related') },
+  { name: 'Return / exchange', re: /\b(return|exchange|replace\w*)\b/i, caseType: 'Request', to: C('Store related Request', 'Return of goods related Request', 'Request to return/ Exchange') },
+  { name: 'Bulk booking', re: /\b(bulk|wholesale quantity|regular supply|book (the )?products?)\b/i, caseType: 'Request', to: C('Store related Request', 'Stock availablity related Request', 'Request to increase Stock') },
+  { name: 'Privilege card', re: /privilege/i, caseType: 'Inquiry', to: C('General Query', 'Membership card Related') },
+  { name: 'New membership', re: /\b(new membership|become a member|membership (card|registration|process)|register|registration|membership)\b/i, caseType: 'Request', to: C('New Member', 'New Member request'), requestFor: 'New Member - Customer', answer: 'membership', then: 'Closed', onlyNonMember: true },
+  { name: 'Offers', re: /\b(offers?|scheme|discount|sale)\b/i, caseType: 'Inquiry', to: C('General Query', 'Offers & Schemes') },
+  { name: 'Delivery enquiry', re: /delivery (charge|fee|time|timing)|minimum order|\bmov\b|handling fee/i, caseType: 'Inquiry', to: C('General Query', 'Delivery Inquiry') },
+  { name: 'Store timings / address', re: /\b(timing|timings|open|closing time|sunday|address|location|where is)\b/i, caseType: 'Inquiry', to: C('General Query', 'About Store') },
 ];
 
 const STORE_WORDS = [
@@ -301,11 +357,8 @@ export function classify(text, { isMember } = {}) {
   for (const r of RULES) {
     if (r.onlyNonMember && isMember) continue;
     if (!r.re.test(text)) continue;
-    const pair = r.app ? (APP.test(text) ? r.app : r.shop) : [r.category, r.subCategory];
-    // case master: request_for and sub2 values are their own fields
-    const v = pair[1] || '';
-    const field = REQUEST_FOR.includes(v) ? 'requestFor' : SUB2.includes(v) || SUPPLIER_TYPES.includes(v) ? 'sub2' : 'subCategory';
-    Object.assign(out, { rule: r.name, caseType: r.caseType, category: pair[0], subCategory: '', [field]: v, answer: r.answer, then: r.then });
+    const to = (r.app ? (APP.test(text) ? r.app : r.shop) : r.to)(text);
+    Object.assign(out, { rule: r.name, caseType: r.caseType, ...to, ...(r.requestFor ? { requestFor: r.requestFor } : {}), answer: r.answer, then: r.then });
     break;
   }
   const st = STORE_WORDS.find(([, re]) => re.test(text));
@@ -383,19 +436,23 @@ async function onCaseCreated({ c }) {
 }
 
 /**
- * Who an escalated case is with: the store's SPOC or a team (E-commerce, IT, BDA, …),
- * per the case type's workflow. Contact details are read fresh, so a team email
- * added later in Settings is used by follow-ups too.
+ * Who an escalated case is with, at its level: the To / Cc / TAT of the stage it is at
+ * (HO matrix row, or the store's / team's row in Stores & settings). Read fresh, so a change in Settings is used at once.
  */
 function recipient(c) {
   const t = c.escalatedTo || { kind: 'store', code: c.store };
-  if (t.kind === 'team') {
-    const team = core.teams()[t.code] || {};
-    return { key: `team:${t.code}`, label: team.name || t.name || t.code, email: team.email || t.email || '', contact: team.contact || '' };
-  }
-  const st = db().stores.find((x) => x.code === (t.code || c.store));
-  return { key: `store:${st?.code || c.store}`, label: st ? `store ${st.short || st.code}` : `store ${c.store}`, email: st?.spocEmail || '', contact: st?.spocName || '' };
+  const row = core.escalationRow(t);
+  const i = Math.min((c.escalationLevel || 1) - 1, 2);
+  const s = core.hoStage(row, i) || core.hoStage(row, 0) || { label: 'First Time Resolution', to: [], cc: [], tat: { value: 1, unit: 'days' }, tatText: '1 working day' };
+  const st = t.kind === 'store' ? db().stores.find((x) => x.code === (t.code || c.store)) : null;
+  const label = t.kind === 'matrix' ? row?.row || t.name : t.kind === 'team' ? core.teams()[t.code]?.name || t.name || t.code : st ? `store ${st.short || st.code}` : `store ${c.store}`;
+  // "Dear <store contact>" at First Time Resolution; otherwise the names in the addresses
+  const contact = i === 0 && row?.contact ? row.contact : row?.stages?.[i]?.name || greet(s.to);
+  return { key: `${t.kind}:${t.code || c.store || ''}`, label, email: s.to.join(', '), cc: s.cc.join(', '), contact, stage: s, ho: t.kind === 'matrix' };
 }
+
+const MATRIX = (r) => `the escalation matrix${r.ho ? ' (HO)' : ''}`;
+const concern = (c) => `${c.category}${c.sub2 ? ' / ' + c.sub2 : c.subCategory ? ' / ' + c.subCategory : ''}`;
 
 function assign(c) {
   const a = pickAgent();
@@ -465,16 +522,18 @@ function closeCalls(c, type, status, note) {
   }
 }
 
-/** The escalation template to the store / team the case is with. */
+/** The escalation template to the First Time Resolution contact of the store / team / HO row the case is with. */
 async function escalationEmail(c, note) {
   const r = recipient(c);
-  if (!r.email && !previewing()) return activity(`Escalation email for ${c.id} not sent — ${r.label} has no email (Stores & settings)`, c.id);
-  const t = template('escalate', c);
+  if (!r.email && !previewing()) return activity(`Escalation email for ${c.id} not sent — ${r.label} has no email (Stores & settings → Escalation matrix)`, c.id);
+  const t = template('escalate', c, { subCategory: c.subCategory || c.sub2 || '' }); // supplier type for New Supplier cases
   if (r.contact) t.body = t.body.replace(/^Dear [^,\n]*,/, `Dear ${r.contact},`);
-  const tat = workflowFor(c)?.tatDays || 1;
-  if (tat !== 1) t.body = t.body.replace('the TAT for Level 1 is 1 working day', `the TAT for this case is ${tat} working days`);
+  // the TAT really applied (store / team cases keep the SOP's longer TAT for refunds and new suppliers)
+  const wf = !r.ho && r.stage.tat.unit === 'days' ? workflowFor(c)?.tatDays || 0 : 0;
+  const tat = wf > r.stage.tat.value ? `${wf} working days` : r.stage.tatText;
+  t.body = t.body.replace('As per the escalation matrix, the TAT for Level 1 is 1 working day.', `As per ${MATRIX(r)}, the First Time Resolution TAT for this case is ${tat} (by ${dueText(c.dueAt, r.stage.tat)}).`);
   if (note) t.body = t.body.replace('\n\nAs per the escalation matrix', `\nAction needed: ${note}\n\nAs per the escalation matrix`);
-  await sendEmail({ to: r.email || noAddress(`${r.label} has no email in Stores & settings`), subject: t.subject, body: t.body, caseId: c.id, kind: `Escalation to ${r.label}`, files: c.attachments });
+  await sendEmail({ to: r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`), cc: r.cc, subject: t.subject, body: t.body, caseId: c.id, kind: `Escalation to ${r.label} (First Time Resolution)`, files: c.attachments });
 }
 
 async function onRerouted({ c, note }) {
@@ -483,35 +542,35 @@ async function onRerouted({ c, note }) {
 }
 
 const caseBlock = (c) =>
-  `Case: ${c.id}\nCustomer: ${c.name} (${c.businessName || '—'}) · ${c.phone || c.email}\nConcern: ${c.caseType} – ${c.category}${c.subCategory ? ' – ' + c.subCategory : ''}\nDetails: ${c.description}\nEscalated on: ${new Date(c.escalatedAt).toLocaleString('en-IN')}${c.promisedAt ? `\nPromised by: ${new Date(c.promisedAt).toLocaleDateString('en-IN')}` : ''}`;
+  `Case: ${c.id}\nCustomer: ${c.name} (${c.businessName || '—'}) · ${c.phone || c.email}\nConcern: ${c.caseType} – ${c.category}${c.subCategory ? ' – ' + c.subCategory : ''}${c.sub2 ? ' – ' + c.sub2 : ''}\nDetails: ${c.description}\nEscalated on: ${new Date(c.escalatedAt).toLocaleString('en-IN')}${c.promisedAt ? `\nPromised by: ${new Date(c.promisedAt).toLocaleDateString('en-IN')}` : ''}`;
 
 /**
- * Next level of the escalation matrix: the Level 1 contact keeps the case, the next level's
- * contact is copied in, and the deadline moves by that level's TAT. Returns the level reached, or null at the top.
+ * Next level, for every case (as in the Excel): First Time Resolution → Level 1 → Level 2.
+ * The new level's contacts get the case (To), its escalation list is copied (Cc), and the deadline is that level's TAT.
+ * Returns the level reached, or null when there is no next level (Level 2 reached, or Level 1 / 2 not filled in).
  */
 export async function raiseLevel(c, by, reason) {
-  const target = c.escalatedTo || { kind: 'store', code: c.store };
-  const levels = core.escalationLevels(target);
+  const row = core.escalationRow(c.escalatedTo || { kind: 'store', code: c.store });
   const cur = c.escalationLevel || 1;
-  const next = levels[cur - 1]; // Level 2 is levels[0]
+  const was = core.hoStage(row, cur - 1);
+  const next = core.hoStage(row, cur);
   if (!next) return null;
-  const level = cur + 1;
-  c.escalationLevel = level;
-  c.dueAt = core.addWorkingDays(now(), Number(next.tatDays) || 1);
+  c.escalationLevel = cur + 1;
+  c.dueAt = core.addTat(now(), next.tat);
   const r = recipient(c);
-  log(c, { by, type: 'escalation', text: `Escalation level ${level}: ${next.name || next.email}${reason ? ' — ' + reason : ''}` });
-  activity(`${c.id} at escalation level ${level} (${next.name || next.email})`, c.id);
+  log(c, { by, type: 'escalation', text: `Escalated to ${next.label} (${r.label}): ${next.to.join(', ')}${reason ? ' — ' + reason : ''}` });
+  activity(`${c.id} escalated to ${next.label} (${r.label})`, c.id);
   await sendEmail({
-    to: r.email || (previewing() ? noAddress(`${r.label} has no email in Stores & settings`) : next.email),
-    cc: levels.slice(0, cur).map((l) => l.email).filter((e) => e !== (r.email || next.email)).join(', '),
-    subject: `ESCALATION Level ${level}: pending case ${c.id} – ${c.category}${c.subCategory ? ' / ' + c.subCategory : ''}`,
-    body: `Dear ${next.name || 'Sir'}${r.contact ? ` / ${r.contact}` : ''},\n\nThe case below has been escalated to Level ${level}${reason ? ` (${reason})` : ''}. Kindly ensure the resolution is shared with customer care by ${new Date(c.dueAt).toLocaleDateString('en-IN')}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+    to: next.to.join(', '),
+    cc: next.cc.join(', '),
+    subject: `ESCALATION ${next.label}: pending case ${c.id} – ${concern(c)}`,
+    body: `Dear ${r.contact},\n\nThe case below ${by !== BOT ? `is escalated to ${next.label}${reason ? ` (${reason})` : ''}` : `was not resolved within the ${was?.label || 'previous'} TAT (${was?.tatText || '—'}) and is escalated to ${next.label}`} as per ${MATRIX(r)}. The ${next.label} TAT is ${next.tatText}: kindly ensure the resolution is shared with customer care by ${dueText(c.dueAt, next.tat)}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
     caseId: c.id,
-    kind: `Escalation level ${level}`,
+    kind: `Escalation ${next.label} – ${r.label}`,
     files: c.attachments,
   });
   save();
-  return level;
+  return c.escalationLevel;
 }
 
 function lastStoreReply(c) {
@@ -553,10 +612,10 @@ function onThreaded({ c, staff, fromEmail, body, hasAttachments }) {
 
 // "Information complete?" — complaints and requests only (enquiries are answered, not escalated).
 // Returns 'requested' (asked the customer for missing items), 'escalated', or null (left for an agent).
-const STORE_REQUIRED = ['Store Related', 'BDA Related', 'Store Related Request', 'BDA Related REQUESTS'];
+const STORE_REQUIRED = ['Store related', 'BDA related', 'Store related Request', 'BDA Related REQUESTS']; // the purchase store, not the home store
 async function infoStep(c) {
   const s = settings();
-  if (!s.autoInfoCheck || !['Issues or Complaints - NR', 'Requests'].includes(c.caseType) || ['New Member', 'New Supplier'].includes(c.category)) return null;
+  if (!s.autoInfoCheck || !['Issues or Complaint', 'Issues and Complaint (NR)', 'Request'].includes(c.caseType) || ['New Member', 'New Supplier'].includes(c.category)) return null;
   const missing = missingInfo(c);
   if (missing.length) {
     if ((c.infoRequests || 0) >= 2) {
@@ -653,6 +712,15 @@ async function saveAttachments(c, messageId) {
     const file = `${Date.now()}-${a.name.replace(/[^\w.\- ]+/g, '_')}`;
     fs.writeFileSync(path.join(dir, file), a.bytes);
     (c.attachments ||= []).push({ name: a.name, file, size: a.size, contentType: a.contentType, at: now() });
+    // LOTS sends an updated escalation matrix (Excel / CSV) from a cpwi.in address: the CRM updates itself
+    const from = c.timeline.findLast?.((t) => t.type === 'email-in')?.from || c.email;
+    if (/\.(xlsx|csv)$/i.test(a.name) && /@cpwi\.in$/i.test(from || '')) {
+      const s = await matrixImport.autoImport(a.bytes, a.name, from).catch(() => null);
+      if (s) {
+        log(c, { by: BOT, type: 'note', text: `Escalation matrix updated from “${a.name}”: ${s.applied.length} row(s) changed${s.left.length ? `; not recognised (decide in Stores & settings): ${s.left.join(', ')}` : ''}` });
+        activity(`Escalation matrix updated automatically from “${a.name}” (${from}): ${s.applied.length} row(s)`, c.id);
+      }
+    }
   }
   log(c, { by: 'Mailbox', type: 'note', text: `Attachments saved: ${c.attachments.map((x) => x.name).join(', ')}` });
 }
@@ -713,25 +781,23 @@ const timeReached = (hhmm) => {
 async function overdueEscalations(s) {
   if (!s.overdueReminder) return;
   for (const c of db().cases.filter((c) => c.status === 'Escalated' && c.dueAt && c.dueAt < now())) {
-    const level = c.escalationLevel || 1;
-    if (await raiseLevel(c, BOT, `TAT crossed at level ${level}`)) continue;
-    // top of the matrix (or no matrix yet): one reminder per working day, the level stays
+    if (await raiseLevel(c, BOT, `${core.levelName(c)} TAT crossed`)) continue;
+    // no next level (Level 2 reached, or the next level isn't filled in yet): one reminder per working day, same To / Cc
     const r = recipient(c);
-    const levels = core.escalationLevels(c.escalatedTo || { kind: 'store', code: c.store });
+    const top = (c.escalationLevel || 1) >= 3;
     c.dueAt = core.addWorkingDays(now(), 1);
-    log(c, { by: BOT, type: 'escalation', text: `TAT crossed at level ${level}${levels.length ? ' (highest level in the escalation matrix)' : ' (no escalation matrix set)'} — reminder sent` });
-    activity(`${c.id} overdue with ${r.label} — level ${level}`, c.id);
-    if (r.email || previewing()) {
-      await sendEmail({
-        to: r.email || noAddress(`${r.label} has no email in Stores & settings`),
-        cc: levels.slice(0, level - 1).map((l) => l.email).join(', '),
-        subject: `OVERDUE (Level ${level}): pending case ${c.id} – ${c.category}${c.subCategory ? ' / ' + c.subCategory : ''}`,
-        body: `Dear ${r.contact || 'Sir'},\n\nThe case below has crossed its TAT and is still pending at escalation level ${level}. Kindly share the resolution with customer care today.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
-        caseId: c.id,
-        kind: 'Overdue reminder',
-        files: c.attachments,
-      });
-    }
+    log(c, { by: BOT, type: 'escalation', text: `${r.stage.label} TAT crossed${top ? ' (Level 2 is the highest level)' : ` (${core.levelName(c, (c.escalationLevel || 1) + 1)} not set in Stores & settings → Escalation matrix)`} — reminder sent` });
+    activity(`${c.id} overdue at ${r.stage.label} (${r.label})`, c.id);
+    if (!r.email && !previewing()) continue;
+    await sendEmail({
+      to: r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`),
+      cc: r.cc,
+      subject: `OVERDUE (${r.stage.label}): pending case ${c.id} – ${concern(c)}`,
+      body: `Dear ${r.contact},\n\nThe case below has crossed the ${r.stage.label} TAT (${r.stage.tatText}) of ${MATRIX(r)} and is still pending. Kindly share the resolution with customer care today.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+      caseId: c.id,
+      kind: `Overdue reminder (${r.stage.label}) – ${r.label}`,
+      files: c.attachments,
+    });
   }
   // the store promised a date and it has passed: flag once per promise
   const day = new Date().toLocaleDateString('en-CA');
@@ -746,29 +812,27 @@ async function storeDigest(s) {
   const st8 = (db().automationState ||= {});
   if (!s.storeDigestTime || !timeReached(s.storeDigestTime) || st8.lastDigest === today()) return;
   st8.lastDigest = today();
-  // one email per store / team holding escalated cases
+  // one email per store / team / HO row holding escalated cases, to the contacts of each case's current level
   const groups = new Map();
   for (const c of db().cases.filter((c) => c.status === 'Escalated')) {
     const r = recipient(c);
     if (!groups.has(r.key)) groups.set(r.key, { r, list: [] });
     groups.get(r.key).list.push(c);
   }
+  const day = new Date().toLocaleDateString('en-CA');
   for (const { r, list } of groups.values()) {
-    if (!r.email && !previewing()) continue;
-    const day = new Date().toLocaleDateString('en-CA');
-    const lines = list.map(
-      (c) =>
-        `• ${c.id} | ${c.businessName || c.name} | ${c.subCategory || c.category} | escalated ${new Date(c.escalatedAt).toLocaleDateString('en-IN')}${(c.escalationLevel || 1) > 1 ? ` | level ${c.escalationLevel}` : ''}${c.dueAt < now() ? ' | OVERDUE' : ''}${c.promisedAt ? ` | promised ${new Date(c.promisedAt).toLocaleDateString('en-IN')}${c.promisedAt < day ? ' (missed)' : ''}` : ''}`
-    );
-    const l2 = core.escalationLevels(list[0].escalatedTo || { kind: 'store', code: list[0].store })[0]?.email || '';
+    const to = [...new Set(list.flatMap((c) => recipient(c).stage.to))];
+    if (!to.length && !previewing()) continue;
+    const cc = [...new Set(list.flatMap((c) => recipient(c).stage.cc))].filter((e) => !to.some((t) => t.toLowerCase() === e.toLowerCase()));
+    const rows = list.map((c) => `• ${c.id} | ${c.businessName || c.name} | ${c.sub2 || c.subCategory || c.category} | ${core.levelName(c)} | due ${dueText(c.dueAt, recipient(c).stage.tat)}${c.dueAt < now() ? ' | OVERDUE' : ''}${c.promisedAt ? ` | promised ${new Date(c.promisedAt).toLocaleDateString('en-IN')}${c.promisedAt < day ? ' (missed)' : ''}` : ''}`);
     await sendEmail({
-      to: r.email || noAddress(`${r.label} has no email in Stores & settings`),
-      cc: list.some((c) => c.dueAt < now() || (c.promisedAt && c.promisedAt < day)) ? l2 : '',
+      to: to.join(', ') || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`),
+      cc: cc.join(', '),
       subject: `Pending customer cases – ${r.label} – ${new Date().toLocaleDateString('en-IN')}`,
-      body: `Dear ${r.contact || 'Sir'},\n\nThe following customer cases are pending with your ${r.key.startsWith('team:') ? 'team' : 'store'}. We kindly request you to share an update on each at the earliest.\n\n${lines.join('\n')}\n\nAccording to the existing escalation matrix, the TAT for Level 1 is 1 working day.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
-      kind: 'Daily store follow-up',
+      body: `Dear ${to.length === 1 && r.contact ? r.contact : greet(to)},\n\nThe following customer cases (${r.label}) are pending with you as per ${MATRIX(r)}. We kindly request you to share an update on each at the earliest.\n\n${rows.join('\n')}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+      kind: `Daily follow-up – ${r.label}`,
     });
-    for (const c of list) log(c, { by: BOT, type: 'store-followup', text: `Included in daily follow-up email to ${r.label}` });
+    for (const c of list) log(c, { by: BOT, type: 'store-followup', text: `Included in daily follow-up email (${r.label}, ${core.levelName(c)})` });
   }
   save();
 }
@@ -832,6 +896,7 @@ export async function tick(opts = {}) {
     await waitingCases(s);
     await storeDigest(s);
     await dailyReport(s);
+    await matrixLink.tick(); // linked escalation-matrix Excel: re-read when LOTS saved a change
   } catch (e) {
     console.error('[automation]', e);
   } finally {

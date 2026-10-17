@@ -4,12 +4,12 @@ import { TEAMS, WORKFLOWS } from '../workflows.js';
 import { useMeta } from '../ui.jsx';
 
 const list = (v) => (v === undefined ? null : Array.isArray(v) ? v.join(', ') : v);
-const TYPES = ['Inquiry', 'Issues or Complaints - NR', 'Requests'];
+const TYPES = ['Inquiry', 'Issues or Complaint', 'Issues and Complaint (NR)', 'Request'];
 
 // Reference: the workflow of every case type (owner team, TAT, steps), from src/workflows.js.
 export default function Workflows() {
   const { teams } = useMeta();
-  const [type, setType] = useState('Issues or Complaints - NR');
+  const [type, setType] = useState('Issues or Complaint');
   const shown = WORKFLOWS.filter((w) => w.match.caseType === type);
 
   return (

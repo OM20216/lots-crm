@@ -1,18 +1,26 @@
 import { useState } from 'react';
 import { api } from '../api.js';
 import { Field, Select, useMeta, usePicklists } from '../ui.jsx';
-import { CASE_MASTER } from '../taxonomy.js';
+import { CASE_MASTER, categoriesFor } from '../taxonomy.js';
 
-// Case master: every type of contact (Not Registered / Registered With Lots / Others) gets the same categories.
+// Case master ("Case catergory" sheet): the categories depend on the case type and, for requests, on the type of contact.
 export function allowedCategories(caseType, callerType, tree) {
   if (!caseType || !tree?.[caseType]) return [];
-  return Object.keys(tree[caseType]);
+  return categoriesFor(caseType, callerType, tree);
+}
+
+/** Case types for a type of contact (Caller Type → Case Type dependency); all of them when none is set up. */
+export function allowedTypes(callerType, tree, dependents) {
+  const types = dependents('Case Type', 'Caller Type', callerType).filter((t) => tree[t]);
+  return types.length ? types : Object.keys(tree);
 }
 
 const TYPE_HELP = {
   Inquiry: 'Request for information or clarification',
-  'Issues or Complaints - NR': 'Problem, dissatisfaction or challenge faced',
-  Requests: 'Formal request for a service, action or change',
+  'Issues or Complaint': 'Problem, dissatisfaction or challenge faced',
+  'Issues and Complaint (NR)': 'Complaint from someone not registered',
+  Request: 'Formal request for a service, action or change',
+  'Not Relevent or Spam': 'Not a customer-care matter',
 };
 
 /**
@@ -92,6 +100,8 @@ export default function Classifier({ value, onChange }) {
     resolution: dependents('Resolution Type', 'Category', category),
   });
   const m = masterFor(value.category);
+  // sub-category 2: by sub-category (the sheet's sub-2), or by category (supplier type)
+  const sub2Options = [...new Set([...dependents('Sub Category 2', 'Sub Category', value.subCategory), ...m.sub2])];
   const single = (arr) => (arr.length === 1 ? arr[0] : '');
   const pickCategory = (category) => {
     const n = masterFor(category);
@@ -100,6 +110,7 @@ export default function Classifier({ value, onChange }) {
   const invoiceRequired = Boolean(CASE_MASTER[value.category]?.invoiceRequired);
   const cats = allowedCategories(value.caseType, value.callerType, tree);
   const subs = value.caseType && value.category ? tree[value.caseType]?.[value.category] || [] : [];
+  const types = allowedTypes(value.callerType, tree, dependents);
 
   function pickType(t) {
     const allowed = allowedCategories(t, value.callerType, tree);
@@ -113,7 +124,7 @@ export default function Classifier({ value, onChange }) {
       <div className="field wide">
         <span className="field-label">Case type *</span>
         <div className="type-cards">
-          {Object.keys(tree).map((t) => (
+          {types.map((t) => (
             <button type="button" key={t} className={`type-card type-${t.split(' ')[0].toLowerCase()} ${value.caseType === t ? 'on' : ''}`} onClick={() => pickType(t)}>
               <strong>{t}</strong>
               <span>{TYPE_HELP[t] || ''}</span>
@@ -123,12 +134,12 @@ export default function Classifier({ value, onChange }) {
       </div>
       <div className="field">
         <span className="field-label">Category *</span>
-        <Select value={value.category} options={cats} onChange={pickCategory} disabled={!value.caseType} />
+        <Select value={value.category} options={cats} onChange={pickCategory} disabled={!value.caseType || !cats.length} placeholder={value.caseType && !cats.length ? 'None for this case type' : 'Select…'} />
         <AddOption mainField="Case Type" mainValue={value.caseType} subField="Category" onAdded={pickCategory} />
       </div>
       <div className="field">
         <span className="field-label">Sub-category</span>
-        <Select value={value.subCategory} options={subs} onChange={(v) => set({ subCategory: v })} disabled={!value.category || !subs.length} placeholder={value.category && !subs.length ? 'None for this category' : 'Select…'} />
+        <Select value={value.subCategory} options={subs} onChange={(v) => set({ subCategory: v, sub2: '' })} disabled={!value.category || !subs.length} placeholder={value.category && !subs.length ? 'None for this category' : 'Select…'} />
         <AddOption mainField="Category" mainValue={value.category} subField="Sub Category" onAdded={(v) => set({ subCategory: v })} />
       </div>
       {/* a single option is filled in by itself, so it isn't shown */}
@@ -137,11 +148,11 @@ export default function Classifier({ value, onChange }) {
           <Select value={value.requestFor} options={m.requestFor} onChange={(v) => set({ requestFor: v })} />
         </Field>
       )}
-      {m.sub2.length > 0 && (
+      {sub2Options.length > 0 && (
         <div className="field">
           <span className="field-label">Sub-category 2</span>
-          <Select value={value.sub2} options={m.sub2} onChange={(v) => set({ sub2: v })} />
-          <AddOption mainField="Category" mainValue={value.category} subField="Sub Category 2" onAdded={(v) => set({ sub2: v })} />
+          <Select value={value.sub2} options={sub2Options} onChange={(v) => set({ sub2: v })} />
+          <AddOption mainField={m.sub2.length ? 'Category' : 'Sub Category'} mainValue={m.sub2.length ? value.category : value.subCategory} subField="Sub Category 2" onAdded={(v) => set({ sub2: v })} />
         </div>
       )}
       <Field label="Store">

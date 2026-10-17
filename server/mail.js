@@ -17,7 +17,7 @@ const LOGIN = process.env.MS_LOGIN_URL || 'https://login.microsoftonline.com';
 // Public Microsoft app used for sign-in when no own app is configured ("Microsoft Graph Command Line Tools",
 // the app behind Connect-MgGraph). An own app registration can be set with MS_SIGNIN_CLIENT_ID (public client flows on).
 const GRAPH_CLI_APP = '14d82eec-204b-4c2f-b7e8-296a70dab67e';
-const SCOPES = 'offline_access openid profile https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite.Shared https://graph.microsoft.com/Mail.Send.Shared';
+const SCOPES = 'offline_access openid profile https://graph.microsoft.com/User.Read https://graph.microsoft.com/Mail.ReadWrite.Shared https://graph.microsoft.com/Mail.Send.Shared https://graph.microsoft.com/Files.Read.All'; // Files: the linked escalation-matrix Excel
 const PRIVATE_DIR = process.env.LOTS_SECRETS_FILE ? path.dirname(process.env.LOTS_SECRETS_FILE) : path.join(os.homedir(), '.lots-crm');
 const SIGNIN_FILE = path.join(PRIVATE_DIR, 'ms-signin.json');
 
@@ -194,6 +194,22 @@ async function graph(method, path, body, headers = {}) {
 }
 
 const mb = () => `/users/${encodeURIComponent(cfg().mailbox)}`;
+
+// ---------- a file shared from OneDrive / SharePoint (the escalation matrix Excel, linked in Stores & settings) ----------
+const shareId = (link) => 'u!' + Buffer.from(String(link).trim()).toString('base64').replace(/=+$/, '').replace(/\//g, '_').replace(/\+/g, '-');
+
+/** Name, version and last change of a shared file (from its share link). */
+export async function sharedFileInfo(link) {
+  const d = await graph('GET', `/shares/${shareId(link)}/driveItem?$select=id,name,eTag,cTag,size,lastModifiedDateTime,lastModifiedBy,webUrl`);
+  return { name: d.name, version: d.cTag || d.eTag, size: d.size, modifiedAt: d.lastModifiedDateTime, modifiedBy: d.lastModifiedBy?.user?.displayName || d.lastModifiedBy?.user?.email || '', webUrl: d.webUrl };
+}
+
+/** The file's bytes. */
+export async function sharedFileContent(link) {
+  const res = await fetch(`${GRAPH}/shares/${shareId(link)}/driveItem/content`, { headers: { Authorization: `Bearer ${await getToken()}` }, signal: AbortSignal.timeout(60000) });
+  if (!res.ok) throw new Error(`Microsoft Graph could not download the file: ${res.status}`);
+  return Buffer.from(await res.arrayBuffer());
+}
 
 // ---------- mailbox (same Graph calls as the VMM CRM: delta inbox, threads, reply in thread, categories) ----------
 const LIST_SELECT = 'id,subject,from,toRecipients,ccRecipients,receivedDateTime,sentDateTime,bodyPreview,conversationId,isRead,hasAttachments,categories,internetMessageId';

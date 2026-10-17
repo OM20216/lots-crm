@@ -4,6 +4,77 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
+## 17 October 2026
+
+### HO escalation matrix applied (LOTS sheet "Escalation Matrix LOTS – April 2026 – V_6 (HO)")
+- Read the sheet: 12 case types, each with three stages, **First Time Resolution → Level 1 → Level 2**. Each stage has a SPOC (To), an escalation list (Cc) and a TAT.
+- Mapped each row to the case master: Real Estate, Legal, HR or Jobs, IT or Website, Admin Related, Marketing Related (Inquiry), and the supplier types under Requests › New Supplier.
+- Decided with the user: working hours **9 AM – 9 PM**, **Monday–Saturday**; missing TATs filled from the row's pattern (Legal L2 = 2 days, Admin / Marketing L2 = 3 days, marked "to confirm"); **two supplier types added**: Suppliers - FMCG - Non Food, Suppliers - D&F.
+- Corrected three faulty addresses in the sheet (HR: Isha.kohli@cpwi, Hemanshu.Yadav@cpwi.in@cpwi; IT: missing comma), marked on the Settings page.
+- Built:
+  - escalation emails to the stage's SPOCs with its list in copy;
+  - automatic Level 1 / Level 2 when a TAT passes, then a daily reminder at Level 2;
+  - "Escalate to Level 1 / 2 now";
+  - a daily follow-up per sheet row;
+  - replies from the sheet's addresses recognised;
+  - Legal's 4 working hours counted inside working hours;
+  - **Stores & settings → Escalation matrix (HO)**: view, edit, back to the sheet, **Sample to Teams**, working hours, crisis contacts;
+  - the case page shows the three stages with the current one highlighted.
+- Not in the sheet (unchanged, store / team escalation): store, e-commerce / app, BDA, membership, General Query, Festive Gifting, New Member.
+- Tested on a test copy:
+  - 24 unit checks (working hours, Sundays, holidays, row matching, all 212 addresses well-formed);
+  - 34 end-to-end checks (emails To / Cc, automatic levels, reminders, digests, edits, samples);
+  - older suites still pass;
+  - Settings and case page checked in the browser.
+- Restarted the live CRM (no pending database writes); 12 rows loaded.
+
+### Two escalation levels everywhere
+- As in the Excel, every case now has **First Time Resolution → Level 1 → Level 2**, both levels automatic when the TAT passes. Store / team cases: the store / team contact is the First Time Resolution; the store / team matrix has Level 1 and Level 2 only (Level 3 removed). Names updated in emails, timeline, Follow-ups and the case page. Tests re-run and passing; live CRM restarted.
+
+### Live link to the matrix Excel
+- **Live link:** paste the OneDrive / SharePoint share link of LOTS's matrix Excel. The CRM checks it every 10 minutes and applies it by itself whenever LOTS saves a change (history with Undo; a Teams card if it can't be read).
+- **Needs Microsoft 365:** it uses the same sign-in as the mailbox, which now also asks to read files (Files.Read.All).
+- Tested against a stand-in for OneDrive: 11 checks pass, and all earlier suites still pass.
+
+### Escalation matrix updates from LOTS's Excel
+- **Update from Excel** in Stores & settings: upload LOTS's new .xlsx / .csv. The CRM shows every change (old → new, yellow cells marked) and applies it on **Apply**. Rows can be HO rows, stores or teams; new rows can be added as new HO rows. Undo is available for the last 5 updates.
+- **Automatic:** when the mailbox is connected, the same sheet emailed from a cpwi.in address is applied by itself. New rows wait for a decision; files from outside cpwi.in are ignored.
+- Typos are fixed automatically; where the sheet is unclear, the CRM's value is kept and noted.
+- Added the `exceljs` library to read .xlsx files.
+- Tested:
+  - the original April sheet gives no changes;
+  - an updated .xlsx with changes is applied and undone;
+  - an email with the matrix attached updates the matrix by itself.
+- All earlier suites pass; checked in the browser.
+
+### Editable escalation matrix for stores & teams
+- New table in Stores & settings, the same as the HO matrix: one row per store and team plus a Default row.
+- Each row has **First Time Resolution, Level 1 and Level 2**, with To, Cc and TAT, and buttons **Edit**, **Sample to Teams** and **Clear Cc and levels**.
+- All levels are automatic. A store or team without its own levels uses the Default row. Store / team emails are now edited only here.
+- Every case (HO, store, team) now runs through one escalation path.
+- Tested: 20 new checks, all earlier suites, and a browser check. Live CRM restarted.
+- **To do:** fill in the store / team emails and levels (all empty on the live CRM).
+
+### Escalation flow chart
+- New **Escalation flow** page (Admin, and "See as flow chart" on the matrix card), built with React Flow like the LOTS workflow chart.
+- Pick a row of the sheet: the boxes show First Time Resolution → Level 1 → Level 2 → daily reminder with that row's SPOCs and TATs, the reply path (resolution / "we are checking"), the confirmation call and closing, plus live counts of the cases at each stage.
+- Click a box for the full To / Cc list and what the CRM does; checked in the browser.
+
+---
+
+## 16 October 2026
+
+### Health check
+- Live CRM running on MySQL `lots`; one dropped MySQL connection overnight was retried automatically, nothing lost. Daily store follow-up emails went to Teams.
+- Full re-test on fresh test copies: about 100 checks across 8 test sets (core SOP rules, picklists, follow-up / survey calls, escalation, contact types, Teams previews, templates, attachments), all passing.
+
+### Decisions
+- **SMS and "answer within 3 rings" measurement: not possible** — dropped from the open items.
+- **Mailbox connection and member list: later.**
+- Next: the **escalation** part.
+
+---
+
 ## 15 October 2026
 
 ### Restart and browser check

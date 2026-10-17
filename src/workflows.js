@@ -62,7 +62,7 @@ const W = (key, title, owner, tatDays, steps, extra = {}) => ({ key, title, owne
 export const WORKFLOWS = [
   // ----- Inquiry -----
   W('inq-general', 'General query', 'careDesk', 0, answerPath('Answer from the SOP / FAQ (answers shown beside the case form)'), { match: { caseType: 'Inquiry', category: 'General Query' } }),
-  W('inq-stock', 'Product availability / price check', 'store', 1, escalationPath('the store team'), { match: { caseType: 'Inquiry', subCategory: ['Product availability / stock', 'Product price'] }, note: 'Answer on the call if known; otherwise check with the store.' }),
+  W('inq-stock', 'Product availability / price check', 'store', 1, escalationPath('the store team'), { match: { caseType: 'Inquiry', subCategory: 'Pricing and product Inquiry' }, note: 'Answer on the call if known; otherwise check with the store.' }),
   W('inq-hr', 'HR & jobs enquiry', 'hr', 1, [
     step('identify', 'Identify the caller', A.member),
     step('details', 'Case type and details captured', A.details),
@@ -75,50 +75,50 @@ export const WORKFLOWS = [
   W('inq-legal', 'Legal enquiry', 'admin', 1, escalationPath('Administration', [step('legal', 'Legal details recorded for the Legal team')]), { match: { caseType: 'Inquiry', category: 'Legal' }, note: 'Administration handles legal correspondence first.' }),
   W('inq-festive', 'Festive gifting enquiry', 'marketing', 1, escalationPath('the Marketing team'), { match: { caseType: 'Inquiry', category: 'Festive Gifting' } }),
   W('inq-realestate', 'Real estate enquiry', 'admin', 1, escalationPath('Administration'), { match: { caseType: 'Inquiry', category: 'Real Estate' } }),
-  W('inq-marketing', 'Marketing enquiry', 'marketing', 1, escalationPath('the Marketing team'), { match: { caseType: 'Inquiry', category: 'Marketing Related' } }),
+  W('inq-marketing', 'Marketing enquiry', 'marketing', 1, escalationPath('the Marketing team'), { match: { caseType: 'Inquiry', category: 'Marketing related' } }),
 
-  // ----- Issues or Complaints - NR -----
+  // ----- Issues or Complaint -----
   W('cmp-store', 'Store complaint', 'store', 1, escalationPath('the store contact', [
     step('store', 'Store of purchase recorded', A.store),
     step('bill', 'Bill / invoice number and purchase details taken', A.orderRef, 'Not always available: the store can verify'),
-  ]), { match: { caseType: 'Issues or Complaints - NR', category: 'Store Related' }, requires: ['store'] }),
-  W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaints - NR', category: 'App Related' } }),
+  ]), { match: { caseType: 'Issues or Complaint', category: 'Store related' }, requires: ['store'] }),
+  W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaint', category: 'LOTS-App Related' }, requires: ['store'] }),
   W('cmp-ecom-refund', 'Refund not received', 'ecom', 7, escalationPath('the E-commerce / App team', [
     step('order', 'App / website order number recorded', A.orderRef),
     step('inform', 'Inform: the amount refunds automatically within 7 working days, or the customer contacts their bank (SOP)'),
-  ]), { match: { caseType: 'Issues or Complaints - NR', subCategory: 'Refund not received' }, requires: ['orderRef'] }),
+  ]), { match: { caseType: 'Issues or Complaint', subCategory: ['Lots-App Payment & Refund Related', 'Website Payment & Refund Related'], sub2: 'Refund Related' }, requires: ['store', 'orderRef'] }),
   W('cmp-ecom', 'E-commerce complaint', 'ecom', 1, escalationPath('the E-commerce / App team', [
     step('order', 'App / website order number recorded', A.orderRef),
     step('status', 'Order status checked (dispatched / not dispatched)'),
-  ]), { match: { caseType: 'Issues or Complaints - NR', category: 'ECommerce Related' }, requires: ['orderRef'] }),
-  W('cmp-membership', 'Membership complaint', 'homeStore', 1, escalationPath("the member's home store"), { match: { caseType: 'Issues or Complaints - NR', category: ['Membership Related', 'Membership Related - NR'] } }),
-  W('cmp-bda', 'BDA complaint', 'bda', 1, escalationPath('the BDA team', [step('bdaorder', 'BDA order details / BDA name recorded')]), { match: { caseType: 'Issues or Complaints - NR', category: 'BDA Related' } }),
+  ]), { match: { caseType: 'Issues or Complaint', category: 'E-Comm Related' }, requires: ['store', 'orderRef'] }),
+  W('cmp-membership', 'Membership complaint', 'homeStore', 1, escalationPath("the member's home store"), { match: { caseType: ['Issues or Complaint', 'Issues and Complaint (NR)'], category: ['Membership Related', 'Member related -NR'] } }),
+  W('cmp-bda', 'BDA complaint', 'bda', 1, escalationPath('the BDA team', [step('bdaorder', 'BDA order details / BDA name recorded')]), { match: { caseType: 'Issues or Complaint', category: 'BDA related' }, requires: ['store'] }),
 
   // ----- Requests -----
   W('req-membership', 'Membership request', 'homeStore', 1, escalationPath("the member's home store", [
     step('docs', 'Required documents received (see Request requirements)'),
-  ]), { match: { caseType: 'Requests', category: 'Membership Related Request' } }),
+  ]), { match: { caseType: 'Request', category: 'Membership related Request' } }),
   W('req-return', 'Return / exchange request', 'store', 1, escalationPath('the store contact', [
     step('store', 'Store of purchase recorded', A.store),
     step('policy', 'Return policy checked: 7 working days, original stamped bill, item returnable'),
-  ]), { match: { caseType: 'Requests', subCategory: 'Return Of Goods' }, requires: ['store'] }),
-  W('req-stock', 'Stock availability / price request', 'store', 1, escalationPath('the store team'), { match: { caseType: 'Requests', subCategory: ['Stock availability', 'Pricing issue'] } }),
-  W('req-store', 'Store request', 'store', 1, escalationPath('the store contact', [step('store', 'Store recorded', A.store)]), { match: { caseType: 'Requests', category: 'Store Related Request' }, requires: ['store'] }),
-  W('req-ecom', 'App / E-comm request', 'ecom', 1, escalationPath('the E-commerce / App team', [step('order', 'Order number recorded', A.orderRef)]), { match: { caseType: 'Requests', category: ['App Related Requests', 'E Commerce Related Request'] }, requires: ['orderRef'] }),
-  W('req-bda', 'BDA request', 'bda', 1, escalationPath('the BDA team'), { match: { caseType: 'Requests', category: 'BDA Related REQUESTS' } }),
-  W('req-new-member', 'New membership', 'careDesk', 0, answerPath('Explain: membership is free; visit the preferred store with a business licence (or supporting documents), PAN, Aadhaar, mobile and selfie'), { match: { caseType: 'Requests', category: 'New Member' } }),
-  W('req-supplier', 'New supplier registration', 'supplier', 7, escalationPath('the Category / Supplier team', [step('docs', 'Company profile and product catalogue received')]), { match: { caseType: 'Requests', category: 'New Supplier' } }),
+  ]), { match: { caseType: 'Request', subCategory: 'Return of goods related Request' }, requires: ['store'] }),
+  W('req-stock', 'Stock availability / price request', 'store', 1, escalationPath('the store team'), { match: { caseType: 'Request', subCategory: ['Stock availablity related Request', 'Pricing Related Request'] }, requires: ['store'] }),
+  W('req-store', 'Store request', 'store', 1, escalationPath('the store contact', [step('store', 'Store recorded', A.store)]), { match: { caseType: 'Request', category: 'Store related Request' }, requires: ['store'] }),
+  W('req-ecom', 'App / E-comm request', 'ecom', 1, escalationPath('the E-commerce / App team', [step('order', 'Order number recorded', A.orderRef)]), { match: { caseType: 'Request', category: ['Lots-App Related Request', 'E Commerce Related Request'] }, requires: ['store', 'orderRef'] }),
+  W('req-bda', 'BDA request', 'bda', 1, escalationPath('the BDA team'), { match: { caseType: 'Request', category: 'BDA Related REQUESTS' }, requires: ['store'] }),
+  W('req-new-member', 'New membership', 'careDesk', 0, answerPath('Explain: membership is free; visit the preferred store with a business licence (or supporting documents), PAN, Aadhaar, mobile and selfie'), { match: { caseType: 'Request', category: 'New Member' } }),
+  W('req-supplier', 'New supplier registration', 'supplier', 7, escalationPath('the Category / Supplier team', [step('docs', 'Company profile and product catalogue received')]), { match: { caseType: 'Request', category: 'New Supplier' } }),
 ];
 
 const DEFAULT = W('default', 'Standard case', 'store', 1, escalationPath('the store contact'), { match: {} });
 
 const hit = (want, have) => want === undefined || (Array.isArray(want) ? want.includes(have) : want === have);
-const specificity = (m) => (m.subCategory ? 4 : 0) + (m.category ? 2 : 0) + (m.caseType ? 1 : 0);
+const specificity = (m) => (m.sub2 ? 8 : 0) + (m.subCategory ? 4 : 0) + (m.category ? 2 : 0) + (m.caseType ? 1 : 0);
 
 /** The workflow for a case (or any object with caseType / category / subCategory). */
 export function workflowFor(c) {
   if (!c?.caseType) return null;
-  const found = WORKFLOWS.filter((w) => hit(w.match.caseType, c.caseType) && hit(w.match.category, c.category) && hit(w.match.subCategory, c.subCategory));
+  const found = WORKFLOWS.filter((w) => hit(w.match.caseType, c.caseType) && hit(w.match.category, c.category) && hit(w.match.subCategory, c.subCategory) && hit(w.match.sub2, c.sub2));
   return found.sort((a, b) => specificity(b.match) - specificity(a.match))[0] || DEFAULT;
 }
 

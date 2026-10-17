@@ -2,7 +2,7 @@
 // values of one field go with a value of another (Case Type → Category → Sub Category …).
 // The base lists come from src/taxonomy.js; values and pairs added from the
 // Picklists / Dependencies screens are stored by the server and merged in here.
-import { CALLER_TYPES, CASE_MASTER, CASE_TREE, CHANNELS, CUSTOMER_GROUPS, PRODUCT_CATEGORIES, PRODUCT_TYPES, REQUEST_FOR, RESOLUTION_TYPES, SUB2, SUPPLIER_TYPES } from './taxonomy.js';
+import { CALLER_TYPES, CASE_MASTER, CASE_TREE, CASE_TYPES_FOR, CHANNELS, CUSTOMER_GROUPS, PRODUCT_CATEGORIES, PRODUCT_TYPES, REQUEST_FOR, RESOLUTION_TYPES, SUB2, SUB2_TREE, SUPPLIER_TYPES } from './taxonomy.js';
 
 const uniq = (a) => [...new Set(a.filter(Boolean))];
 
@@ -24,8 +24,10 @@ export const BASE_LISTS = {
 
 // Relationships the forms use. New pairs can be added for any of them.
 export const KNOWN_RELATIONSHIPS = [
+  { mainField: 'Caller Type', subField: 'Case Type' },
   { mainField: 'Case Type', subField: 'Category' },
   { mainField: 'Category', subField: 'Sub Category' },
+  { mainField: 'Sub Category', subField: 'Sub Category 2' },
   { mainField: 'Category', subField: 'Request For' },
   { mainField: 'Category', subField: 'Sub Category 2' },
   { mainField: 'Category', subField: 'Resolution Type' },
@@ -36,8 +38,10 @@ export const KNOWN_RELATIONSHIPS = [
 const pair = (mainField, mainValue, subField, subValue) => ({ mainField, mainValue, subField, subValue, base: true });
 
 export const BASE_DEPENDENCIES = [
+  ...Object.entries(CASE_TYPES_FOR).flatMap(([caller, types]) => types.map((t) => pair('Caller Type', caller, 'Case Type', t))),
   ...Object.entries(CASE_TREE).flatMap(([type, cats]) => Object.keys(cats).map((cat) => pair('Case Type', type, 'Category', cat))),
   ...Object.values(CASE_TREE).flatMap((cats) => Object.entries(cats).flatMap(([cat, subs]) => subs.map((s) => pair('Category', cat, 'Sub Category', s)))),
+  ...Object.entries(SUB2_TREE).flatMap(([sub, vals]) => vals.map((v) => pair('Sub Category', sub, 'Sub Category 2', v))),
   ...Object.entries(CASE_MASTER).flatMap(([cat, m]) => [
     ...(m.requestFor || []).map((v) => pair('Category', cat, 'Request For', v)),
     ...(m.sub2 || []).map((v) => pair('Category', cat, 'Sub Category 2', v)),

@@ -9,8 +9,9 @@ const dmy = (d) => new Date(d).toLocaleDateString('en-IN', { weekday: 'short', d
 
 /** Every store and team a case can be escalated to, for pickers. */
 export function useTargets() {
-  const { stores, teams } = useMeta();
+  const { stores, teams, hoMatrix } = useMeta();
   return [
+    ...(hoMatrix?.rows || []).map((r) => ({ value: `matrix:${r.key}`, label: `HO matrix: ${r.row}` })),
     ...stores.map((s) => ({ value: `store:${s.code}`, label: `Store ${s.code} ${s.short} – ${s.name}` })),
     ...Object.entries(teams || {})
       .filter(([k]) => !PSEUDO_TEAMS.includes(k))
@@ -36,6 +37,10 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
   const levels = c.levels || [];
   const next = levels[level - 1];
   const promiseMissed = c.promisedAt && c.promisedAt < today();
+  const m = c.matrix || null; // First Time Resolution → Level 1 → Level 2 (HO matrix row, or the store's / team's row)
+  const nextName = next?.label || (level === 1 ? 'Level 1' : 'Level 2');
+  const nextTat = next ? next.tatText || `${next.tatDays || 1} working day${(next.tatDays || 1) > 1 ? 's' : ''}` : '';
+  const dueText = (iso) => (iso ? (m?.stages[level - 1]?.tat?.unit === 'hours' ? new Date(iso).toLocaleString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : dmy(iso)) : '—');
 
   async function run(fn, done) {
     setBusy(true);
@@ -55,8 +60,22 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
     <section className={embedded ? 'esc-embedded' : 'card esc-panel'}>
       <div className="row between">
         {embedded ? <strong>Escalation</strong> : <h2>Escalation</h2>}
-        <span className={`esc-level l${Math.min(level, 4)}`}>Level {level}</span>
+        <span className={`esc-level l${Math.min(level, 4)}`}>{c.levelName}</span>
       </div>
+
+      {m && (
+        <div className="esc-stages">
+          {m.stages.map((s, i) => (
+            <div key={s.label} className={`esc-stage ${i === level - 1 ? 'now' : i < level - 1 ? 'done' : ''}`}>
+              <strong>
+                {s.label} · {s.tatText}
+              </strong>
+              {s.to.length ? s.to.join(', ') : <span className="over">email not set — <Link to="/settings">add</Link></span>}
+              {s.cc.length > 0 && <div className="muted">cc {s.cc.join(', ')}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {c.storeReplyReview && (
         <div className="notice esc-review">
@@ -79,12 +98,13 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
       <div className="esc-grid small">
         <span className="muted">With</span>
         <span>
-          <strong>{to.name}</strong>
-          {to.contact && ` · ${to.contact}`} {to.email ? <span className="muted">{to.email}</span> : <span className="over">no email — <Link to="/settings">add</Link></span>}
+          <strong>{m ? `${m.ho ? m.row : to.name} – ${m.stages[Math.min(level, m.stages.length) - 1]?.label}` : to.name}</strong>
+          {!m && to.contact && ` · ${to.contact}`}{' '}
+          {m?.stages[Math.min(level, m.stages.length) - 1]?.to.length ? <span className="muted">{m.stages[Math.min(level, m.stages.length) - 1].to.join(', ')}</span> : to.email ? <span className="muted">{to.email}</span> : <span className="over">no email — <Link to="/settings">add</Link></span>}
         </span>
         <span className="muted">Due</span>
         <span>
-          {c.dueAt ? dmy(c.dueAt) : '—'} <Due iso={c.dueAt} />
+          {dueText(c.dueAt)} <Due iso={c.dueAt} />
         </span>
         <span className="muted">Promised by</span>
         <span>
@@ -101,11 +121,11 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
         <span>
           {next ? (
             <>
-              Level {level + 1}: <strong>{next.name || next.email}</strong> <span className="muted">· TAT {next.tatDays || 1} working day{(next.tatDays || 1) > 1 ? 's' : ''} · automatic when the due date passes</span>
+              <strong>{nextName}</strong>{!m && `: ${next.name || next.email}`} <span className="muted">· TAT {nextTat} · automatic when the due date passes</span>
             </>
           ) : (
             <span className="muted">
-              {levels.length ? 'Highest level reached: a daily reminder goes out while overdue' : 'No escalation matrix yet'} — <Link to="/settings">Escalation matrix</Link>
+              {levels.length || m ? 'Highest level reached: a daily reminder goes out while overdue' : 'No escalation matrix yet'} — <Link to="/settings">Escalation matrix</Link>
             </span>
           )}
         </span>
@@ -115,9 +135,11 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
         <button className={`btn sm ${mode === 'reroute' ? 'active' : ''}`} onClick={() => setMode(mode === 'reroute' ? null : 'reroute')}>
           Re-assign to another store / team
         </button>
-        <button className={`btn sm danger ${mode === 'raise' ? 'active' : ''}`} disabled={!next} title={next ? '' : 'Add the next level in the escalation matrix first'} onClick={() => setMode(mode === 'raise' ? null : 'raise')}>
-          Escalate to level {level + 1} now
-        </button>
+        {level < 3 && (
+          <button className={`btn sm danger ${mode === 'raise' ? 'active' : ''}`} disabled={!next} title={next ? '' : 'Fill in the next level in Stores & settings → Escalation matrix first'} onClick={() => setMode(mode === 'raise' ? null : 'raise')}>
+            Escalate to {nextName} now
+          </button>
+        )}
       </div>
 
       {mode === 'reroute' && (
@@ -133,7 +155,7 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
               ))}
           </select>
           <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Why (e.g. store says this is an app order)" />
-          <div className="muted small">Starts again at Level 1 with a fresh TAT; the escalation email goes to the new store / team.</div>
+          <div className="muted small">Starts again at the first level with a fresh TAT; the escalation email goes to the new store / team.</div>
           <div className="row end">
             <button className="btn primary" disabled={!pick || busy} onClick={() => run(() => api.post(`/cases/${c.id}/reroute`, { ...splitTarget(pick), note: text }))}>
               Re-assign
@@ -145,11 +167,20 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
         <div className="action-box">
           <textarea rows={2} value={text} onChange={(e) => setText(e.target.value)} placeholder="Reason (e.g. store not responding to calls)" autoFocus />
           <div className="muted small">
-            Emails {to.name} with <strong>{next.name || next.email}</strong> ({next.email}) in copy; new due date in {next.tatDays || 1} working day{(next.tatDays || 1) > 1 ? 's' : ''}.
+            {m ? (
+              <>
+                Emails <strong>{next.to.join(', ')}</strong>
+                {next.cc.length > 0 && <> with {next.cc.join(', ')} in copy</>}; new due date in {nextTat}.
+              </>
+            ) : (
+              <>
+                Emails {to.name} with <strong>{next.name || next.email}</strong> ({next.email}) in copy; new due date in {nextTat}.
+              </>
+            )}
           </div>
           <div className="row end">
             <button className="btn danger" disabled={!text.trim() || busy} onClick={() => run(() => api.post(`/cases/${c.id}/raise-level`, { reason: text }))}>
-              Escalate to level {level + 1}
+              Escalate to {nextName}
             </button>
           </div>
         </div>

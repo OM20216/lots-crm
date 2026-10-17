@@ -158,3 +158,9 @@
 .lf-panel-live.alert { background: #fee2e2; color: #b91c1c; }
 .lf-panel .btn.block { margin: 8px 0 4px; }
 .lf-page .page-head { margin-bottom: 10px; }
+
+/* escalation flow (EscalationFlow.jsx) */
+.lf-handle.react-flow__handle-left { left: -5px; }
+.lf-handle.react-flow__handle-right { right: -5px; }
+.ef-pick { min-width: 260px; }
+.ef-edit { margin-top: 8px; }

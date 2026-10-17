@@ -20,7 +20,7 @@ function Flags({ c }) {
   const day = today();
   return (
     <>
-      {(c.escalationLevel || 1) > 1 && <span className="flag red">Level {c.escalationLevel}</span>}
+      {(c.escalationLevel || 1) > 1 && <span className="flag red">{c.escalationLevel >= 3 ? 'Level 2' : 'Level 1'}</span>}
       {c.storeReplyReview && <span className="flag amber">Store replied — check</span>}
       {c.promisedAt && <span className={`flag ${c.promisedAt < day ? 'red' : 'blue'}`}>{c.promisedAt < day ? 'Promise missed' : 'Promised'} {new Date(c.promisedAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>}
       {needsFollowupToday(c) && <span className="flag amber">Not followed up today</span>}

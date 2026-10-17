@@ -2,7 +2,7 @@ import { CASE_MASTER } from './taxonomy.js';
 // "Request requirements" / "Information complete?" from the workflow — only what the SOP lists.
 // Used by the agent screens (checklist) and by the server's automatic email check.
 
-// Keyed by sub-category (LOTS case master, src/taxonomy.js). `docs`: the customer must send documents (so an email needs attachments).
+// Keyed by request for, sub-category 2 or sub-category (LOTS case master, src/taxonomy.js). `docs`: the customer must send documents (so an email needs attachments).
 const MEMBERSHIP_DOCS = {
   docs: true,
   items: [
@@ -21,7 +21,7 @@ const SUPPLIER_DOCS = {
 
 export const REQUIREMENTS = {
   'New Member - Customer': MEMBERSHIP_DOCS,
-  'Add-On Cards': {
+  'Request for Add on card': {
     docs: true,
     items: [
       'Maximum 4 add-on cards per member',
@@ -36,18 +36,20 @@ export const REQUIREMENTS = {
   'Suppliers - FMCG - Food': SUPPLIER_DOCS,
   'Suppliers - FMCG - Commodities': SUPPLIER_DOCS,
   'Suppliers - Non Food': SUPPLIER_DOCS,
+  'Suppliers - FMCG - Non Food': SUPPLIER_DOCS,
+  'Suppliers - D&F': SUPPLIER_DOCS,
   'Re-issuing of Lost Card': {
     docs: true,
     items: ['Lost card application on business letterhead', 'Valid govt ID proof'],
   },
-  'Address updation': {
+  'Request related to Membership data': {
     docs: true,
     items: ['New address proof', 'Govt-approved business licence', 'Authority letter'],
   },
-  'Return Of Goods': {
+  'Return of goods related Request': {
     items: ['Original bill stamped by the store guard (no bill → the store verifies the purchase internally)', 'Within 7 working days · packaging intact, unused, saleable, with free articles · before expiry'],
   },
-  'Stock availability': {
+  'Stock availablity related Request': {
     items: ['Product details', 'Quantity'],
   },
 };
@@ -56,14 +58,15 @@ export const REQUIREMENTS = {
 export function requirementsFor(x) {
   if (!x || typeof x === 'string') return REQUIREMENTS[x] || null;
   // the case master gives every request category "Re-issuing of Lost Card" as request for; only a membership request is about a card
-  const requestFor = x.requestFor === 'Re-issuing of Lost Card' && x.category !== 'Membership Related Request' ? '' : x.requestFor;
+  const requestFor = x.requestFor === 'Re-issuing of Lost Card' && x.category !== 'Membership related Request' ? '' : x.requestFor;
   for (const v of [x.sub2, x.subCategory, requestFor]) if (REQUIREMENTS[v]) return REQUIREMENTS[v];
   return null;
 }
 
 // Categories whose workflow needs a store / an order number (LOTS case master).
-const STORE_CATEGORIES = ['Store Related', 'BDA Related', 'Store Related Request', 'BDA Related REQUESTS'];
-const APP_CATEGORIES = ['App Related', 'ECommerce Related', 'App Related Requests', 'E Commerce Related Request'];
+const APP_CATEGORIES = ['LOTS-App Related', 'E-Comm Related', 'Lots-App Related Request', 'E Commerce Related Request'];
+// the store escalation matrix is per store, so these need the store too
+const STORE_CATEGORIES = ['Store related', 'BDA related', 'Store related Request', 'BDA Related REQUESTS', ...APP_CATEGORIES];
 
 /**
  * What an email case still lacks before it can go to the store. Empty array = complete.
@@ -119,7 +122,7 @@ function sopWarningsSop(c) {
   const text = `${c.description || ''} ${c.subject || ''}`;
 
   // Return and exchange policy
-  if (c.subCategory === 'Return Of Goods') {
+  if (c.subCategory === 'Return of goods related Request' || c.subCategory === 'Return of goods') {
     if (c.productCategory === 'Fresh' || NON_RETURNABLE.test(text))
       w.push('Return policy: oil, ghee, fresh dairy, fruits, vegetables, meat, fish and temperature-controlled products cannot be returned or exchanged.');
     const days = c.purchaseDate ? workingDaysSince(c.purchaseDate) : null;

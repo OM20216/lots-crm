@@ -28,24 +28,30 @@ const sparktg = await import('./sparktg.js');
 const mail = await import('./mail.js');
 const auto = await import('./automation.js');
 const calls = await import('./calls.js');
+const matrixImport = await import('./matrixImport.js');
+const matrixLink = await import('./matrixLink.js');
 const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
 const { workflowFor } = await import('../src/workflows.js');
+const { CRISIS_CONTACTS, HO_MATRIX, MATRIX_SOURCE, STAGES, WORK_HOURS } = await import('../src/escalationMatrix.js');
 
 const { db, save, now, log, findCase, applyStatus, phoneKey, TRANSITIONS } = core;
-const { normalizeCallerType } = await import('../src/taxonomy.js');
+const { normalizeCallerType, normalizeCaseNames } = await import('../src/taxonomy.js');
 {
   // type of contact renamed to the case master's labels (15 Oct 2026): convert saved cases once
   let n = 0;
   for (const c of db().cases) {
     const v = normalizeCallerType(c.callerType);
     if (v !== c.callerType) (c.callerType = v), n++;
+    // case types / categories renamed to the escalation workbook's "Case catergory" sheet (17 Oct 2026)
+    const names = normalizeCaseNames(c);
+    if (Object.keys(names).length) Object.assign(c, names), n++;
   }
   // store 105 is "DH Duhai" in the case master
   const dh = db().stores.find((x) => x.code === '105');
   if (dh && dh.short === 'GZB') (dh.short = 'DH'), n++;
   if (n) {
     save();
-    console.log(`Updated to the case master names (type of contact, DH store): ${n} change(s)`);
+    console.log(`Updated to the case master names (type of contact, case type / category, DH store): ${n} change(s)`);
   }
 }
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -70,6 +76,9 @@ api.get('/meta', (req, res) => {
     teams: core.teams(),
     picklists: db().picklists || {},
     escalationMatrix: db().settings?.escalationMatrix || {},
+    hoMatrix: hoMatrixView(),
+    contactMatrix: contactMatrixView(),
+    workHours: { ...WORK_HOURS, ...(db().settings?.workHours || {}) },
     holidays: db().settings?.holidays || [],
     dependencies: db().dependencies || [],
     database: store.status(),
@@ -205,8 +214,28 @@ api.get('/cases', (req, res) => {
 // A case with where its escalation goes (target) and the levels above Level 1 (escalation matrix)
 function view(c) {
   const target = core.targetFor(c);
-  return { ...c, target, levels: core.escalationLevels(c.status === 'Escalated' && c.escalatedTo ? c.escalatedTo : target) };
+  const at = c.status === 'Escalated' && c.escalatedTo ? c.escalatedTo : target;
+  const row = core.escalationRow(at.kind === 'store' && !at.code ? null : at);
+  return {
+    ...c,
+    target,
+    levels: core.escalationLevels(at),
+    levelName: core.levelName({ ...c, escalatedTo: at }),
+    // the three stages (First Time Resolution, Level 1, Level 2) of the HO row or the store / team row
+    matrix: row && { key: row.key, row: row.row, ho: at.kind === 'matrix', levelsFrom: row.levelsFrom || null, stages: [0, 1, 2].map((i) => core.hoStage(row, i)).filter(Boolean) },
+  };
 }
+
+// Store / team escalation rows for the screens (stage 0 = the store's / team's own contact)
+const contactMatrixView = () =>
+  core.contactRows().map((r) => ({ key: r.key, kind: r.kind, code: r.code, row: r.row, edited: r.edited, updatedAt: r.updatedAt, updatedBy: r.updatedBy, stages: [0, 1, 2].map((i) => (r.stages[i] ? { ...core.hoStage({ stages: [r.stages[i]] }, 0), label: STAGES[i] } : null)) }));
+
+// HO escalation matrix for the screens: each row with its stages ready to show (To / Cc without duplicates, TAT text)
+const hoMatrixView = () => ({
+  source: MATRIX_SOURCE,
+  crisis: CRISIS_CONTACTS,
+  rows: core.hoMatrix().map((r) => ({ key: r.key, row: r.row, match: r.match, updatedAt: r.updatedAt, updatedBy: r.updatedBy, edited: Boolean(r.updatedAt), stages: [0, 1, 2].map((i) => core.hoStage(r, i)).filter(Boolean) })),
+});
 
 // SOP: a store follow-up is a call by an agent (the automatic daily email doesn't count)
 const lastFollowup = (timeline = []) => [...timeline].reverse().find((t) => t.type === 'store-followup' && t.by !== 'Automation')?.at || null;
@@ -280,7 +309,7 @@ api.post(
     const reason = String(req.body.reason || '').trim();
     if (!reason) return res.status(400).json({ error: 'Give a reason for escalating further' });
     const level = await auto.raiseLevel(c, agentOf(req), reason);
-    if (!level) return res.status(400).json({ error: `No Level ${(c.escalationLevel || 1) + 1} contact in the escalation matrix (Stores & settings → Escalation matrix)` });
+    if (!level) return res.status(400).json({ error: c.escalatedTo?.kind === 'matrix' ? 'The case is already at Level 2, the highest level of the HO escalation matrix' : (c.escalationLevel || 1) >= 3 ? 'The case is already at Level 2, the highest level' : `No ${core.levelName(c, (c.escalationLevel || 1) + 1)} contact in the escalation matrix (Stores & settings → Store / team escalation matrix)` });
     res.json(view(c));
   })
 );
@@ -290,12 +319,12 @@ api.post('/cases/:id/set-level', (req, res) => {
   const c = findCase(req.params.id);
   if (!c) return res.status(404).json({ error: 'Case not found' });
   if (c.status !== 'Escalated') return res.status(400).json({ error: 'Only an escalated case has an escalation level' });
-  const level = Math.max(1, Math.min(10, Number(req.body.level) || 1));
+  const level = Math.max(1, Math.min(3, Number(req.body.level) || 1));
   const reason = String(req.body.reason || '').trim();
   if (!reason) return res.status(400).json({ error: 'Give a reason' });
   const was = c.escalationLevel || 1;
   c.escalationLevel = level;
-  log(c, { by: agentOf(req), type: 'escalation', text: `Escalation level corrected from ${was} to ${level} — ${reason}` });
+  log(c, { by: agentOf(req), type: 'escalation', text: `Escalation level corrected from ${core.levelName(c, was)} to ${core.levelName(c, level)} — ${reason}` });
   save();
   res.json(view(c));
 });
@@ -305,7 +334,7 @@ api.put('/escalation-matrix/:key', (req, res) => {
   const key = req.params.key;
   const ok = key === '*' || (key.startsWith('store:') && db().stores.some((s) => 'store:' + s.code === key)) || (key.startsWith('team:') && core.teams()[key.slice(5)]);
   if (!ok) return res.status(404).json({ error: 'Unknown store or team' });
-  const levels = (Array.isArray(req.body.levels) ? req.body.levels : []).slice(0, 4).map((l) => ({
+  const levels = (Array.isArray(req.body.levels) ? req.body.levels : []).slice(0, 2).map((l) => ({ // Level 1 and Level 2 only (as in the Excel)
     name: String(l?.name || '').trim().slice(0, 100),
     email: String(l?.email || '').trim().slice(0, 300),
     phone: String(l?.phone || '').trim().slice(0, 30),
@@ -315,13 +344,141 @@ api.put('/escalation-matrix/:key', (req, res) => {
   if (bad) return res.status(400).json({ error: `Not a valid email: ${bad.email}` });
   // keep levels in order: an empty level in the middle would skip a level
   while (levels.length && !levels[levels.length - 1].email && !levels[levels.length - 1].name) levels.pop();
-  if (levels.some((l) => !l.email)) return res.status(400).json({ error: 'Each level needs an email (fill the levels in order: 2, then 3, …)' });
+  if (levels.some((l) => !l.email)) return res.status(400).json({ error: 'Each level needs an email (fill Level 1 first, then Level 2)' });
   const d = db();
   d.settings ||= {};
   d.settings.escalationMatrix = { ...(d.settings.escalationMatrix || {}), [key]: levels };
   if (!levels.length) delete d.settings.escalationMatrix[key];
+  // kept for older screens / tests: also update the row's Level 1 / Level 2
+  const rows = (d.settings.escalationRows ||= {});
+  if (rows[key]) rows[key].stages = [rows[key].stages[0], ...[0, 1].map((i) => (levels[i] ? { to: levels[i].email.split(/[,;\s]+/).filter(Boolean), cc: [], tat: { value: levels[i].tatDays, unit: 'days' }, name: levels[i].name } : null))];
   save();
   res.json(d.settings.escalationMatrix);
+});
+
+// Escalation matrix – stores & teams: one row per store / team (and the default '*'),
+// First Time Resolution (the store's / team's email, saved on the store / team too), Level 1, Level 2: To / Cc / TAT
+api.put('/escalation-rows/:key', (req, res) => {
+  const key = req.params.key;
+  const row = core.contactRow(key);
+  if (!row) return res.status(404).json({ error: 'Unknown store or team' });
+  const list = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\s]+/)).map((e) => String(e).trim()).filter(Boolean);
+  const stages = [0, 1, 2].map((i) => {
+    const s = req.body.stages?.[i] || {};
+    const to = list(s.to);
+    const cc = list(s.cc);
+    const value = Number(s.tat?.value) || 1;
+    const unit = s.tat?.unit === 'hours' ? 'hours' : 'days';
+    const bad = [...to, ...cc].find((e) => !EMAIL.test(e));
+    if (bad) throw core.fail(`${STAGES[i]}: not a valid email: ${bad}`);
+    if (cc.length && !to.length) throw core.fail(`${STAGES[i]}: add the To before the Cc`);
+    if (!(value > 0 && value <= (unit === 'hours' ? 72 : 30))) throw core.fail(`${STAGES[i]}: TAT must be 1–${unit === 'hours' ? 72 : 30} working ${unit}`);
+    return { to, cc, tat: { value, unit } };
+  });
+  if (!stages[1].to.length && stages[2].to.length) return res.status(400).json({ error: 'Fill Level 1 before Level 2' });
+  const d = db();
+  d.settings ||= {};
+  d.settings.escalationRows = { ...(d.settings.escalationRows || {}), [key]: { stages: [key === '*' ? null : stages[0], stages[1], stages[2]], updatedAt: now(), updatedBy: agentOf(req) } };
+  // the First Time Resolution To is the store's / team's email
+  if (row.kind === 'store') d.stores.find((x) => x.code === row.code).spocEmail = stages[0].to.join(', ');
+  if (row.kind === 'team') d.teams = { ...(d.teams || {}), [row.code]: { ...(d.teams?.[row.code] || {}), email: stages[0].to.join(', ') } };
+  if (d.settings.escalationMatrix) delete d.settings.escalationMatrix[key]; // the row replaces the older Level 1 / 2 entry
+  save();
+  res.json(contactMatrixView());
+});
+
+// Clear a row's copy lists and levels (the store's / team's email stays)
+api.delete('/escalation-rows/:key', (req, res) => {
+  const d = db();
+  if (d.settings?.escalationRows) delete d.settings.escalationRows[req.params.key];
+  if (d.settings?.escalationMatrix) delete d.settings.escalationMatrix[req.params.key];
+  save();
+  res.json(contactMatrixView());
+});
+
+api.post(
+  '/escalation-rows/:key/sample',
+  wrap(async (req, res) => {
+    if (!auto.previewing()) return res.status(400).json({ error: 'Teams preview is off or not connected (Automation → Teams preview)' });
+    if (req.params.key === '*') return res.status(400).json({ error: 'Pick a store or team (the default row has no First Time Resolution contact)' });
+    res.json({ count: await auto.sendMatrixSamples(req.params.key, agentOf(req)) });
+  })
+);
+
+// HO escalation matrix: change a row's SPOCs / escalation lists / TATs (LOTS sends a new version of the sheet)
+const EMAIL = /^[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}$/i;
+api.put('/ho-matrix/:key', (req, res) => {
+  const base = core.hoRow(req.params.key);
+  if (!base) return res.status(404).json({ error: 'Unknown escalation matrix row' });
+  const list = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\s]+/)).map((e) => String(e).trim()).filter(Boolean);
+  const stages = (req.body.stages || []).slice(0, 3).map((s, i) => {
+    const to = list(s?.to);
+    const cc = list(s?.cc);
+    const value = Number(s?.tat?.value);
+    const unit = s?.tat?.unit === 'hours' ? 'hours' : 'days';
+    const bad = [...to, ...cc].find((e) => !EMAIL.test(e));
+    if (bad) throw core.fail(`${STAGES[i]}: not a valid email: ${bad}`);
+    if (!to.length) throw core.fail(`${STAGES[i]}: add the SPOC (To)`);
+    if (!(value > 0 && value <= (unit === 'hours' ? 72 : 30))) throw core.fail(`${STAGES[i]}: TAT must be 1–${unit === 'hours' ? 72 : 30} working ${unit}`);
+    return { to, cc, tat: { value, unit } };
+  });
+  if (stages.length !== 3) return res.status(400).json({ error: 'The row needs all three stages: First Time Resolution, Level 1 and Level 2' });
+  const d = db();
+  d.settings ||= {};
+  d.settings.hoMatrix = { ...(d.settings.hoMatrix || {}), [base.key]: { stages, updatedAt: now(), updatedBy: agentOf(req) } };
+  save();
+  res.json(hoMatrixView());
+});
+
+// Back to the row as in the sheet (src/escalationMatrix.js)
+api.delete('/ho-matrix/:key', (req, res) => {
+  const d = db();
+  if (d.settings?.hoMatrix) delete d.settings.hoMatrix[req.params.key];
+  // a row added from an updated Excel has no "sheet" version: remove it
+  if (d.settings?.hoExtra) d.settings.hoExtra = d.settings.hoExtra.filter((r) => r.key !== req.params.key);
+  save();
+  res.json(hoMatrixView());
+});
+
+// Post the First Time Resolution / Level 1 / Level 2 emails of one row to Teams (sample case, nothing emailed)
+api.post(
+  '/ho-matrix/:key/sample',
+  wrap(async (req, res) => {
+    if (!auto.previewing()) return res.status(400).json({ error: 'Teams preview is off or not connected (Automation → Teams preview)' });
+    res.json({ count: await auto.sendMatrixSamples(req.params.key, agentOf(req)) });
+  })
+);
+
+// Updated escalation matrix from LOTS (Excel / CSV): preview the changes, apply, undo
+api.post(
+  '/matrix-import',
+  express.raw({ type: () => true, limit: '10mb' }),
+  wrap(async (req, res) => {
+    if (!Buffer.isBuffer(req.body) || !req.body.length) return res.status(400).json({ error: 'No file received' });
+    const name = String(req.query.name || 'matrix.xlsx');
+    if (!/\.(xlsx|csv)$/i.test(name)) return res.status(400).json({ error: 'Upload the matrix as .xlsx or .csv' });
+    res.json(await matrixImport.preview(req.body, name, agentOf(req)));
+  })
+);
+api.get('/matrix-import', (req, res) => res.json({ open: matrixImport.openImports(), history: matrixImport.history(), choices: matrixImport.mappingChoices(), link: matrixLink.status() }));
+// Live link to the Excel on OneDrive / SharePoint: checked every few minutes, applied when LOTS saves a change
+api.put('/matrix-link', wrap(async (req, res) => res.json(await matrixLink.setLink(req.body.url, req.body.every, agentOf(req)))));
+api.post('/matrix-link/check', wrap(async (req, res) => res.json(await matrixLink.check(Boolean(req.body?.force)))));
+api.delete('/matrix-link', (req, res) => res.json(matrixLink.unlink()));
+api.post('/matrix-import/:id/apply', (req, res) => res.json(matrixImport.apply(req.params.id, agentOf(req), req.body.mapping || {})));
+api.post('/matrix-import/:id/undo', (req, res) => res.json(matrixImport.undo(req.params.id, agentOf(req))));
+
+// HO working hours, for TATs in hours (Legal: First Time Resolution within 4 working hours)
+api.put('/work-hours', (req, res) => {
+  const t = (v) => (/^([01]\d|2[0-3]):[0-5]\d$/.test(v || '') ? v : null);
+  const start = t(req.body.start);
+  const end = t(req.body.end);
+  if (!start || !end || end <= start) return res.status(400).json({ error: 'Give the start and end time (HH:MM), end after start' });
+  const d = db();
+  d.settings ||= {};
+  d.settings.workHours = { start, end };
+  save();
+  res.json(d.settings.workHours);
 });
 
 // Holidays: not counted as working days in TATs
@@ -981,7 +1138,7 @@ api.get('/flow', (req, res) => {
     missed: n(openMissed.length, openMissed.some((m) => m.dueAt < t) ? `open · ${openMissed.filter((m) => m.dueAt < t).length} past 30 min` : 'open', openMissed.some((m) => m.dueAt < t)),
     email: n(by((c) => c.channel === 'Email' && c.status === 'Pending'), 'pending emails', by((c) => c.channel === 'Email' && c.status === 'Pending') > 0),
     airead: n(by((c) => c.channel === 'Email' && c.auto && isToday(c.createdAt)), 'read automatically today'),
-    aicheck: n(by((c) => c.channel === 'Email' && isToday(c.createdAt) && ['Issues or Complaints - NR', 'Requests'].includes(c.caseType)), 'checked today'),
+    aicheck: n(by((c) => c.channel === 'Email' && isToday(c.createdAt) && ['Issues or Complaint', 'Issues and Complaint (NR)', 'Request'].includes(c.caseType)), 'checked today'),
     aiwait: n(by((c) => c.status === 'Waiting' && c.infoRequests), 'waiting for customer info'),
     ob: n(d.leads.filter(leadOpen).length, 'leads to call'),
     obpitch: n(d.calls.filter((r) => r.direction === 'outbound' && isToday(r.startedAt)).length, 'outbound calls today'),
@@ -990,10 +1147,10 @@ api.get('/flow', (req, res) => {
     custtype: n(d.stores.length, 'stores'),
     casetype: n(open.filter((c) => !c.caseType).length, 'open, not categorised', open.some((c) => !c.caseType)),
     enq: n(open.filter((c) => c.caseType === 'Inquiry').length, 'open'),
-    comp: n(open.filter((c) => c.caseType === 'Issues or Complaints - NR').length, 'open'),
-    req: n(open.filter((c) => c.caseType === 'Requests').length, 'open'),
+    comp: n(open.filter((c) => c.caseType.startsWith('Issues')).length, 'open'),
+    req: n(open.filter((c) => c.caseType === 'Request').length, 'open'),
     kb: n(by((c) => c.caseType === 'Inquiry' && c.resolutionType === 'ROT' && isToday(c.closedAt)), 'answered today'),
-    reqdocs: n(open.filter((c) => c.caseType === 'Requests').length, 'open requests'),
+    reqdocs: n(open.filter((c) => c.caseType === 'Request').length, 'open requests'),
     createcase: n(by((c) => isToday(c.createdAt)), 'created today'),
     decide: n(by((c) => c.status === 'Pending'), 'pending decision', by((c) => c.status === 'Pending') > 0),
     rot: n(by((c) => c.resolutionType === 'ROT' && isToday(c.closedAt)), 'ROT today'),

@@ -64,7 +64,7 @@ const SWITCHES = [
   ['autoConfirmationLead', 'Queue the confirmation call', 'Resolved case → Outbound leads “Confirmation / resolution”. The call outcome closes or re-escalates the case.'],
   ['autoFollowupLead', 'Queue the follow-up call', 'Waiting case → Outbound leads “Follow-up” to ask for the missing details. “Info received” moves the case back to Pending.'],
   ['autoSurveyLead', 'Queue a customer survey call', 'Closed case → Outbound leads “Customer survey” (SOP: collect feedback). Off by default.'],
-  ['overdueReminder', 'Chase overdue escalations', 'TAT crossed → reminder to store SPOC (cc Level 2) and escalation level goes up, every working day.'],
+  ['overdueReminder', 'Chase overdue escalations', 'TAT crossed → automatically to Level 1, then Level 2 (escalation matrix); after Level 2 a reminder every working day.'],
 ];
 
 export default function Automation() {
@@ -156,7 +156,7 @@ export default function Automation() {
         <div className="grid">
           {text('mailTestTo', 'Test mode: send all emails to', 'While filled in, every outgoing email goes only to this address (subject [TEST]), so you can check emails without customers or stores receiving them. Empty = live', 'email')}
           {text('storeDigestTime', 'Daily store follow-up email at', 'Each store SPOC gets its pending list. Blank = off', 'time')}
-          {text('l2Email', 'Level 2 escalation email', 'Used only while the escalation matrix (Stores & settings) is empty', 'email')}
+          {text('l2Email', 'Level 1 escalation email', 'Used only while the store / team escalation matrix (Stores & settings) is empty', 'email')}
           {num('waitingReminderHours', 'Remind customer after (hours in Waiting)', '0 = off')}
           {text('supervisorEmail', 'Daily report to', 'Supervisor / process lead', 'email')}
           {text('dailyReportTime', 'Daily report at', 'End of day', 'time')}

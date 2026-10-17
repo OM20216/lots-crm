@@ -4,6 +4,7 @@ import * as sparktg from './sparktg.js';
 import { extractRefs } from '../src/requirements.js';
 import { normalizeCallerType } from '../src/taxonomy.js';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
+import { HO_MATRIX, STAGES, WORK_HOURS, cleanList, matrixRowFor, tatText } from '../src/escalationMatrix.js';
 
 export const db = () => store.get();
 export const save = () => store.save();
@@ -52,6 +53,43 @@ export function addWorkingDays(from, days) {
   }
   return d.toISOString();
 }
+
+/** HO working hours (Stores & settings), e.g. { start: '09:00', end: '21:00' }, as minutes of the day. */
+export function workHours() {
+  const w = { ...WORK_HOURS, ...(db().settings?.workHours || {}) };
+  const min = (t) => {
+    const [h, m] = String(t).split(':').map(Number);
+    return h * 60 + (m || 0);
+  };
+  return { start: min(w.start), end: min(w.end), text: `${w.start}–${w.end}` };
+}
+
+/** `hours` working hours after `from`: only inside working hours, on working days (Legal: 4 working hours). */
+export function addWorkingHours(from, hours) {
+  const { start, end } = workHours();
+  const hol = holidays();
+  const d = new Date(from);
+  let left = Math.round(hours * 60);
+  while (left > 0) {
+    const mins = d.getHours() * 60 + d.getMinutes();
+    if (!isWorkingDay(d, hol) || mins >= end) {
+      d.setDate(d.getDate() + 1);
+      d.setHours(Math.floor(start / 60), start % 60, 0, 0);
+      continue;
+    }
+    if (mins < start) {
+      d.setHours(Math.floor(start / 60), start % 60, 0, 0);
+      continue;
+    }
+    const step = Math.min(left, end - mins);
+    d.setMinutes(d.getMinutes() + step);
+    left -= step;
+  }
+  return d.toISOString();
+}
+
+/** Deadline for a matrix TAT ({ value, unit: 'days' | 'hours' }). */
+export const addTat = (from, tat) => (tat?.unit === 'hours' ? addWorkingHours(from, tat.value) : addWorkingDays(from, Number(tat?.value) || 1));
 
 /** Working days between two dates (for reports), to one decimal. */
 export function workingDaysBetween(a, b) {
@@ -190,8 +228,106 @@ export function teams() {
   return Object.fromEntries(Object.entries(TEAMS).map(([k, t]) => [k, { ...t, ...(saved[k] || {}) }]));
 }
 
+// ---------- HO escalation matrix (src/escalationMatrix.js; edited in Stores & settings) ----------
+/** The rows in use: the sheet, with any row LOTS changed later (saved in settings). */
+export function hoMatrix() {
+  const saved = db().settings?.hoMatrix || {};
+  const extra = db().settings?.hoExtra || []; // rows LOTS added to the sheet later (Excel import)
+  return [...HO_MATRIX, ...extra].map((r) => (saved[r.key] ? { ...r, stages: saved[r.key].stages, updatedAt: saved[r.key].updatedAt, updatedBy: saved[r.key].updatedBy } : r));
+}
+export const hoRow = (key) => hoMatrix().find((r) => r.key === key) || null;
+export const hoRowFor = (c) => matrixRowFor(c, hoMatrix());
+
+/** One stage of a row, ready to send: To, Cc (without anyone already in To), TAT. index 0 = First Time Resolution. */
+export function hoStage(row, i) {
+  const s = row?.stages?.[i];
+  if (!s || (i > 0 && !s.to?.length)) return null;
+  const to = cleanList(s.to);
+  return { label: STAGES[i], to, cc: cleanList(s.cc, to), tat: s.tat, tatText: tatText(s.tat), toConfirm: s.toConfirm || s.tat?.toConfirm || '', fixed: s.fixed || '' };
+}
+
+// ---------- store / team escalation rows (Stores & settings → Escalation matrix – stores & teams) ----------
+// Same shape as the HO matrix: First Time Resolution (the store's / team's own contact), Level 1, Level 2,
+// each with To / Cc / TAT. Saved in settings.escalationRows[key]; key = 'store:101' | 'team:ecom' | '*' (default levels).
+export const CONTACT_TEAMS = Object.keys(TEAMS).filter((k) => !['careDesk', 'store', 'homeStore'].includes(k));
+const split = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\s]+/)).map((e) => String(e).trim()).filter(Boolean);
+const daysTat = (n) => ({ value: Math.max(1, Number(n) || 1), unit: 'days' });
+
+/** The row as saved (or built from the older settings), without the default levels. */
+export function contactRow(key) {
+  const [kind, ...rest] = String(key).split(':');
+  const code = rest.join(':');
+  const saved = db().settings?.escalationRows?.[key];
+  const legacy = db().settings?.escalationMatrix?.[key] || []; // before 17 Oct 2026: [{ name, email, tatDays }] = Level 1, Level 2
+  let label = 'Default (stores and teams without their own levels)';
+  let first = '';
+  let contact = '';
+  if (kind === 'store') {
+    const s = db().stores.find((x) => x.code === code);
+    if (!s) return null;
+    label = `Store ${s.code} ${s.short} – ${s.name}`;
+    first = s.spocEmail;
+    contact = s.spocName || '';
+  } else if (kind === 'team') {
+    const t = teams()[code];
+    if (!t) return null;
+    label = t.name;
+    first = t.email;
+    contact = t.contact || '';
+  } else if (key !== '*') return null;
+  const lv = (i) => {
+    const s = saved?.stages?.[i];
+    if (s) return s.to?.length ? s : null;
+    const l = legacy[i - 1];
+    return l?.email ? { to: split(l.email), cc: split(l.cc), tat: daysTat(l.tatDays), name: l.name || '' } : null;
+  };
+  return {
+    key,
+    kind,
+    code,
+    row: label,
+    contact,
+    // the First Time Resolution To is the store / team email itself (one value, also used by the case page)
+    stages: [key === '*' ? null : { to: split(first), cc: split(saved?.stages?.[0]?.cc), tat: saved?.stages?.[0]?.tat || daysTat(1) }, lv(1), lv(2)],
+    edited: Boolean(saved),
+    updatedAt: saved?.updatedAt,
+    updatedBy: saved?.updatedBy,
+  };
+}
+
+/** Every store / team row, for the Settings page. */
+export const contactRows = () => ['*', ...db().stores.map((s) => `store:${s.code}`), ...CONTACT_TEAMS.map((k) => `team:${k}`)].map(contactRow).filter(Boolean);
+
+/**
+ * The full escalation row of a target: HO matrix row, or the store / team row with Level 1 / Level 2
+ * taken from the default row when it has none (and lastly from the Level 1 email on the Automation page).
+ */
+export function escalationRow(target) {
+  if (!target?.kind) return null;
+  if (target.kind === 'matrix') return hoRow(target.code);
+  const row = contactRow(`${target.kind}:${target.code}`) || contactRow('*');
+  if (!row.stages[1]) {
+    const def = contactRow('*');
+    const l1 = db().settings?.automation?.l2Email;
+    row.stages[1] = def.stages[1] || (l1 ? { to: split(l1), cc: [], tat: daysTat(1) } : null);
+    row.stages[2] = def.stages[1] ? def.stages[2] : null;
+    row.levelsFrom = def.stages[1] ? 'default' : l1 ? 'automation' : null;
+  }
+  return row;
+}
+
+const matrixTarget = (row) => {
+  const first = hoStage(row, 0);
+  return { kind: 'matrix', code: row.key, name: `${row.row} (HO matrix)`, email: first.to.join(', '), phone: '', contact: '' };
+};
+
 /** A store or team as an escalation target: { kind, code, name, email, phone, contact }. */
 export function targetByKey({ kind, code } = {}) {
+  if (kind === 'matrix') {
+    const row = hoRow(code);
+    if (!row) throw fail('Unknown escalation matrix row');
+    return matrixTarget(row);
+  }
   if (kind === 'team') {
     const t = teams()[code];
     if (!t) throw fail('Unknown team');
@@ -204,22 +340,39 @@ export function targetByKey({ kind, code } = {}) {
 /** Where this case escalates to: the agent's choice if they picked one, else the case type's workflow. */
 export function targetFor(c) {
   if (c.escalateTo?.kind) return targetByKey(c.escalateTo);
+  const row = hoRowFor(c); // the HO matrix has a row for this case type: its SPOCs, not the team
+  if (row) return matrixTarget(row);
   return escalationTarget(c, db().stores, teams(), db().members);
 }
 
+/** First deadline of an escalation: the matrix row's First Time Resolution TAT, else the workflow's TAT. */
+function firstDue(c, from) {
+  const tat = hoStage(escalationRow(c.escalatedTo), 0)?.tat || daysTat(ESCALATION_L1_WORKING_DAYS);
+  if (c.escalatedTo?.kind === 'matrix') return addTat(from, tat);
+  // store / team: the row's First Time Resolution TAT, or the case type's when the SOP gives it longer (refunds, new suppliers: 7 days)
+  const wf = workflowFor(c)?.tatDays || 0;
+  return tat.unit === 'days' && wf > tat.value ? addWorkingDays(from, wf) : addTat(from, tat);
+}
+
 /**
- * Escalation matrix (Stores & settings): the contacts above Level 1 for a store or team,
- * else the default levels, else the Level 2 email on the Automation page. Index 0 = Level 2.
+ * Name of an escalation level, as in LOTS's escalation matrix (Excel): the case first goes to the
+ * First Time Resolution contact, then two escalation levels, Level 1 and Level 2 — for every case.
+ */
+export const levelName = (c, level = c?.escalationLevel || 1) => STAGES[Math.min(level, 3) - 1];
+
+/**
+ * Escalation levels after First Time Resolution (store / team contact): Level 1 and Level 2 (only two,
+ * as in the Excel) — the store's or team's own, else the default, else the email on the Automation page.
  */
 export function escalationLevels(target) {
-  const m = db().settings?.escalationMatrix || {};
-  const usable = (list) => (list || []).filter((l) => l?.email);
-  const own = target?.kind ? usable(m[`${target.kind}:${target.code}`]) : [];
-  if (own.length) return own;
-  const def = usable(m['*']);
-  if (def.length) return def;
-  const l2 = db().settings?.automation?.l2Email;
-  return l2 ? [{ name: 'Level 2', email: l2, tatDays: 1 }] : [];
+  const row = escalationRow(target);
+  const out = [];
+  for (const i of [1, 2]) {
+    const s = hoStage(row, i);
+    if (!s) break; // Level 2 only after Level 1
+    out.push({ ...s, name: row.stages[i].name || s.label, email: s.to.join(', '), tatDays: s.tat?.unit === 'days' ? s.tat.value : null });
+  }
+  return out;
 }
 
 /** Move an escalated case to another store or team (wrong team picked, or the store passed it on). */
@@ -229,11 +382,10 @@ export function rerouteEscalation(c, target, by, note) {
   if (t.kind === 'store' && !t.code) throw fail('Pick the store');
   const was = c.escalatedTo || { kind: 'store', code: c.store };
   if (was.kind === t.kind && was.code === t.code) throw fail(`The case is already with ${t.name}`);
-  const wf = workflowFor(c);
   c.escalatedTo = { kind: t.kind, code: t.code, name: t.name, email: t.email, contact: t.contact };
   c.escalatedAt = now();
   c.escalationLevel = 1;
-  c.dueAt = addWorkingDays(c.escalatedAt, wf?.tatDays || ESCALATION_L1_WORKING_DAYS);
+  c.dueAt = firstDue(c, c.escalatedAt);
   c.firstDueAt = c.dueAt;
   c.promisedAt = null;
   c.storeReplyReview = null;
@@ -299,10 +451,10 @@ export function applyStatus(c, to, by, note) {
     const t = targetFor(c);
     c.escalatedAt = now();
     c.escalationLevel = 1;
-    c.dueAt = addWorkingDays(c.escalatedAt, wf?.tatDays || ESCALATION_L1_WORKING_DAYS); // TAT of the case type's workflow
     c.resolutionType = 'Store';
     c.workflowKey = wf?.key || null;
     c.escalatedTo = { kind: t.kind, code: t.code, name: t.name, email: t.email, contact: t.contact };
+    c.dueAt = firstDue(c, c.escalatedAt); // HO matrix: First Time Resolution TAT · otherwise the workflow's TAT
     c.firstDueAt = c.dueAt; // for the on-time report (dueAt moves with each level)
     c.promisedAt = null;
     c.storeReplyReview = null;
@@ -422,6 +574,7 @@ export function storeForSender(email) {
   if (team) return { code: null, team: team[0] };
   const matrix = Object.values(db().settings?.escalationMatrix || {}).flat();
   if (matrix.some((l) => listed(l?.email))) return { code: null, internal: true };
+  if ([...hoMatrix(), ...contactRows()].some((r) => r.stages.some((s) => s && [...s.to, ...(s.cc || [])].some((x) => x.toLowerCase() === e)))) return { code: null, internal: true };
   return e.endsWith('@cpwi.in') ? { code: null, internal: true } : null;
 }
 

@@ -7,6 +7,7 @@ const PAGES = [
   ['/automation', 'zap', 'Automation', 'Mailbox, automatic emails, Teams email previews, timers, agent shifts, activity log, outbox'],
   ['/case-workflows', 'workflow', 'Case workflows', 'Owner team, TAT and steps for every case type'],
   ['/workflow', 'workflow', 'LOTS workflow chart', 'The SOP flow with live counts'],
+  ['/escalation-flow', 'workflow', 'Escalation flow', 'HO escalation matrix as a flow: First Time Resolution → Level 1 → Level 2, per case type'],
   ['/picklists', 'check', 'Picklists', 'Values of every dropdown'],
   ['/dependencies', 'swap', 'Dependencies', 'Which values go together (case type → category → …)'],
 ];

@@ -21,6 +21,7 @@ import Settings from './pages/Settings.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
 const LotsFlow = lazy(() => import('./pages/LotsFlow.jsx'));
+const EscalationFlow = lazy(() => import('./pages/EscalationFlow.jsx'));
 import { SparkTGProvider } from './sparktg.jsx';
 import { CallerPanel, Dialer } from './components/Dialer.jsx';
 import Icon from './components/Icon.jsx';
@@ -213,6 +214,14 @@ export default function App() {
               element={
                 <Suspense fallback={<div className="empty">Loading workflow…</div>}>
                   <LotsFlow />
+                </Suspense>
+              }
+            />
+            <Route
+              path="/escalation-flow"
+              element={
+                <Suspense fallback={<div className="empty">Loading escalation flow…</div>}>
+                  <EscalationFlow />
                 </Suspense>
               }
             />

@@ -244,13 +244,13 @@ export default function CaseDetail() {
             <div className="row wrap">
               {(ACTIONS[c.status] || []).map((a) => (
                 <button key={a.to} className={`btn ${a.kind || ''} ${action?.to === a.to ? 'active' : ''}`} onClick={() => setAction(a)}>
-                  {a.to === 'Escalated' && target ? a.label.replace('store', target.kind === 'team' ? target.name : 'store') : a.label}
+                  {a.to === 'Escalated' && target ? a.label.replace('store', target.kind === 'store' ? 'store' : target.name) : a.label}
                 </button>
               ))}
             </div>
             {action && (
               <div className="action-box">
-                <Field label={action.to === 'Escalated' ? `What ${target?.kind === 'team' ? target.name : 'the store'} needs to do` : action.to === 'Waiting' ? 'What information is missing?' : 'Note'} wide>
+                <Field label={action.to === 'Escalated' ? `What ${target?.kind === 'store' ? 'the store' : target?.name} needs to do` : action.to === 'Waiting' ? 'What information is missing?' : 'Note'} wide>
                   <textarea rows={3} value={note} onChange={(e) => setNote(e.target.value)} autoFocus />
                 </Field>
                 {action.to === 'Escalated' && (
@@ -352,7 +352,7 @@ export default function CaseDetail() {
                       <input value={edit.cardNo} onChange={(e) => setEdit({ ...edit, cardNo: e.target.value })} />
                     </Field>
                     <Classifier value={edit} onChange={setEdit} />
-                    {edit.subCategory === 'Return Of Goods' && (
+                    {['Return of goods related Request', 'Return of goods'].includes(edit.subCategory) && (
                       <Field label="Purchase date" hint="SOP: returns within 7 working days">
                         <input type="date" value={edit.purchaseDate} onChange={(e) => setEdit({ ...edit, purchaseDate: e.target.value })} />
                       </Field>

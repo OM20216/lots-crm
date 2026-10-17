@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { KB, SCRIPTS } from '../knowledge.js';
 import { Field, Select, StatusBadge, fmtDate, useMeta, usePicklists } from '../ui.jsx';
-import Classifier, { allowedCategories } from '../components/Classifier.jsx';
+import Classifier, { allowedCategories, allowedTypes } from '../components/Classifier.jsx';
 import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
 import { useSparkTG } from '../sparktg.jsx';
@@ -36,7 +36,7 @@ export default function NewCase() {
   const [params] = useSearchParams();
   const nav = useNavigate();
   const { refreshStats, agent } = useMeta();
-  const { tree, list } = usePicklists();
+  const { tree, list, dependents } = usePicklists();
 
   const [form, setForm] = useState({
     channel: params.get('channel') || (params.get('missedId') ? 'Missed call callback' : params.get('leadId') ? 'Outbound call' : 'Inbound call'),
@@ -177,7 +177,7 @@ export default function NewCase() {
     setErr('');
     if (form.channel === 'Email' && (!form.email || !form.subject.trim())) return setErr('Enter the sender’s email and the email subject.');
     if (form.channel !== 'Email' && !form.phone) return setErr('Enter the caller’s mobile number.');
-    if (!form.caseType || !form.category) return setErr('Select case type and category.');
+    if (!form.caseType || (!form.category && Object.keys(tree[form.caseType] || {}).length)) return setErr('Select case type and category.');
     if ((tree[form.caseType]?.[form.category] || []).length && !form.subCategory) return setErr('Select the sub-category.');
     if (!form.description.trim()) return setErr('Describe the query / concern.');
     if (outcome === 'Escalated' && !form.store) return setErr('Select the store to escalate to.');
@@ -354,7 +354,7 @@ export default function NewCase() {
             </h2>
             <div className="grid">
               <Field label="Type of contact">
-                <Select value={form.callerType} options={list('Caller Type')} onChange={(v) => set({ callerType: v, memberId: v === 'Registered With Lots' ? form.memberId : null })} />
+                <Select value={form.callerType} options={list('Caller Type')} onChange={(v) => set({ callerType: v, memberId: v === 'Registered With Lots' ? form.memberId : null, ...(allowedTypes(v, tree, dependents).includes(form.caseType) && (!form.category || allowedCategories(form.caseType, v, tree).includes(form.category)) ? {} : { caseType: '', category: '', subCategory: '', sub2: '' }) })} />
               </Field>
               <Field label="Name">
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} />
@@ -385,7 +385,7 @@ export default function NewCase() {
               <div className="field wide">
                 <WorkflowHint c={form} />
               </div>
-              {form.subCategory === 'Return Of Goods' && (
+              {['Return of goods related Request', 'Return of goods'].includes(form.subCategory) && (
                 <Field label="Purchase date" hint="SOP: returns within 7 working days">
                   <input type="date" value={form.purchaseDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set({ purchaseDate: e.target.value })} />
                 </Field>

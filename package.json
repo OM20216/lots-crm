@@ -9,6 +9,7 @@
     "start": "node server/index.js --prod"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "mysql2": "^3.24.5",
     "react": "^19.1.0",
