@@ -13,6 +13,7 @@ import { EMAIL_TEMPLATES, fillTemplate } from '../src/knowledge.js';
 import { extractRefs, missingInfo } from '../src/requirements.js';
 import { workflowFor } from '../src/workflows.js';
 import { STORE_ROWS } from '../src/storeMatrix.js';
+import { DETAILS_HEADING, queryDetails } from '../src/queryDetails.js';
 
 const { db, save, now, log, on, applyStatus } = core;
 const ATTACH_DIR = path.join(store.DATA_DIR, 'attachments');
@@ -87,8 +88,8 @@ const validEmail = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(e || '').trim
 export const EMAIL_BRAND = { top: 'LOTS Wholesale Solutions', title: 'Customer Care' };
 export const EMAIL_FOOTER = 'LOTS Wholesale Solutions · Customer care 1860-123-5687 · contactus@cpwi.in · Everyday 9 AM – 9 PM';
 export const emailParagraphs = (text) => String(text || '').trim().split(/\n{2,}/);
-export function emailRows(c) {
-  return c
+export function emailRows(c, body = '') {
+  return c && !String(body).includes(DETAILS_HEADING)
     ? [
         ['Case number', c.id],
         ['Concern', [c.caseType, c.category, c.subCategory].filter(Boolean).join(' › ')],
@@ -100,9 +101,16 @@ export function emailRows(c) {
 export function brandedHtml(text, c) {
   const esc = mail.escapeHtml;
   const paras = emailParagraphs(text)
-    .map((p) => `<p style="margin:0 0 12px">${esc(p).replace(/\n/g, '<br/>')}</p>`)
+    .map((p) =>
+      p.includes('\t')
+        ? `<table style="border-collapse:collapse;margin:0 0 12px;font-size:13px">${p
+            .split('\n')
+            .map((l) => (l.includes('\t') ? `<tr><td style="padding:2px 16px 2px 0;color:#6b7280;vertical-align:top">${esc(l.split('\t')[0])}</td><td style="padding:2px 0;font-weight:bold">${esc(l.split('\t').slice(1).join(' '))}</td></tr>` : `<tr><td colspan="2" style="padding:4px 0 2px;font-weight:bold">${esc(l)}</td></tr>`))
+            .join('')}</table>`
+        : `<p style="margin:0 0 12px">${esc(p).replace(/\n/g, '<br/>')}</p>`
+    )
     .join('');
-  const rows = emailRows(c);
+  const rows = emailRows(c, text);
   return `<div style="font-family:Arial,Helvetica,sans-serif;font-size:14px;line-height:1.6;color:#1d2230;max-width:640px;margin:0 auto">
   <div style="background:#d7141a;padding:16px 24px;border-radius:8px 8px 0 0">
     <div style="color:#fecaca;font-size:11px;letter-spacing:.08em;text-transform:uppercase">${EMAIL_BRAND.top}</div>
@@ -148,7 +156,7 @@ export async function sendEmail({ to, cc = '', subject, body, caseId, kind, by =
   } else if (settings().teamsPreview && teams.configured()) {
     // Teams preview: the team sees exactly what would go out; nobody receives an email
     try {
-      await teams.postEmailPreview({ kind, to, cc, subject, paragraphs: emailParagraphs(note + body), rows: emailRows(c), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, inThread: Boolean(threadId), attachments: attach.map((f) => `${f.name} (${mbSize(f.size)})`) });
+      await teams.postEmailPreview({ kind, to, cc, subject, paragraphs: emailParagraphs(note + body), rows: emailRows(c, body), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, inThread: Boolean(threadId), attachments: attach.map((f) => `${f.name} (${mbSize(f.size)})`) });
       entry.status = 'Teams preview';
     } catch (e) {
       entry.status = 'failed';
@@ -210,6 +218,7 @@ const SAMPLE_CASE = {
 /** Post one of every email the CRM sends, for a sample case, to Teams (nothing is emailed). */
 export async function sendSamples(by) {
   const c = { ...SAMPLE_CASE, escalatedAt: now() };
+  c.queryDetails = detailsFor(c);
   const st = db().stores.find((x) => x.code === c.store);
   const storeTo = st?.spocEmail || '(store contact not set — Stores & settings)';
   const levels = core.escalationLevels({ kind: 'store', code: c.store }); // Level 1 / Level 2 of the store's row
@@ -223,7 +232,7 @@ export async function sendSamples(by) {
     to: storeTo,
     cc: levels[0]?.email || '(Level 1 contact not set — Escalation matrix)',
     subject: `ESCALATION Level 1: pending case ${c.id} – ${c.category} / ${c.subCategory}`,
-    body: `Dear ${levels[0]?.name || 'Sir'}${st?.spocName ? ` / ${st.spocName}` : ''},\n\nThe case below has been escalated to Level 1 (First Time Resolution TAT crossed). Kindly ensure the resolution is shared with customer care by ${new Date(core.addWorkingDays(now(), Number(levels[0]?.tatDays) || 1)).toLocaleDateString('en-IN')}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+    body: teamMail(c, `Reminder#1\n\nNeed your kind intervention to close the below case as the TAT of this Case has already crossed (First Time Resolution). It is now with Level 1: kindly share the resolution with customer care by ${new Date(core.addWorkingDays(now(), Number(levels[0]?.tatDays) || 1)).toLocaleDateString('en-IN')}.`, 'Level 1'),
   });
   out.push({
     kind: 'Sample: Daily store follow-up (every morning)',
@@ -231,7 +240,7 @@ export async function sendSamples(by) {
     subject: `Pending customer cases – store ${st?.short || c.store} – ${new Date().toLocaleDateString('en-IN')}`,
     body: `Dear ${st?.spocName || 'Sir'},\n\nThe following customer cases are pending with your store. We kindly request you to share an update on each at the earliest.\n\n• ${c.id} | ${c.businessName} | ${c.subCategory} | escalated ${new Date().toLocaleDateString('en-IN')}\n\nAccording to the existing escalation matrix, the TAT for Level 1 is 1 working day.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
   });
-  for (const e of out) await teams.postEmailPreview({ ...e, paragraphs: emailParagraphs(e.body), rows: emailRows({ ...c, status: e.status || (e.kind.includes('Resolution') ? 'Resolved' : 'Pending') }), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, sample: true });
+  for (const e of out) await teams.postEmailPreview({ ...e, paragraphs: emailParagraphs(e.body), rows: emailRows({ ...c, status: e.status || (e.kind.includes('Resolution') ? 'Resolved' : 'Pending') }, e.body), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, sample: true });
   activity(`${out.length} sample emails posted to Teams by ${by}`);
   return out.length;
 }
@@ -271,11 +280,11 @@ export async function sendMatrixSamples(key, by) {
     if (!s.to.length && i) break; // Level 1 / Level 2 not filled in
     const subject = `${i ? `ESCALATION ${s.label}: pending case` : 'Customer concern –'} ${c.id} – ${c.category}${c.sub2 ? ' / ' + c.sub2 : c.subCategory ? ' / ' + c.subCategory : ''}`;
     const body = i
-      ? `Dear ${greet(s.to)},\n\nThe case below was not resolved within the ${prev.label} TAT (${prev.tatText}) and is escalated to ${s.label} as per the escalation matrix (HO). The ${s.label} TAT is ${s.tatText}: kindly ensure the resolution is shared with customer care by ${dueText(due, s.tat)}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`
-      : `Dear ${greet(s.to)},\n\nPlease find below a customer concern for your action.\n\n${caseBlock(c)}\n\nAs per the escalation matrix (HO), the First Time Resolution TAT for this case is ${s.tatText} (by ${dueText(due, s.tat)}). Kindly share the resolution with customer care.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+      ? teamMail(c, `Reminder#${i}\n\nNeed your kind intervention to close the below case as the TAT of this Case has already crossed (${prev.label} TAT ${prev.tatText}). As per the escalation matrix (HO) it is now with ${s.label}; the ${s.label} TAT is ${s.tatText}: kindly share the resolution with customer care by ${dueText(due, s.tat)}.`, s.label)
+      : teamMail(c, `Please find below a customer concern for your action.\n\nAs per the escalation matrix (HO), the First Time Resolution TAT for this case is ${s.tatText} (by ${dueText(due, s.tat)}). Kindly share the resolution with customer care.`, s.label);
     out.push({ kind: `Sample: ${row.row} – ${s.label}`, to: s.to.join(', ') || noAddress('First Time Resolution email not set'), cc: s.cc.join(', '), subject, body: row.match ? body : body.replaceAll(' (HO)', '') });
   }
-  for (const e of out) await teams.postEmailPreview({ ...e, paragraphs: emailParagraphs(e.body), rows: emailRows({ ...c, status: 'Escalated' }), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, sample: true });
+  for (const e of out) await teams.postEmailPreview({ ...e, paragraphs: emailParagraphs(e.body), rows: emailRows({ ...c, status: 'Escalated' }, e.body), brand: EMAIL_BRAND, footer: EMAIL_FOOTER, sample: true });
   activity(`${out.length} sample emails of the escalation matrix row “${row.row}” posted to Teams by ${by}`);
   return out.length;
 }
@@ -530,13 +539,11 @@ function closeCalls(c, type, status, note) {
 async function escalationEmail(c, note) {
   const r = recipient(c);
   if (!r.email && !previewing()) return activity(`Escalation email for ${c.id} not sent — ${r.label} has no email (Stores & settings → Escalation matrix)`, c.id);
-  const t = template('escalate', c, { subCategory: c.subCategory || c.sub2 || '' }); // supplier type for New Supplier cases
-  if (r.contact) t.body = t.body.replace(/^Dear [^,\n]*,/, `Dear ${r.contact},`);
+  const t = template('escalate', c, { subCategory: c.subCategory || c.sub2 || '' }); // subject; supplier type for New Supplier cases
   // the TAT really applied (store / team cases keep the SOP's longer TAT for refunds and new suppliers)
   const wf = !r.matrix && r.stage.tat.unit === 'days' ? workflowFor(c)?.tatDays || 0 : 0; // matrix rows: the sheet's TAT
   const tat = wf > r.stage.tat.value ? `${wf} working days` : r.stage.tatText;
-  t.body = t.body.replace('As per the escalation matrix, the TAT for Level 1 is 1 working day.', `As per ${MATRIX(r)}, the First Time Resolution TAT for this case is ${tat} (by ${dueText(c.dueAt, r.stage.tat)}).`);
-  if (note) t.body = t.body.replace('\n\nAs per the escalation matrix', `\nAction needed: ${note}\n\nAs per the escalation matrix`);
+  t.body = teamMail(c, `Please find below a customer concern for your action.${note ? `\nAction needed: ${note}` : ''}\n\nAs per ${MATRIX(r)}, the First Time Resolution TAT for this case is ${tat} (by ${dueText(c.dueAt, r.stage.tat)}). Kindly share the resolution with customer care.`, 'First Time Resolution');
   const to = r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`);
   const cc = r.cc || '';
   const sent = await sendEmail({ to, cc, subject: t.subject, body: t.body, caseId: c.id, kind: `Escalation to ${r.label} (First Time Resolution)`, files: c.attachments });
@@ -549,8 +556,18 @@ async function onRerouted({ c, note }) {
   save();
 }
 
-const caseBlock = (c) =>
-  `Case: ${c.id}\nCustomer: ${c.name} (${c.businessName || '—'}) · ${c.phone || c.email}\nConcern: ${c.caseType} – ${c.category}${c.subCategory ? ' – ' + c.subCategory : ''}${c.sub2 ? ' – ' + c.sub2 : ''}\nDetails: ${c.description}\nEscalated on: ${new Date(c.escalatedAt).toLocaleString('en-IN')}${c.promisedAt ? `\nPromised by: ${new Date(c.promisedAt).toLocaleDateString('en-IN')}` : ''}`;
+/** "The Details of the Query" for a case (src/queryDetails.js), with the contact, store and the customer's email. */
+export function detailsFor(c, level = core.levelName(c)) {
+  const member = c.memberId ? db().members.find((m) => m.id === c.memberId) : null;
+  const store = db().stores.find((x) => x.code === c.store);
+  const mailIn = [...(c.timeline || [])].reverse().find((t) => t.type === 'email-in' && !core.storeForSender(t.from));
+  return queryDetails(c, { level, member, store, emailContent: mailIn ? core.replyText(mailIn.text).slice(0, 3000) : '' });
+}
+
+/** An email to a store / team: greeting, what is asked, then the details of the query (as in LOTS's Vtiger mails). */
+const teamMail = (c, intro, level) => `Hi Team,\n\nGreeting for the day!\n\n${intro}\n\n${DETAILS_HEADING}\n\n${detailsFor(c, level)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+/** "Reminder#2": every mail after the first one on a case (a level up or an overdue reminder). */
+const reminder = (c) => `Reminder#${(c.reminders = (c.reminders || 0) + 1)}`;
 
 /**
  * Next level, for every case (as in the Excel): First Time Resolution → Level 1 → Level 2.
@@ -569,7 +586,11 @@ export async function raiseLevel(c, by, reason) {
   log(c, { by, type: 'escalation', text: `Escalated to ${next.label} (${r.label}): ${next.to.join(', ')}${reason ? ' — ' + reason : ''}` });
   activity(`${c.id} escalated to ${next.label} (${r.label})`, c.id);
   const levelSubject = `ESCALATION ${next.label}: pending case ${c.id} – ${concern(c)}`;
-  const levelBody = `Dear ${r.contact},\n\nThe case below ${by !== BOT ? `is escalated to ${next.label}${reason ? ` (${reason})` : ''}` : `was not resolved within the ${was?.label || 'previous'} TAT (${was?.tatText || '—'}) and is escalated to ${next.label}`} as per ${MATRIX(r)}. The ${next.label} TAT is ${next.tatText}: kindly ensure the resolution is shared with customer care by ${dueText(c.dueAt, next.tat)}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+  const levelBody = teamMail(
+    c,
+    `${reminder(c)}\n\n${by !== BOT ? `Need your kind intervention to close the below case: it is escalated to ${next.label}${reason ? ` (${reason})` : ''}` : `Need your kind intervention to close the below case as the TAT of this Case has already crossed (${was?.label || 'previous'} TAT ${was?.tatText || '—'})`}. As per ${MATRIX(r)} it is now with ${next.label}; the ${next.label} TAT is ${next.tatText}: kindly share the resolution with customer care by ${dueText(c.dueAt, next.tat)}.`,
+    next.label
+  );
   const sent = await sendEmail({
     to: next.to.join(', '),
     cc: next.cc.join(', '),
@@ -804,7 +825,7 @@ async function overdueEscalations(s) {
     const to = r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`);
     const cc = r.cc || '';
     const overdueSubject = `OVERDUE (${r.stage.label}): pending case ${c.id} – ${concern(c)}`;
-    const overdueBody = `Dear ${r.contact},\n\nThe case below has crossed the ${r.stage.label} TAT (${r.stage.tatText}) of ${MATRIX(r)} and is still pending. Kindly share the resolution with customer care today.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+    const overdueBody = teamMail(c, `${reminder(c)}\n\nNeed your kind intervention to close the below case as the TAT of this Case has already crossed (${r.stage.label} TAT ${r.stage.tatText}, ${MATRIX(r)}). Kindly share the resolution with customer care today.`, r.stage.label);
     const sent = await sendEmail({
       to,
       cc,

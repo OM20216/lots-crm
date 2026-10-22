@@ -161,6 +161,16 @@ export default function Classifier({ value, onChange }) {
       <Field label={invoiceRequired ? 'Invoice / order no. *' : 'Invoice / order no.'} hint={invoiceRequired ? 'Needed for this category' : undefined}>
         <input value={value.orderRef || ''} onChange={(e) => set({ orderRef: e.target.value })} placeholder="Bill no., app order ID, BDA order…" />
       </Field>
+      {/* invoice details (if any): they go in every email to the store / team */}
+      <Field label="Date of purchase / order" hint={['Return of goods related Request', 'Return of goods'].includes(value.subCategory) ? 'SOP: returns within 7 working days' : undefined}>
+        <input type="date" value={value.purchaseDate || ''} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set({ purchaseDate: e.target.value })} />
+      </Field>
+      <Field label="Purchase amount (₹)">
+        <input type="number" min="0" step="0.01" value={value.purchaseAmount || ''} onChange={(e) => set({ purchaseAmount: e.target.value })} />
+      </Field>
+      <Field label="Amount to be refunded (₹)">
+        <input type="number" min="0" step="0.01" value={value.refundAmount || ''} onChange={(e) => set({ refundAmount: e.target.value })} />
+      </Field>
       <details className="field wide more-fields" open={Boolean(value.productCategory || (m.resolution.length > 1 && value.closureType))}>
         <summary>More details (product, resolution type)</summary>
         <div className="grid">

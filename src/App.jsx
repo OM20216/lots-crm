@@ -20,10 +20,12 @@ import Dependencies from './pages/Dependencies.jsx';
 import Settings from './pages/Settings.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
+import Support from './pages/Support.jsx';
 const LotsFlow = lazy(() => import('./pages/LotsFlow.jsx'));
 const EscalationFlow = lazy(() => import('./pages/EscalationFlow.jsx'));
 import { SparkTGProvider } from './sparktg.jsx';
 import { CallerPanel, Dialer } from './components/Dialer.jsx';
+import SupportWidget from './components/SupportWidget.jsx';
 import Icon from './components/Icon.jsx';
 import MissedBar from './components/MissedBar.jsx';
 import { useSparkTG } from './sparktg.jsx';
@@ -183,6 +185,7 @@ export default function App() {
 
             <div className="nav-group" />
             <NavItem to="/admin" icon="settings" label="Admin" />
+            <NavItem to="/support" icon="help" label="Support tokens" count={stats?.supportTokens} plain />
           </nav>
           <div className="sidebar-foot">
             <div>Customer care 1860-123-5687</div>
@@ -227,6 +230,7 @@ export default function App() {
             />
             <Route path="/picklists" element={<Picklists />} />
             <Route path="/dependencies" element={<Dependencies />} />
+            <Route path="/support" element={<Support />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
           </Routes>
@@ -235,6 +239,7 @@ export default function App() {
       </div>
       <Dialer />
       <CallerPanel />
+      <SupportWidget />
       </SparkTGProvider>
     </MetaContext.Provider>
   );

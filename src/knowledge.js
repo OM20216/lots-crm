@@ -209,13 +209,14 @@ export const EMAIL_TEMPLATES = [
     id: 'escalate',
     title: 'Escalation to store',
     subject: 'Customer concern – {{id}} – {{category}} / {{subCategory}}',
-    body: 'Dear {{storeSpoc}},\n\nPlease find below a customer concern for your action.\n\nCase: {{id}}\nCustomer: {{name}} ({{businessName}})\nCard no.: {{cardNo}}\nContact: {{phone}} / {{email}}\nType: {{caseType}} – {{category}} – {{subCategory}}\nDetails: {{description}}\n\nAs per the escalation matrix, the TAT for Level 1 is 1 working day. Kindly share the resolution with customer care.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions',
+    // layout of LOTS's Vtiger mails (user's sample, 22 Oct 2026); {{queryDetails}} is filled by the server (src/queryDetails.js)
+    body: 'Hi Team,\n\nGreeting for the day!\n\nPlease find below a customer concern for your action. Kindly share the resolution with customer care within the TAT of the escalation matrix.\n\nThe Details of the Query are:\n____________\n\n{{queryDetails}}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions',
   },
   {
     id: 'store-followup',
     title: 'Store follow-up',
     subject: 'Follow-up: pending case {{id}}',
-    body: 'Dear Sir,\n\nAs per our discussion over the call regarding the pending case {{id}}, we kindly request you to share an update on the same at the earliest.\n\nAccording to the existing escalation matrix, the TAT for Level 1 is 1 working day.\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions',
+    body: 'Hi Team,\n\nGreeting for the day!\n\nAs per our discussion over the call regarding the pending case {{id}}, we kindly request you to share an update on the same at the earliest.\n\nThe Details of the Query are:\n____________\n\n{{queryDetails}}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions',
   },
   {
     id: 'resolved',

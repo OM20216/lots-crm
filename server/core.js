@@ -205,6 +205,8 @@ export function newCase(body, by) {
     productType: body.productType || '', // case master: product_type
     orderRef: body.orderRef || '',
     purchaseDate: body.purchaseDate || '', // return / exchange: SOP allows 7 working days
+    purchaseAmount: body.purchaseAmount || '', // invoice details for the escalation email (as in LOTS's Vtiger template)
+    refundAmount: body.refundAmount || '',
     subject: body.subject || '',
     description: body.description || '',
     status: 'Pending',

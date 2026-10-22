@@ -20,6 +20,7 @@ const PATHS = {
   chevronLeft: 'M15 18l-6-6 6-6',
   chevronRight: 'M9 18l6-6-6-6',
   swap: 'M17 1l4 4-4 4M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4M21 13v2a4 4 0 0 1-4 4H3',
+  help: 'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20zM9.2 9a3 3 0 0 1 5.8 1c0 2-3 2.5-3 4M12 17.5h.01',
 };
 
 export default function Icon({ name, size = 18, className = '' }) {
