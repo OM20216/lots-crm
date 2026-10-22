@@ -20,7 +20,7 @@ const STORES = [
 
 function emptyDb() {
   return {
-    counters: { case: 0, member: 0, missed: 0, lead: 0, mail: 0 },
+    counters: { case: 0, member: 0, missed: 0, lead: 0, mail: 0, support: 0 },
     agents: ['Kajal', 'Navjot'],
     agentShifts: {},
     settings: {},
@@ -33,6 +33,7 @@ function emptyDb() {
     teams: {}, // contact details per escalation team (src/workflows.js TEAMS)
     picklists: {}, // values added from the Picklists screen: { field: [{ value, by, at }] }
     dependencies: [], // pairs added from the Dependencies screen: [{ mainField, mainValue, subField, subValue, by, at }]
+    supportTickets: [], // support tokens (questions for the help desk manager): [{ id, question, agent, status, replies }]
     stores: STORES,
     members: [],
     cases: [],

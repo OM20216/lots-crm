@@ -10,6 +10,7 @@ const PAGES = [
   ['/escalation-flow', 'workflow', 'Escalation flow', 'HO escalation matrix as a flow: First Time Resolution → Level 1 → Level 2, per case type'],
   ['/picklists', 'check', 'Picklists', 'Values of every dropdown'],
   ['/dependencies', 'swap', 'Dependencies', 'Which values go together (case type → category → …)'],
+  ['/support', 'help', 'Support tokens', 'Questions the agents sent to the help desk manager'],
 ];
 
 export default function Admin() {

@@ -224,6 +224,7 @@ function view(c) {
     target,
     levels: core.escalationLevels(at),
     levelName: core.levelName({ ...c, escalatedTo: at }),
+    queryDetails: auto.detailsFor(c), // the "Details of the Query" block of the store / team email templates
     // the three stages (First Time Resolution, Level 1, Level 2) of the HO row or the store / team row
     matrix: row && { key: row.key, row: row.row, ho: at.kind === 'matrix' && !row.store, store: row.store || null, toConfirm: row.toConfirm || '', levelsFrom: row.levelsFrom || null, stages: [0, 1, 2].map((i) => core.hoStage(row, i)).filter(Boolean) },
   };
@@ -258,7 +259,7 @@ api.post('/cases', (req, res) => {
   res.status(201).json({ ...c, warning });
 });
 
-const EDITABLE = ['callerType', 'memberId', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'subject', 'description', 'assignedTo'];
+const EDITABLE = ['callerType', 'memberId', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'purchaseAmount', 'refundAmount', 'subject', 'description', 'assignedTo'];
 
 api.patch('/cases/:id', (req, res) => {
   const c = findCase(req.params.id);
@@ -535,6 +536,66 @@ api.put('/holidays', (req, res) => {
   save();
   res.json(dates);
 });
+
+// ----- support button: answers about the CRM, and tokens for the help desk manager -----
+const support = await import('./support.js');
+
+api.get('/support', (req, res) => res.json({ ...support.overview(), tickets: support.listTickets().length }));
+
+// The answer to a question. No match → the caller (the support button) offers a support token.
+api.post('/support/ask', (req, res) => {
+  const question = String(req.body?.question || '').trim();
+  if (!question) return res.status(400).json({ error: 'Type your question first' });
+  const answer = support.answer(question);
+  if (answer) return res.json({ answered: true, answer });
+  res.json({
+    answered: false,
+    related: support.related(question),
+    hint: 'This one is not in the help articles — create a support token and the help desk manager will answer.',
+  });
+});
+
+// One help article in full (the support button lists the topics).
+api.get('/support/articles/:id', (req, res) => {
+  const a = support.article(req.params.id);
+  if (!a) return res.status(404).json({ error: 'No such help topic' });
+  res.json(a);
+});
+
+// A support token: the agent cannot be helped by the articles, so the help desk manager takes over.
+api.post(
+  '/support/tickets',
+  wrap(async (req, res) => {
+    const ticket = await support.createTicket({
+      question: req.body?.question,
+      agent: agentOf(req),
+      context: req.body?.context || {},
+    });
+    res.status(201).json(ticket);
+  })
+);
+
+api.get('/support/tickets', (req, res) => res.json(support.listTickets()));
+
+api.get('/support/tickets/:id', (req, res) => {
+  const t = support.findTicket(req.params.id);
+  if (!t) return res.status(404).json({ error: 'Support token not found' });
+  res.json(t);
+});
+
+// The help desk manager's answer, or a close.
+api.patch('/support/tickets/:id', (req, res) => {
+  const action = req.body?.action || (req.body?.status === 'Closed' ? 'close' : 'reply');
+  // 'reply' = the help desk manager answers; 'message' = the agent writes back on their token
+  const t = action === 'close' ? support.closeTicket(req.params.id, agentOf(req)) : support.replyTicket(req.params.id, req.body?.reply, agentOf(req), action === 'message' ? 'agent' : 'manager');
+  res.json(t);
+});
+
+api.get('/support/settings', (req, res) => res.json({ ...support.settings(), teamsConfigured: teams.configured() }));
+
+api.delete('/support/tickets/:id', (req, res) => res.json(support.deleteTicket(req.params.id)));
+
+api.put('/support/settings', (req, res) => res.json(support.updateSettings(req.body || {})));
 
 // Escalation report per store / team: on time, days to resolve, overdue, levels
 api.get('/escalation-report', (req, res) => {
@@ -1160,6 +1221,7 @@ api.get('/stats', (req, res) => {
     topCategories: Object.entries(count(open.filter((c) => c.category), 'category'))
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6),
+    supportTokens: support.listTickets().filter((x) => x.status !== 'Closed').length,
   });
 });
 
