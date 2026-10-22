@@ -35,6 +35,12 @@ What was done on the CRM each day. The README's §19 has the work log by feature
   - the Teams card tests again.
 - Not done: the live CRM is still running the version started on 17 Oct (before these changes); restart only with no pending database writes. The escalation flow chart still shows only the HO rows.
 
+### "Lots-App" taken out of the app names (user's request)
+- Category "LOTS-App Related" → **App Related**, "Lots-App Related Request" → **App Related Request**. Every app sub-category loses "Lots-App " (e.g. Lots-App Order Related → **Order Related**, Lots-App related- Others → **Others**), and so do its sub-categories 2 (Lots-App Delivery Related → Delivery Related).
+- The store matrix tab is shown as **App**, and its rows are shown without "Lots-App". The workbook's own text still says "Lots-App", and the CRM still reads it from the Excel.
+- Changed in the case master, picklists, workflows, requirements, email reader, store-matrix routing, flow chart and screens. Cases already saved with the old names are renamed once at start-up.
+- Tested on a test copy: 31 end-to-end checks (including a saved "Lots-App" case renamed, and the store matrix showing "App"), the browser check, 5 app emails through the email reader, and every case-master category still reaching a store-matrix row.
+
 ---
 
 ## 17 October 2026

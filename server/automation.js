@@ -305,16 +305,16 @@ async function emailCustomer(c, templateId, kind, extra) {
 // Names are the case master's ("Case catergory" sheet): category › sub-category (sub-1) › sub-category 2 (sub-2).
 const APP = /\b(app|application|website|site|online|order\s*(id|no|number)?|delivery boy)\b/i;
 const MOBILE_APP = /\b(app|application|play ?store|android|iphone|ios)\b/i;
-// app / website complaint or request: the sheet has the same rows for both, named "Lots-App …" / "Website …"
-const online = (text) => (MOBILE_APP.test(text) ? { P: 'Lots-App', complaint: 'LOTS-App Related', request: 'Lots-App Related Request' } : { P: 'Website', complaint: 'E-Comm Related', request: 'E Commerce Related Request' });
+// app / website complaint or request: the same rows for both, the app's without a prefix ("Order Related"), the website's "Website …"
+const online = (text) => (MOBILE_APP.test(text) ? { P: '', complaint: 'App Related', request: 'App Related Request' } : { P: 'Website', complaint: 'E-Comm Related', request: 'E Commerce Related Request' });
 const C = (category, subCategory = '', sub2 = '') => () => ({ category, subCategory, sub2 });
 const appC = (sub1, sub2 = '') => (t) => {
   const o = online(t);
-  return { category: o.complaint, subCategory: sub1.replace('{P}', o.P), sub2 };
+  return { category: o.complaint, subCategory: sub1.replace('{P} ', o.P ? `${o.P} ` : ''), sub2 };
 };
 const appR = (sub1, sub2 = '') => (t) => {
   const o = online(t);
-  return { category: o.request, subCategory: sub1.replace('{P}', o.P), sub2 };
+  return { category: o.request, subCategory: sub1.replace('{P} ', o.P ? `${o.P} ` : ''), sub2 };
 };
 const RULES = [
   { name: 'Job enquiry', re: /\b(job|jobs|vacanc\w*|career|resume|cv|hiring|naukri|interview)\b/i, caseType: 'Inquiry', to: C('HR or Jobs'), answer: 'hr', then: 'Closed' },

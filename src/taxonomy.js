@@ -56,7 +56,7 @@ export const CASE_TREE = {
     'Store related': ['Behaviour of staff', 'Operational issues', 'Payment or invoice', 'Pricing issue', 'Delivery related', 'Quality issue', 'Return of goods', 'Stock availablity', 'Offer related', 'others'],
     'Membership Related': ['Member complaint'],
     'E-Comm Related': ['Website Technical issues and Pricing Issue', 'Website Account/ Profile Related', 'Website Order Related', 'Website Pricing Related', 'Website Payment & Refund Related', 'Website Invoice Related', 'Website Offers and scheme', 'Website Product related', 'Website Product Quality Related', 'Website related- Others', 'Website Content issues', 'Website Order-Delivery Related (order status not dispatched)', 'Website Order-Delivery Related (order status dispatched)'],
-    'LOTS-App Related': ['Lots-App Technical issues and Pricing Issue', 'Lots-App Account/ Profile Related', 'Lots-App Order Related', 'Lots-App Pricing Related', 'Lots-App Payment & Refund Related', 'Lots-App Invoice Related', 'Lots-App Offers and scheme', 'Lots-App Product related', 'Lots-App Product Quality Related', 'Lots-App related- Others', 'Lots-App Content issues', 'Lots-App Order-Delivery Related (order status not dispatched)', 'Lots-App Order-Delivery Related (order status dispatched)'],
+    'App Related': ['Technical issues and Pricing Issue', 'Account/ Profile Related', 'Order Related', 'Pricing Related', 'Payment & Refund Related', 'Invoice Related', 'Offers and scheme', 'Product related', 'Product Quality Related', 'Others', 'Content issues', 'Order-Delivery Related (order status not dispatched)', 'Order-Delivery Related (order status dispatched)'],
     'BDA related': ['BDA - Order Related', 'BDA - Cancellation and Invoice related', 'BDA-Product Quality Related', 'BDA-Behaviour Related', 'BDA-Pricing related', 'BDA Order-Delivery Related (order status not dispatched)', 'BDA Order-Delivery Related (order status dispatched)', 'BDA-Others'],
   },
   'Issues and Complaint (NR)': {
@@ -68,7 +68,7 @@ export const CASE_TREE = {
     'Membership related Request': ['Member request'],
     'Store related Request': ['Operational Requests', 'Payment or invoice Related Request', 'Pricing Related Request', 'Delivery related Request', 'Return of goods related Request', 'Stock availablity related Request', 'Offer related Request'],
     'E Commerce Related Request': ['Website Account/profile related Request', 'Website Cancellation & Refund related request', 'Website Pricing related - Request', 'Website Order status inquiry Request', 'Website related- Others'],
-    'Lots-App Related Request': ['Lots-App Account/profile related Request', 'Lots-App Cancellation & Refund related request', 'Lots-App Pricing related - Request', 'Lots-App Order status inquiry Request', 'Lots-App related- Others'],
+    'App Related Request': ['Account/profile related Request', 'Cancellation & Refund related request', 'Pricing related - Request', 'Order status inquiry Request', 'Others'],
     'BDA Related REQUESTS': ['BDA - Order Related Requests', 'BDA - Product Return Request'],
   },
   'Not Relevent or Spam': {},
@@ -99,19 +99,19 @@ export const SUB2_TREE = {
   'Website Content issues': ['page/images not clear'],
   'Website Order-Delivery Related (order status not dispatched)': ['Delayed Delivery'],
   'Website Order-Delivery Related (order status dispatched)': ['Delayed Delivery'],
-  'Lots-App Technical issues and Pricing Issue': ['Site not opening', 'Pricing mismatched'],
-  'Lots-App Account/ Profile Related': ['wrong details', 'login issues', 'Otp issue', 'unable to update address'],
-  'Lots-App Order Related': ['order not complete', 'Wrong products received', 'Lots-App Delivery Related', 'Lots-App Order Cancellations Related', 'Lots-App Related-Others'],
-  'Lots-App Pricing Related': ['Price higher than market/store charged'],
-  'Lots-App Payment & Refund Related': ['Payment Related complaint', 'Refund Related'],
-  'Lots-App Invoice Related': ['Invoice related', 'incorrect invoice'],
-  'Lots-App Offers and scheme': ['Online Offers and scheme'],
-  'Lots-App Product related': ['Order or Item in order cancelled without informing', 'Stock non availability'],
-  'Lots-App Product Quality Related': ['Product Quality'],
-  'Lots-App related- Others': ['Lots-App related- Others'],
-  'Lots-App Content issues': ['page/images not clear'],
-  'Lots-App Order-Delivery Related (order status not dispatched)': ['Delayed Delivery'],
-  'Lots-App Order-Delivery Related (order status dispatched)': ['Delayed Delivery'],
+  'Technical issues and Pricing Issue': ['Site not opening', 'Pricing mismatched'],
+  'Account/ Profile Related': ['wrong details', 'login issues', 'Otp issue', 'unable to update address'],
+  'Order Related': ['order not complete', 'Wrong products received', 'Delivery Related', 'Order Cancellations Related', 'Others'],
+  'Pricing Related': ['Price higher than market/store charged'],
+  'Payment & Refund Related': ['Payment Related complaint', 'Refund Related'],
+  'Invoice Related': ['Invoice related', 'incorrect invoice'],
+  'Offers and scheme': ['Online Offers and scheme'],
+  'Product related': ['Order or Item in order cancelled without informing', 'Stock non availability'],
+  'Product Quality Related': ['Product Quality'],
+  Others: ['Others'],
+  'Content issues': ['page/images not clear'],
+  'Order-Delivery Related (order status not dispatched)': ['Delayed Delivery'],
+  'Order-Delivery Related (order status dispatched)': ['Delayed Delivery'],
   'BDA - Order Related': ['BDA-Incomplete Order', 'BDA-delayed delivery', 'BDA-Order Cancelled', 'BDA - Order Cancelled without communication', 'BDA-Complaint about order'],
   'BDA - Cancellation and Invoice related': ['BDA-incorrect invoice'],
   'BDA-Product Quality Related': ['BDA - Product Quality'],
@@ -132,10 +132,10 @@ export const SUB2_TREE = {
   'Website Cancellation & Refund related request': ['Request to cancel order', 'Request for Return', 'Request for Refund'],
   'Website Pricing related - Request': ['Price higher than market/ store'],
   'Website Order status inquiry Request': ['Request about order status', 'Request for order delivery'],
-  'Lots-App Account/profile related Request': ['Login support', 'Address updation', 'Change in Profile details'],
-  'Lots-App Cancellation & Refund related request': ['Request to cancel order', 'Request for Return', 'Request for Refund'],
-  'Lots-App Pricing related - Request': ['Price higher than market/ store'],
-  'Lots-App Order status inquiry Request': ['Request about order status', 'Request for order delivery'],
+  'Account/profile related Request': ['Login support', 'Address updation', 'Change in Profile details'],
+  'Cancellation & Refund related request': ['Request to cancel order', 'Request for Return', 'Request for Refund'],
+  'Pricing related - Request': ['Price higher than market/ store'],
+  'Order status inquiry Request': ['Request about order status', 'Request for order delivery'],
   'BDA - Order Related Requests': ['Request to cancel order', 'Request for order status'],
   'BDA - Product Return Request': ['Request to Return products', 'Others'],
 };
@@ -164,12 +164,14 @@ export const CASE_ALIASES = {
   category: {
     'Store Related': 'Store related',
     'ECommerce Related': 'E-Comm Related',
-    'App Related': 'LOTS-App Related',
     'BDA Related': 'BDA related',
     'Membership Related - NR': 'Member related -NR',
     'Membership Related Request': 'Membership related Request',
     'Store Related Request': 'Store related Request',
-    'App Related Requests': 'Lots-App Related Request',
+    'App Related Requests': 'App Related Request',
+    // "Lots-App" taken out of the app names (user, 22 Oct 2026)
+    'LOTS-App Related': 'App Related',
+    'Lots-App Related Request': 'App Related Request',
     'Marketing Related': 'Marketing related',
   },
 };
@@ -180,6 +182,7 @@ export function normalizeCaseNames(c) {
   const cat = CASE_ALIASES.category[c.category];
   if (t) out.caseType = t === 'Issues or Complaint' && cat === 'Member related -NR' ? 'Issues and Complaint (NR)' : t;
   if (cat) out.category = cat;
+  for (const k of ['subCategory', 'sub2']) if (/^Lots-App /.test(c[k] || '')) out[k] = /related-\s*Others$/i.test(c[k]) ? 'Others' : c[k].replace(/^Lots-App /, '');
   return out;
 }
 
@@ -190,7 +193,7 @@ export const CASE_MASTER = {
   ...Object.fromEntries(Object.keys(CASE_TREE.Inquiry).map((c) => [c, { resolution: INQUIRY_RESOLUTION }])),
   'New Member': { requestFor: ['New Member - Customer'], resolution: ['Information Provided'] },
   'New Supplier': { requestFor: ['New Vendor - Supplier'], sub2: SUPPLIER_TYPES, invoiceRequired: false, resolution: ['Information Provided'] },
-  ...Object.fromEntries(['Membership related Request', 'Store related Request', 'E Commerce Related Request', 'Lots-App Related Request', 'BDA Related REQUESTS'].map((c) => [c, REQUEST_MASTER])),
+  ...Object.fromEntries(['Membership related Request', 'Store related Request', 'E Commerce Related Request', 'App Related Request', 'BDA Related REQUESTS'].map((c) => [c, REQUEST_MASTER])),
   ...Object.fromEntries([...Object.keys(CASE_TREE['Issues or Complaint']), ...Object.keys(CASE_TREE['Issues and Complaint (NR)'])].map((c) => [c, { resolution: ['Escalated to LOTS'] }])),
 };
 
