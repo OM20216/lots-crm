@@ -533,7 +533,11 @@ async function escalationEmail(c, note) {
   const tat = wf > r.stage.tat.value ? `${wf} working days` : r.stage.tatText;
   t.body = t.body.replace('As per the escalation matrix, the TAT for Level 1 is 1 working day.', `As per ${MATRIX(r)}, the First Time Resolution TAT for this case is ${tat} (by ${dueText(c.dueAt, r.stage.tat)}).`);
   if (note) t.body = t.body.replace('\n\nAs per the escalation matrix', `\nAction needed: ${note}\n\nAs per the escalation matrix`);
-  await sendEmail({ to: r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`), cc: r.cc, subject: t.subject, body: t.body, caseId: c.id, kind: `Escalation to ${r.label} (First Time Resolution)`, files: c.attachments });
+  const to = r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`);
+  const cc = r.cc || '';
+  const sent = await sendEmail({ to, cc, subject: t.subject, body: t.body, caseId: c.id, kind: `Escalation to ${r.label} (First Time Resolution)`, files: c.attachments });
+  // Teams escalation alert — only when emails are really going out (teamsPreview already shows every email in Teams)
+  if (!previewing()) teams.postEscalationNotice({ kind: `First Time Resolution — ${r.label}`, c, to, cc, subject: t.subject, body: t.body, dueText: dueText(c.dueAt, r.stage.tat), label: r.label, status: sent.status, error: sent.error }).catch((e) => console.error('[teams:escalation]', e.message));
 }
 
 async function onRerouted({ c, note }) {
@@ -560,15 +564,19 @@ export async function raiseLevel(c, by, reason) {
   const r = recipient(c);
   log(c, { by, type: 'escalation', text: `Escalated to ${next.label} (${r.label}): ${next.to.join(', ')}${reason ? ' — ' + reason : ''}` });
   activity(`${c.id} escalated to ${next.label} (${r.label})`, c.id);
-  await sendEmail({
+  const levelSubject = `ESCALATION ${next.label}: pending case ${c.id} – ${concern(c)}`;
+  const levelBody = `Dear ${r.contact},\n\nThe case below ${by !== BOT ? `is escalated to ${next.label}${reason ? ` (${reason})` : ''}` : `was not resolved within the ${was?.label || 'previous'} TAT (${was?.tatText || '—'}) and is escalated to ${next.label}`} as per ${MATRIX(r)}. The ${next.label} TAT is ${next.tatText}: kindly ensure the resolution is shared with customer care by ${dueText(c.dueAt, next.tat)}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+  const sent = await sendEmail({
     to: next.to.join(', '),
     cc: next.cc.join(', '),
-    subject: `ESCALATION ${next.label}: pending case ${c.id} – ${concern(c)}`,
-    body: `Dear ${r.contact},\n\nThe case below ${by !== BOT ? `is escalated to ${next.label}${reason ? ` (${reason})` : ''}` : `was not resolved within the ${was?.label || 'previous'} TAT (${was?.tatText || '—'}) and is escalated to ${next.label}`} as per ${MATRIX(r)}. The ${next.label} TAT is ${next.tatText}: kindly ensure the resolution is shared with customer care by ${dueText(c.dueAt, next.tat)}.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+    subject: levelSubject,
+    body: levelBody,
     caseId: c.id,
     kind: `Escalation ${next.label} – ${r.label}`,
     files: c.attachments,
   });
+  // Teams escalation alert — only when emails are really going out (teamsPreview already shows every email in Teams)
+  if (!previewing()) teams.postEscalationNotice({ kind: `Escalation ${next.label} — ${r.label}`, c, to: next.to.join(', '), cc: next.cc.join(', '), subject: levelSubject, body: levelBody, dueText: dueText(c.dueAt, next.tat), label: r.label, status: sent.status, error: sent.error }).catch((e) => console.error('[teams:escalation]', e.message));
   save();
   return c.escalationLevel;
 }
@@ -789,15 +797,21 @@ async function overdueEscalations(s) {
     log(c, { by: BOT, type: 'escalation', text: `${r.stage.label} TAT crossed${top ? ' (Level 2 is the highest level)' : ` (${core.levelName(c, (c.escalationLevel || 1) + 1)} not set in Stores & settings → Escalation matrix)`} — reminder sent` });
     activity(`${c.id} overdue at ${r.stage.label} (${r.label})`, c.id);
     if (!r.email && !previewing()) continue;
-    await sendEmail({
-      to: r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`),
-      cc: r.cc,
-      subject: `OVERDUE (${r.stage.label}): pending case ${c.id} – ${concern(c)}`,
-      body: `Dear ${r.contact},\n\nThe case below has crossed the ${r.stage.label} TAT (${r.stage.tatText}) of ${MATRIX(r)} and is still pending. Kindly share the resolution with customer care today.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`,
+    const to = r.email || noAddress(`${r.label} has no email in Stores & settings → Escalation matrix`);
+    const cc = r.cc || '';
+    const overdueSubject = `OVERDUE (${r.stage.label}): pending case ${c.id} – ${concern(c)}`;
+    const overdueBody = `Dear ${r.contact},\n\nThe case below has crossed the ${r.stage.label} TAT (${r.stage.tatText}) of ${MATRIX(r)} and is still pending. Kindly share the resolution with customer care today.\n\n${caseBlock(c)}\n\nRegards,\nCustomer Care – LOTS Wholesale Solutions`;
+    const sent = await sendEmail({
+      to,
+      cc,
+      subject: overdueSubject,
+      body: overdueBody,
       caseId: c.id,
       kind: `Overdue reminder (${r.stage.label}) – ${r.label}`,
       files: c.attachments,
     });
+    // Teams escalation alert — only when emails are really going out (teamsPreview already shows every email in Teams)
+    if (!previewing()) teams.postEscalationNotice({ kind: `Overdue reminder (${r.stage.label}) — ${r.label}`, c, to, cc, subject: overdueSubject, body: overdueBody, dueText: 'OVERDUE — action required today', label: r.label, status: sent.status, error: sent.error }).catch((e) => console.error('[teams:escalation]', e.message));
   }
   // the store promised a date and it has passed: flag once per promise
   const day = new Date().toLocaleDateString('en-CA');
