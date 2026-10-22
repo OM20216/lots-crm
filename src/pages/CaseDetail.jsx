@@ -169,7 +169,9 @@ export default function CaseDetail() {
     ['Store', c.store ? storeLabel(stores, c.store) : ''],
     ['Product', [c.productCategory, c.productType].filter(Boolean).join(' › ')],
     ['Invoice / order no.', c.orderRef],
-    ['Purchase date', c.purchaseDate],
+    ['Date of purchase / order', c.purchaseDate],
+    ['Purchase amount', c.purchaseAmount && `₹${c.purchaseAmount}`],
+    ['Amount to be refunded', c.refundAmount && `₹${c.refundAmount}`],
     ['Assigned to', c.assignedTo],
     ['Subject', c.subject],
   ].filter(([, v]) => v);
@@ -352,11 +354,6 @@ export default function CaseDetail() {
                       <input value={edit.cardNo} onChange={(e) => setEdit({ ...edit, cardNo: e.target.value })} />
                     </Field>
                     <Classifier value={edit} onChange={setEdit} />
-                    {['Return of goods related Request', 'Return of goods'].includes(edit.subCategory) && (
-                      <Field label="Purchase date" hint="SOP: returns within 7 working days">
-                        <input type="date" value={edit.purchaseDate} onChange={(e) => setEdit({ ...edit, purchaseDate: e.target.value })} />
-                      </Field>
-                    )}
                     <div className="field wide">
                       <SopWarnings list={sopWarnings(edit)} />
                     </div>
@@ -555,6 +552,6 @@ export default function CaseDetail() {
 }
 
 function pickEditable(c) {
-  const keys = ['callerType', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'subject', 'description', 'assignedTo'];
+  const keys = ['callerType', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'purchaseAmount', 'refundAmount', 'subject', 'description', 'assignedTo'];
   return Object.fromEntries(keys.map((k) => [k, c[k] || '']));
 }

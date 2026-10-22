@@ -385,11 +385,6 @@ export default function NewCase() {
               <div className="field wide">
                 <WorkflowHint c={form} />
               </div>
-              {['Return of goods related Request', 'Return of goods'].includes(form.subCategory) && (
-                <Field label="Purchase date" hint="SOP: returns within 7 working days">
-                  <input type="date" value={form.purchaseDate} max={new Date().toISOString().slice(0, 10)} onChange={(e) => set({ purchaseDate: e.target.value })} />
-                </Field>
-              )}
               <Field label="Details *" wide>
                 <textarea rows={4} value={form.description} onChange={(e) => set({ description: e.target.value })} placeholder="What the customer said: amounts, dates, products…" />
               </Field>

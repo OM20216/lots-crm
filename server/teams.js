@@ -7,6 +7,30 @@ export const configured = () => /^https:\/\//.test(url()) || /^http:\/\/(localho
 
 const MAX_LINES = 60;
 
+/**
+ * An email's paragraphs as card blocks, line breaks kept. A paragraph of "Label<TAB>value" lines (the details of the
+ * query) becomes a table (FactSet); its other lines (e.g. "Invoice Details (If Any)") are bold headings.
+ */
+function emailBlocks(paragraphs) {
+  const text = (t, extra = {}) => ({ type: 'TextBlock', text: String(t ?? ''), wrap: true, ...extra });
+  return paragraphs.flatMap((p, i) => {
+    const lines = String(p).split('\n');
+    const gap = i ? 'Medium' : 'Default';
+    if (!lines.some((l) => l.includes('\t'))) return lines.map((line, j) => text(line.trim() ? line.slice(0, 1000) : ' ', { spacing: j ? 'None' : gap }));
+    const out = [];
+    for (const l of lines) {
+      if (!l.includes('\t')) out.push(text(l, { weight: 'Bolder', spacing: out.length ? 'Small' : gap }));
+      else {
+        const [k, ...v] = l.split('\t');
+        let set = out.at(-1);
+        if (set?.type !== 'FactSet') out.push((set = { type: 'FactSet', spacing: out.length ? 'None' : gap, facts: [] }));
+        set.facts.push({ title: k, value: v.join(' ').slice(0, 500) });
+      }
+    }
+    return out;
+  });
+}
+
 /** Post an Adaptive Card with a title, facts (label → value) and text lines. */
 export async function postCard({ title, subtitle, facts = [], lines = [] }) {
   if (!configured()) throw new Error('Teams is not connected (TEAMS_WEBHOOK_URL is not in the secrets file)');
@@ -79,11 +103,9 @@ export async function postEscalationNotice({ kind, c, to, cc, subject, body, due
     ['Date',    new Date().toLocaleString('en-IN')],
   ].filter(([, v]) => v);
 
-  // ── Email body: each line becomes its own TextBlock ───────────────────────
-  const bodyLines = String(body || '').trim().split('\n');
-  const bodyBlocks = bodyLines.slice(0, 80).map((line, i) =>
-    text(line.trim() ? line.slice(0, 1000) : ' ', { spacing: i ? 'None' : 'Default' })
-  );
+  // ── Email body: line breaks kept, the details of the query as a table ─────
+  const allBlocks = emailBlocks(String(body || '').trim().split(/\n{2,}/));
+  const bodyBlocks = allBlocks.slice(0, 80);
 
   const cardBody = [
     // ── Alert header ──────────────────────────────────────────────────────
@@ -132,8 +154,8 @@ export async function postEscalationNotice({ kind, c, to, cc, subject, body, due
       spacing: 'Small',
       items: bodyBlocks,
     },
-    ...(bodyLines.length > 80
-      ? [text(`… ${bodyLines.length - 80} more line(s) not shown`, { isSubtle: true })]
+    ...(allBlocks.length > 80
+      ? [text(`… ${allBlocks.length - 80} more line(s) not shown`, { isSubtle: true })]
       : []),
 
     // ── Branded footer ─────────────────────────────────────────────────────
@@ -178,8 +200,8 @@ export async function postEscalationNotice({ kind, c, to, cc, subject, body, due
 export async function postEmailPreview({ kind, to, cc, subject, paragraphs = [], rows = [], brand, footer, inThread, sample, attachments = [] }) {
   if (!configured()) throw new Error('Teams is not connected (TEAMS_WEBHOOK_URL is not in the secrets file)');
   const text = (t, extra = {}) => ({ type: 'TextBlock', text: String(t ?? ''), wrap: true, ...extra });
-  // each line of a paragraph as its own block, so line breaks show exactly as in the email
-  const paraBlocks = paragraphs.flatMap((p, i) => String(p).split('\n').map((line, j) => text(line.trim() ? line : ' ', { spacing: j ? 'None' : i ? 'Medium' : 'Default' })));
+  // the email as the recipient sees it: line breaks kept, the details of the query as a table
+  const paraBlocks = emailBlocks(paragraphs);
   const body = [
     // what Teams adds: this is a preview, and the envelope
     text(`👁️ EMAIL PREVIEW — NOT SENT${sample ? ' · SAMPLE' : ''}`, { size: 'Small', weight: 'Bolder', color: 'Warning', spacing: 'None' }),
