@@ -35,6 +35,49 @@ What was done on the CRM each day. The README's §19 has the work log by feature
   - the Teams card tests again.
 - Not done: the live CRM is still running the version started on 17 Oct (before these changes); restart only with no pending database writes. The escalation flow chart still shows only the HO rows.
 
+### Emails to stores and teams in the layout of LOTS's Vtiger mails (user's sample)
+- Every email to a store / team now has the same layout: the first escalation, Level 1 / Level 2, overdue reminders, the samples, and the "Escalation to store" / "Store follow-up" templates on the case page.
+- The layout:
+  - "Hi Team, / Greeting for the day!", then what is asked;
+  - from the second mail on a case: **Reminder#1, #2 …** "Need your kind intervention to close the below case as the TAT of this Case has already crossed";
+  - **"The Details of the Query are:"** with every field of the sample (`src/queryDetails.js`). Contact fields (membership ID, business city, segments) come from the linked contact; "Email Content" is the customer's email on email cases.
+- In the HTML email and the Teams cards the details are a table, without the short summary under them.
+- New case fields: **Purchase amount** and **Amount to be refunded**. **Date of purchase** now shows for every case.
+- Kept as before (to say if they should change too): customer emails; the daily store follow-up list.
+- Tested on a test copy:
+  - every field of the sample present on the first mail;
+  - Reminder#1 / #2 on Level 1 / 2;
+  - the Teams preview table (25 rows) and the HTML table;
+  - the customer's email in "Email Content";
+  - the store follow-up template.
+
+### Support token email: to the support address, the client in Cc (user's request)
+- A new token is emailed **To** the support email (Stores & settings → Support → Support email), **Cc** the agent who raised it (their email under Agents) and the new **Client copy (Cc)** addresses. The support address is never copied to itself; in test mode the email goes only to the test address.
+- The Teams card and the outbox show To and Cc. An agent without a saved email gets “You were not copied on the email…”. Bad addresses are refused when saving.
+- Also fixed: the token email had lost its blank lines (one block of text); it now has paragraphs.
+- Tested with a fake Microsoft 365 mailbox: 11 checks (To, Cc, body, Teams, outbox, agent without email, no duplicate, test mode, bad address).
+
+### Support button (added by the user, checked and finished)
+- Reviewed the user's support button: help articles, support tokens for a help desk manager, the Support tokens page, the settings.
+- **Help articles corrected:** 18 described things the CRM doesn't do, including:
+  - a missed-call "nudge";
+  - lead outcomes on the Automation page;
+  - case counts on the Workflows page;
+  - "contact details can't be edited";
+  - a made-up Dependencies example;
+  - an Excel import that "removes rows";
+  - the old stores & teams matrix only.
+
+  They now describe the CRM as it is, including the store matrix, Reminder#n and the chat.
+- **Chat made two-way:**
+  - the agent can write back on their token (status back to Open, the manager told in Teams);
+  - the conversation shows again when the panel is reopened;
+  - an answer shows as a badge on the button while the panel is closed;
+  - a closed token takes no more messages;
+  - "Ask the help articles instead" switches back.
+- The Support tokens page refreshes every 20 seconds, shows the agent's messages marked, and the token badges have colours (the status classes were missing).
+- Tested: 7 API checks (articles, unknown question, token, answer, write back, close, closed refuses), and 11 browser checks in Chrome (New case invoice fields, ask, token, the manager's answer arriving, the agent's reply, the manager page).
+
 ### "Lots-App" taken out of the app names (user's request)
 - Category "LOTS-App Related" → **App Related**, "Lots-App Related Request" → **App Related Request**. Every app sub-category loses "Lots-App " (e.g. Lots-App Order Related → **Order Related**, Lots-App related- Others → **Others**), and so do its sub-categories 2 (Lots-App Delivery Related → Delivery Related).
 - The store matrix tab is shown as **App**, and its rows are shown without "Lots-App". The workbook's own text still says "Lots-App", and the CRM still reads it from the Excel.

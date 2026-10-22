@@ -202,14 +202,22 @@ function HolidaysCard() {
 function SupportCard() {
   const [data, reload] = useLoad(() => api.get('/support/settings'));
   const [email, setEmail] = useState(null);
+  const [cc, setCc] = useState(null);
   const [teamsNotify, setTeamsNotify] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [err, setErr] = useState('');
 
   const value = email === null ? data?.managerEmail || '' : email;
+  const ccValue = cc === null ? data?.clientCc || '' : cc;
   const teams = teamsNotify === null ? data?.teamsNotify !== false : teamsNotify;
 
   async function save() {
-    await api.put('/support/settings', { managerEmail: value, teamsNotify: teams });
+    setErr('');
+    try {
+      await api.put('/support/settings', { managerEmail: value, clientCc: ccValue, teamsNotify: teams });
+    } catch (e) {
+      return setErr(e.message);
+    }
     setSaved(true);
     setTimeout(() => setSaved(false), 2500);
     reload();
@@ -222,9 +230,14 @@ function SupportCard() {
         The support button at the bottom right answers questions about the CRM. When it cannot answer, the agent raises a support token and the help desk manager is notified here.
       </p>
       <div className="field">
-        <span className="field-label">Help desk manager email</span>
-        <input type="email" value={value} onChange={(e) => setEmail(e.target.value)} placeholder="helpdesk@cpwi.in" />
-        <span className="hint">Every new token is sent to this address. Leave it empty to use Teams only.</span>
+        <span className="field-label">Support email (To)</span>
+        <input type="email" value={value} onChange={(e) => setEmail(e.target.value)} placeholder="support@…" />
+        <span className="hint">Every new token is emailed to this address. Leave it empty to use Teams only.</span>
+      </div>
+      <div className="field">
+        <span className="field-label">Client copy (Cc)</span>
+        <input value={ccValue} onChange={(e) => setCc(e.target.value)} placeholder="e.g. supervisor@cpwi.in (comma separated)" />
+        <span className="hint">Copied on every token email. The agent who raised the token is copied too, from their email under Agents below.</span>
       </div>
       <label className="row small">
         <input type="checkbox" checked={teams} onChange={(e) => setTeamsNotify(e.target.checked)} /> also post new tokens in Teams
@@ -235,6 +248,7 @@ function SupportCard() {
           Save
         </button>
         {saved && <span className="notice ok">Saved</span>}
+        {err && <span className="error small">{err}</span>}
       </div>
     </section>
   );

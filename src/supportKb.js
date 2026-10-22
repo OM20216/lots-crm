@@ -365,7 +365,7 @@ export const SUPPORT_ARTICLES = [
     keywords: ['support token', 'token', 'help desk', 'helpdesk', 'help desk manager', 'support', 'ask a human', 'chat with manager', 'raise a token'],
     answer:
       'The support button at the bottom right answers questions about the CRM. If the answer is not there, it offers to create a support token (SUP-000123) for the help desk manager.\n' +
-      'The token holds your question, your name and the page you were on. The manager is notified by email (and in Teams) and replies in Admin → Support tokens — the answer comes straight back into the support panel (a red badge on the button if the panel is closed).\n' +
+      'The token holds your question, your name and the page you were on. It is emailed to the support address with you (your email under Stores & settings → Agents) and the client copy in Cc, and posted in Teams and replies in Admin → Support tokens — the answer comes straight back into the support panel (a red badge on the button if the panel is closed).\n' +
       'While the token is open, what you type goes to the manager, so you can write back; “Ask the help articles instead” switches to the articles. Close the token when it is solved.\n' +
       'You can also start a token without asking anything, with the “Talk to the help desk manager” button.',
   },

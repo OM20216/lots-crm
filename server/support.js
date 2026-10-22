@@ -10,21 +10,39 @@ const db = () => store.get();
 const save = () => store.save();
 const now = () => new Date().toISOString();
 
-const DEFAULTS = { managerEmail: '', teamsNotify: true };
+// managerEmail = the support email (To of every new token); clientCc = fixed addresses copied on it (e.g. a LOTS
+// supervisor). The agent who raised the token is copied too, from their email in Stores & settings → Agents.
+const DEFAULTS = { managerEmail: '', clientCc: '', teamsNotify: true };
+const EMAIL = /^[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}$/i;
+const emails = (v) => [...new Set(String(v || '').split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean))];
 
-/** Support settings (Stores & settings → Support): who gets the token, and whether Teams is told too. */
+/** Support settings (Stores & settings → Support): who gets the token, who is copied, and whether Teams is told too. */
 export function settings() {
   return { ...DEFAULTS, ...(db().settings?.support || {}) };
 }
 
 export function updateSettings(patch) {
+  const fail = (message) => Object.assign(new Error(message), { status: 400 });
   const d = db();
   d.settings ||= {};
-  d.settings.support = { ...settings() };
-  if ('managerEmail' in patch) d.settings.support.managerEmail = String(patch.managerEmail || '').trim();
-  if ('teamsNotify' in patch) d.settings.support.teamsNotify = Boolean(patch.teamsNotify);
+  const next = { ...settings() };
+  if ('managerEmail' in patch) next.managerEmail = String(patch.managerEmail || '').trim();
+  if ('clientCc' in patch) next.clientCc = emails(patch.clientCc).join(', ');
+  if ('teamsNotify' in patch) next.teamsNotify = Boolean(patch.teamsNotify);
+  const bad = [...emails(next.managerEmail), ...emails(next.clientCc)].find((e) => !EMAIL.test(e));
+  if (bad) throw fail(`Not a valid email: ${bad}`);
+  d.settings.support = next;
   save();
   return settings();
+}
+
+/** Who a token's email goes to: To = the support email, Cc = the agent who raised it + the fixed client copy. */
+export function recipients(ticket) {
+  const s = settings();
+  const to = emails(s.managerEmail);
+  const agent = String(db().agentEmails?.[ticket.agent] || '').trim();
+  const cc = [...(EMAIL.test(agent) ? [agent] : []), ...emails(s.clientCc)].filter((e, i, a) => !to.some((t) => t.toLowerCase() === e.toLowerCase()) && a.findIndex((x) => x.toLowerCase() === e.toLowerCase()) === i);
+  return { to, cc, agentEmail: EMAIL.test(agent) ? agent : '' };
 }
 
 // ---------- answers ----------
@@ -110,53 +128,55 @@ export async function createTicket({ question, agent, context } = {}) {
 async function notifyManager(ticket) {
   const s = settings();
   const notified = {};
+  const { to: supportTo, cc, agentEmail } = recipients(ticket);
 
-  if (s.managerEmail) {
+  if (supportTo.length) {
     const subject = `Support token ${ticket.id}: ${ticket.question.slice(0, 120)}`;
     const body = [
       `Hi,`,
       ``,
       `An agent on the LOTS CRM needs help and has raised a support token.`,
       ``,
-      `Token: ${ticket.id}`,
-      `Raised by: ${ticket.agent}`,
-      `Raised at: ${new Date(ticket.createdAt).toLocaleString('en-IN')}`,
-      ticket.context?.page ? `Page: ${ticket.context.page}` : '',
-      ticket.context?.caseId ? `Case: ${ticket.context.caseId}` : '',
+      [
+        `Token: ${ticket.id}`,
+        `Raised by: ${ticket.agent}${agentEmail ? ` (${agentEmail})` : ''}`,
+        `Raised at: ${new Date(ticket.createdAt).toLocaleString('en-IN')}`,
+        ticket.context?.page ? `Page: ${ticket.context.page}` : null,
+        ticket.context?.caseId ? `Case: ${ticket.context.caseId}` : null,
+      ]
+        .filter(Boolean)
+        .join('\n'),
       ``,
-      `Question:`,
-      ticket.question,
+      `Question:\n${ticket.question}`,
       ``,
       `Reply in the CRM: Admin → Support tokens (the agent sees the answer in the support panel).`,
       ``,
-      `Regards,`,
-      `LOTS CRM support`,
-    ]
-      .filter((l) => l !== '')
-      .join('\n');
+      `Regards,\nLOTS CRM support`,
+    ].join('\n');
 
-    // sent straight from the mailbox (not through the email preview mode — the manager has to get it)
+    // sent straight from the mailbox (not through the email preview mode — the support team has to get it);
+    // test mode: only to the test address
     const test = auto.settings().mailTestTo;
-    const to = test || s.managerEmail;
     const d = db();
     d.outbox ||= [];
     const entry = {
       id: store.nextId('mail', 'OUT-', 6),
       at: now(),
-      to: s.managerEmail,
-      cc: '',
+      to: supportTo.join(', '),
+      cc: cc.join(', '),
       subject: test ? `[TEST] ${subject}` : subject,
       body,
       caseId: null,
       kind: 'Support token',
       by: ticket.agent,
       status: 'sending',
+      test: test || undefined,
     };
     d.outbox.push(entry);
     if (d.outbox.length > 2000) d.outbox = d.outbox.slice(-2000);
     try {
       if (!mail.configured()) throw new Error('Mailbox not connected');
-      await mail.send({ to, subject: entry.subject, html: auto.brandedHtml(body, null) });
+      await mail.send({ to: test || supportTo, cc: test ? [] : cc, subject: entry.subject, html: auto.brandedHtml(body, null) });
       entry.status = 'sent';
       notified.email = 'sent';
     } catch (e) {
@@ -165,6 +185,8 @@ async function notifyManager(ticket) {
       notified.email = 'failed';
       notified.emailError = e.message;
     }
+    notified.emailTo = entry.to;
+    notified.emailCc = entry.cc;
     save();
   }
 
@@ -177,6 +199,8 @@ async function notifyManager(ticket) {
           ['Agent', ticket.agent],
           ['Page', ticket.context?.page || ''],
           ['Case', ticket.context?.caseId || ''],
+          ['Email to', notified.emailTo || ''],
+          ['Cc', notified.emailCc || ''],
         ],
         lines: [ticket.question, 'Reply in the CRM: Admin → Support tokens.'],
       });
@@ -190,10 +214,12 @@ async function notifyManager(ticket) {
   ticket.notified = notified;
   ticket.updatedAt = now();
   if (notified.email === 'failed') {
-    ticket.warning = `The email to the help desk manager failed (${notified.emailError || 'unknown error'}). The token is saved — the answer can still be given in Admin → Support tokens.`;
+    ticket.warning = `The email to the support address failed (${notified.emailError || 'unknown error'}). The token is saved — the answer can still be given in Admin → Support tokens.`;
   } else if (notified.email !== 'sent' && notified.teams !== 'sent') {
-    ticket.warning = 'Nobody was notified — no help desk manager email (Stores & settings → Support) and Teams is not connected.';
+    ticket.warning = 'Nobody was notified — no support email (Stores & settings → Support) and Teams is not connected.';
   } else delete ticket.warning;
+  // the agent is copied on the email only when their email is saved (Stores & settings → Agents)
+  if (notified.email === 'sent' && !agentEmail) ticket.warning = `You were not copied on the email: your email is not saved (Stores & settings → Agents).`;
   save();
   return notified;
 }

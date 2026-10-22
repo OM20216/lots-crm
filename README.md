@@ -446,6 +446,30 @@ LOTS updates the sheet: changed emails and new rows are highlighted in yellow, a
 | **Promise missed** | When the promised date passes, the case is flagged (Follow-ups, Dashboard, daily email) and noted on the timeline |
 | **Report** (Follow-ups → Report) | Per store / team for 7, 30, 90 or 365 days: escalated, resolved, **on time %** (within the first TAT), average working days to resolve, open, overdue, above Level 1, promises missed |
 
+#### Emails to stores and teams (layout of LOTS's Vtiger mails)
+
+Every email to a store or team uses the layout of LOTS's Vtiger mail (sample from the user, 22 Oct 2026). That covers the first escalation, Level 1 / Level 2, overdue reminders, the samples, and the "Escalation to store" and "Store follow-up" templates on the case page.
+- The email opens with "Hi Team, / Greeting for the day!" and says what is asked.
+- Every mail after the first one on a case is a reminder: **Reminder#1, #2 …** with "Need your kind intervention to close the below case as the TAT of this Case has already crossed".
+- Then comes **"The Details of the Query are:"** (`src/queryDetails.js`), in the sample's order:
+  - Escalation Level;
+  - Case Number, Contact Name, Contact Type;
+  - Membership ID, Business Name, Business City (from the contact);
+  - Mobile, Primary Email;
+  - Type of Customer (Segment1) and Type of Business (Segment2) (the contact's customer group and type);
+  - Category (case type), Case Category, Request For, Issues (Sub 1), Sub Issue (Sub 2), Store Name;
+  - Invoice Details: Date of Purchase, Invoice Number or Order ID, Membership ID (as provided by the customer), Purchase Amount, Amount To be Refunded;
+  - Complaint Details;
+  - Email Content (the customer's email, for email cases);
+  - a note on the attachments.
+
+  Empty values show as "—".
+- **Format:** in the HTML email and in the Teams card the details are a table.
+- **New on the case form** (under the invoice / order no.): **Date of purchase / order** (for every case, not only returns), **Purchase amount (₹)** and **Amount to be refunded (₹)**.
+- **Not changed:**
+  - emails to the customer (acknowledgement, information request, resolution) keep their own wording;
+  - the daily store follow-up email stays a short list, one line per case.
+
 Replies are recognised from the store contacts, the team emails, both escalation matrices and any @cpwi.in address. Re-assign also offers the HO matrix rows; the report has one row per store, team and HO matrix row.
 
 ---
@@ -706,6 +730,17 @@ All taken from the SOP. The file is `src/knowledge.js`.
 
 ---
 
+### 12.1 Support button (help for the agents)
+
+The round **?** button at the bottom right (next to the dialer) answers questions about the CRM itself (`src/supportKb.js`: 38 help articles, checked against the CRM on 22 Oct 2026), with suggested questions and a list of all topics.
+- **Not in the articles?** "Talk to the help desk manager" raises a **support token** (SUP-000123) with the question, the agent and the page. It is **emailed to the support address** (Stores & settings → Support → Support email) **with the client in Cc**: the agent who raised it (their email under Agents) and the fixed **Client copy (Cc)** addresses. It is also posted in Teams. In test mode the email goes only to the test address. An agent without a saved email is told they weren't copied.
+- **The chat:**
+  - The manager answers on **Admin → Support tokens** (also in the menu). The page refreshes every 20 seconds and shows the conversation, with the agent's messages marked.
+  - The answer comes back into the agent's support panel. If the panel is closed, a red badge appears on the button.
+  - While the token is open, what the agent types goes to the manager, so they can write back (Teams is told). "Ask the help articles instead" switches back to the articles.
+  - Either side can close the token; a closed token takes no more messages.
+- **Storage:** tokens are kept in the CRM's data (MySQL key `supportTickets`).
+
 ## 13. Data, backup and security
 
 ### 13.1 MySQL
@@ -842,6 +877,9 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | GET / POST / DELETE | `/api/mail/signin` | Microsoft sign-in status / start (returns the code) / disconnect |
 | GET | `/api/mail/test` | Mailbox connection test |
 | GET / POST | `/api/teams-preview`, `/api/teams-preview/test`, `/api/teams-preview/samples` | Teams preview status / test message / one sample of every email |
+| GET / POST | `/api/support`, `/api/support/ask`, `/api/support/articles/:id` | Support button: topics / answer a question from the help articles `{ question }` / one article |
+| GET / POST / PATCH / DELETE | `/api/support/tickets`, `/api/support/tickets/:id` | Support tokens: list / create `{ question, context }` / `{ action: reply | message | close, reply }` (reply = the manager, message = the agent) / remove |
+| GET / PUT | `/api/support/settings` | Help desk manager email, post tokens in Teams |
 | GET | `/api/flow`, `/api/stats`, `/api/export` | Workflow live counts / dashboard / full backup |
 
 ---
@@ -980,3 +1018,5 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 44 | **Live link to the matrix Excel** on OneDrive / SharePoint: checked every 10 min, applied when LOTS saves a change, errors shown and posted to Teams; Microsoft sign-in now also asks Files.Read.All. Tested against a stand-in for OneDrive (11 checks) |
 | 45 | **Store escalation matrix and the new case master** from LOTS's workbook (21 tabs). Case types / categories / sub-categories / sub-categories 2 follow the "Case catergory" sheet (taxonomy, picklists, Caller Type → Case Type and Sub Category → Sub Category 2 dependencies, case form, workflows, requirements, email reader, dashboard, flow chart; saved cases renamed once at start-up). Store tabs: 348 rows (6 stores × 58) in `server/storeMatrix.json` (`server/buildStoreMatrix.js`), DH 105 and GNI Ecommerce made from NSP (to confirm); case → row routing; First Time Resolution → Level 1 → Level 2 automatic; Stores & settings card per store and tab (Edit, Back to the workbook, Sample to Teams); case page / New case hint; Excel upload / live link read the store tabs. 29 end-to-end checks + browser check |
 | 46 | **Teams card per escalation email** (built by the user, checked and fixed): one card for every escalation email (First Time Resolution, Level 1 / 2, overdue) once emails really go out, with the case, To / Cc / subject and the full email; it now says **sent** or **NOT sent — reason** (before, an unsent email showed as sent). Tested with no mailbox and a fake mailbox |
+| 47 | **Emails to stores and teams in the layout of LOTS's Vtiger mails**: Hi Team / Greeting for the day, Reminder#n, and "The Details of the Query" with every field of the sample (contact, segments, case master fields, store, invoice details, complaint, the customer's email, attachments) as a table in the HTML email and the Teams card; new case fields purchase amount and amount to be refunded; date of purchase for every case. 18 checks |
+| 48 | **Support button** (built by the user, checked and finished): 38 help articles (18 rewritten to match the CRM), support tokens for the help desk manager, two-way chat (the agent can write back, answers show as a badge when the panel is closed), Support tokens page with the conversation and auto-refresh, token status badges. 11 browser checks |
