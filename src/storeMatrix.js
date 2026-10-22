@@ -11,35 +11,37 @@ const assumed = { assumed: true };
 
 // Lots-App and Ecommerce tabs: the same 16 rows, "Lots-App …" / "Website …" (the app tab has one more, Product Damage)
 function onlineRows(P, complaint, request, app) {
-  const t = (s) => s.replace(/\{P\}/g, P);
-  const tech = t('{P} Technical issues and Pricing Issue');
-  const order = t('{P} Order Related');
+  const t = (s) => s.replace(/\{P\}/g, P); // the workbook's text (SUB1 / SUB 2)
+  const n = (s) => (app ? s.replace(/\{P\} /g, '').replace(/^related- Others$/, 'Others') : t(s)); // case-master name: the app's have no prefix
+  const tech = n('{P} Technical issues and Pricing Issue');
+  const order = n('{P} Order Related');
+  const orderSheet = t('{P} Order Related');
   return [
     { key: 'tech', sheet: app ? ['Lots-App Technical issues', 'App not opening'] : ['Website Technical issues and Pricing Issue', 'site not opening, Pricing mismatched'], routes: [R(complaint, tech)] },
-    { key: 'content', sheet: [t('{P} Content issues'), 'page/images not clear'], routes: [R(complaint, t('{P} Content issues'))] },
-    { key: 'account', sheet: [t('{P} Account/ Profile Related,'), 'wrong details, Login Issues, OTP Issues, Unable to update address'], routes: [R(complaint, t('{P} Account/ Profile Related'))] },
-    { key: 'account-req', sheet: [t('{P} Account/ Profile Related- REQUESTS'), 'Login support, address updation request etc'], routes: [R(request, t('{P} Account/profile related Request'))] },
-    { key: 'payment', sheet: [t('{P} Payment & Refund Related'), 'Payment Related complaint, Refund Related'], routes: [R(complaint, t('{P} Payment & Refund Related'))] },
+    { key: 'content', sheet: [t('{P} Content issues'), 'page/images not clear'], routes: [R(complaint, n('{P} Content issues'))] },
+    { key: 'account', sheet: [t('{P} Account/ Profile Related,'), 'wrong details, Login Issues, OTP Issues, Unable to update address'], routes: [R(complaint, n('{P} Account/ Profile Related'))] },
+    { key: 'account-req', sheet: [t('{P} Account/ Profile Related- REQUESTS'), 'Login support, address updation request etc'], routes: [R(request, n('{P} Account/profile related Request'))] },
+    { key: 'payment', sheet: [t('{P} Payment & Refund Related'), 'Payment Related complaint, Refund Related'], routes: [R(complaint, n('{P} Payment & Refund Related'))] },
     // the app tab puts "Pricing mismatched" here; the website tab puts it with the technical issues
-    { key: 'pricing', sheet: [t('{P} Pricing Related,'), app ? 'Price higher than market/store / Pricing mismatched' : 'Price higher than market/store'], routes: [R(complaint, t('{P} Pricing Related')), ...(app ? [R(complaint, tech, 'Pricing mismatched')] : [])] },
-    { key: 'pricing-req', sheet: [t('{P} Pricing Related - REQUESTS'), 'Price higher than market/store'], routes: [R(request, t('{P} Pricing related - Request'))] },
-    { key: 'product', sheet: [t('{P} Product related'), 'Stock non availability, order or items in order cancelled without informing'], routes: [R(complaint, t('{P} Product related'))] },
-    { key: 'offers', sheet: [t('{P} Offers and scheme'), 'Online Offers and scheme'], routes: [R(complaint, t('{P} Offers and scheme'))] },
-    { key: 'order', sheet: [order, 'order not complete, Wrong products received'], routes: [R(complaint, order, 'order not complete'), R(complaint, order, 'Wrong products received')] },
+    { key: 'pricing', sheet: [t('{P} Pricing Related,'), app ? 'Price higher than market/store / Pricing mismatched' : 'Price higher than market/store'], routes: [R(complaint, n('{P} Pricing Related')), ...(app ? [R(complaint, tech, 'Pricing mismatched')] : [])] },
+    { key: 'pricing-req', sheet: [t('{P} Pricing Related - REQUESTS'), 'Price higher than market/store'], routes: [R(request, n('{P} Pricing related - Request'))] },
+    { key: 'product', sheet: [t('{P} Product related'), 'Stock non availability, order or items in order cancelled without informing'], routes: [R(complaint, n('{P} Product related'))] },
+    { key: 'offers', sheet: [t('{P} Offers and scheme'), 'Online Offers and scheme'], routes: [R(complaint, n('{P} Offers and scheme'))] },
+    { key: 'order', sheet: [orderSheet, 'order not complete, Wrong products received'], routes: [R(complaint, order, 'order not complete'), R(complaint, order, 'Wrong products received')] },
     {
       key: 'undispatched',
       sheet: [t('{P} Order - Delivery Related (Order Status - Not Dispatched)'), `${app ? 'App' : 'Website'} Delivery Related (Order not received) Order Status is not Dispatched`],
-      routes: [R(complaint, t('{P} Order-Delivery Related (order status not dispatched)')), R(complaint, order, t('{P} Delivery Related'), assumed)],
+      routes: [R(complaint, n('{P} Order-Delivery Related (order status not dispatched)')), R(complaint, order, n('{P} Delivery Related'), assumed)],
     },
-    { key: 'dispatched', sheet: [t('{P} Order - Delivery Related (Order Status - Dispatched)'), `${app ? 'App' : 'Website'} Delivery Related (Order not received) Order Status Dispatched`], routes: [R(complaint, t('{P} Order-Delivery Related (order status dispatched)'))] },
-    { key: 'cancel', sheet: [order, `${app ? 'App' : 'Website'} Order Cancellations Related`], routes: [R(complaint, order, t('{P} Order Cancellations Related'))] },
-    { key: 'invoice', sheet: [t('{P} Invoice Related, {P} Cancellation & Refund related request'), 'Invoice related, incorrect invoice'], routes: [R(complaint, t('{P} Invoice Related')), R(request, t('{P} Cancellation & Refund related request'))] },
+    { key: 'dispatched', sheet: [t('{P} Order - Delivery Related (Order Status - Dispatched)'), `${app ? 'App' : 'Website'} Delivery Related (Order not received) Order Status Dispatched`], routes: [R(complaint, n('{P} Order-Delivery Related (order status dispatched)'))] },
+    { key: 'cancel', sheet: [orderSheet, `${app ? 'App' : 'Website'} Order Cancellations Related`], routes: [R(complaint, order, n('{P} Order Cancellations Related'))] },
+    { key: 'invoice', sheet: [t('{P} Invoice Related, {P} Cancellation & Refund related request'), 'Invoice related, incorrect invoice'], routes: [R(complaint, n('{P} Invoice Related')), R(request, n('{P} Cancellation & Refund related request'))] },
     {
       key: 'other',
       sheet: [t('{P} Order Related, {P} Order status Enquiry Request (Only after query cannot be resolved through FAQs)'), 'Others'],
-      routes: [R(complaint, order), R(complaint, t('{P} related- Others')), R(request, t('{P} Order status inquiry Request')), R(request, t('{P} related- Others')), R(complaint, '', '', assumed), R(request, '', '', assumed)],
+      routes: [R(complaint, order), R(complaint, n('{P} related- Others')), R(request, n('{P} Order status inquiry Request')), R(request, n('{P} related- Others')), R(complaint, '', '', assumed), R(request, '', '', assumed)],
     },
-    { key: 'quality', sheet: app ? ['Lots App-Product Quality', 'Product Quality'] : ['Product Quality', 'Product Quality'], routes: [R(complaint, t('{P} Product Quality Related'))] },
+    { key: 'quality', sheet: app ? ['Lots App-Product Quality', 'Product Quality'] : ['Product Quality', 'Product Quality'], routes: [R(complaint, n('{P} Product Quality Related'))] },
     ...(app ? [{ key: 'damage', sheet: ['Lots App-Product Damage', 'Product Damage'], routes: [] }] : []), // no such category in the case master
   ];
 }
@@ -50,7 +52,7 @@ const STORE = 'Store related';
 const STORE_REQ = 'Store related Request';
 
 export const STORE_TABS = [
-  { tab: 'app', label: 'Lots-App', sheetName: /lots-?\s*app/i, rows: onlineRows('Lots-App', 'LOTS-App Related', 'Lots-App Related Request', true) },
+  { tab: 'app', label: 'App', sheetName: /lots-?\s*app/i, rows: onlineRows('Lots-App', 'App Related', 'App Related Request', true) },
   { tab: 'web', label: 'Ecommerce (website)', sheetName: /e-?\s*commerce|e-?\s*comm\b/i, rows: onlineRows('Website', 'E-Comm Related', 'E Commerce Related Request', false) },
   {
     tab: 'bda',
@@ -120,3 +122,6 @@ export function storeRouteFor(c) {
       if (hit(route.category, c.category) && hit(route.subCategory, c.subCategory) && hit(route.sub2, c.sub2) && (!best || specificity(route) > specificity(best.route))) best = { row, route };
   return best;
 }
+
+/** A workbook row's text as shown in the CRM: without "Lots-App" (user, 22 Oct 2026) and the stray trailing comma. */
+export const shownText = (s) => String(s || '').replace(/\bLots[- ]?App[- ]/gi, '').replace(/,\s*$/, '');

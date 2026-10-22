@@ -5,7 +5,7 @@ import { extractRefs } from '../src/requirements.js';
 import { normalizeCallerType } from '../src/taxonomy.js';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
 import { HO_MATRIX, STAGES, WORK_HOURS, cleanList, matrixRowFor, tatText } from '../src/escalationMatrix.js';
-import { STORE_ROWS, parseStoreRowKey, storeRouteFor, storeRowKey } from '../src/storeMatrix.js';
+import { STORE_ROWS, parseStoreRowKey, shownText, storeRouteFor, storeRowKey } from '../src/storeMatrix.js';
 import fs from 'node:fs';
 
 // The store escalation matrix as read from LOTS's workbook (server/buildStoreMatrix.js); edits are in settings.storeMatrix
@@ -268,7 +268,7 @@ export function storeRow(key) {
     store: p.code,
     tab: def.tab,
     rowKey: p.rowKey,
-    row: `${s.short} ${def.tabLabel}: ${def.sheet[0].replace(/,$/, '')}${def.sheet[1] && def.sheet[1] !== def.sheet[0] ? ` (${def.sheet[1]})` : ''}`,
+    row: `${s.short} ${def.tabLabel}: ${shownText(def.sheet[0])}${def.sheet[1] && def.sheet[1] !== def.sheet[0] ? ` (${shownText(def.sheet[1])})` : ''}`,
     sheet: def.sheet,
     stages: saved?.stages || base?.stages || [null, null, null],
     toConfirm: saved ? '' : base?.toConfirm || '',

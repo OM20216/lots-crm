@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { fmtDate, useMeta } from '../ui.jsx';
 import MatrixImport from './MatrixImport.jsx';
+import { shownText } from '../storeMatrix.js';
 
 const caseOf = (m) => [m.caseType, m.category, m.sub2].filter(Boolean).join(' › ');
 const tatOf = (t) => `${t.value} working ${t.unit === 'hours' ? 'hour' : 'day'}${t.value > 1 ? 's' : ''}`;
@@ -257,7 +258,7 @@ export function StoreMatrixCard() {
     <section className="card">
       <h2>Escalation matrix – stores (per store and kind)</h2>
       <p className="muted small">
-        From LOTS's workbook <strong>{data?.source || '…'}</strong>: one table per store for <strong>Lots-App</strong>, <strong>Ecommerce</strong>, <strong>BDA</strong> and <strong>Store related</strong>. A case goes to the row of its category ›
+        From LOTS's workbook <strong>{data?.source || '…'}</strong>: one table per store for <strong>App</strong>, <strong>Ecommerce</strong>, <strong>BDA</strong> and <strong>Store related</strong>. A case goes to the row of its category ›
         sub-category › sub-category 2, for its store (membership: the member's home store), then to Level 1 and Level 2 by itself when each TAT passes. <strong>Edit</strong> changes a row at once, also for cases already escalated; the
         workbook (upload or live link above) updates them too.
       </p>
@@ -285,9 +286,9 @@ export function StoreMatrixCard() {
             {rows.map((r) => (
               <MatrixRow
                 key={r.key + (r.updatedAt || '')}
-                r={{ ...r, row: r.sheet[0].replace(/,$/, '') }}
+                r={{ ...r, row: shownText(r.sheet[0]) }}
                 base="/store-matrix"
-                sub={r.sheet[1] !== r.sheet[0] ? r.sheet[1] : ''}
+                sub={r.sheet[1] !== r.sheet[0] ? shownText(r.sheet[1]) : ''}
                 resetLabel="Back to the workbook"
                 resetAsk={`Put “${r.row}” back as in the workbook?`}
                 onSaved={() => (load(), reloadMeta())}

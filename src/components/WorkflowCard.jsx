@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor, workflowSteps } from '../workflows.js';
 import { fmtDate, useMeta } from '../ui.jsx';
 import { matrixRowFor } from '../escalationMatrix.js';
-import { storeRouteFor } from '../storeMatrix.js';
+import { shownText, storeRouteFor } from '../storeMatrix.js';
 
 const tatText = (d) => (d ? `TAT ${d} working day${d > 1 ? 's' : ''}` : 'Resolve on the call');
 // HO escalation matrix: "First Time Resolution 4 working hours → Level 1 1 working day → Level 2 2 working days"
@@ -29,7 +29,7 @@ export function useStoreTarget(c) {
   const email = storeMatrixTo?.[code]?.[route.row.key];
   if (!email) return null;
   const s = stores.find((x) => x.code === code);
-  return { kind: 'matrix', code: `s${code}.${route.row.key}`, name: `${s?.short || code} ${route.row.tabLabel}: ${route.row.sheet[0].replace(/,$/, '')} (store matrix)`, email, contact: '' };
+  return { kind: 'matrix', code: `s${code}.${route.row.key}`, name: `${s?.short || code} ${route.row.tabLabel}: ${shownText(route.row.sheet[0])} (store matrix)`, email, contact: '' };
 }
 
 /** Who an escalation goes to: saved on the case once escalated, else the HO matrix row, else worked out from the workflow. */

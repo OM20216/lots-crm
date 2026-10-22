@@ -193,10 +193,10 @@ const NODES = [
   }),
   n('comp', 380, 680, {
     icon: '⚠️', label: 'Issues or Complaint', tone: 'red',
-    detail: 'Store · Lots-App · E-comm · BDA · Membership',
+    detail: 'Store · App · E-comm · BDA · Membership',
     options: [
       'Store related: behaviour of staff, operational, payment or invoice, pricing, delivery, quality, return of goods, stock, offers',
-      'LOTS-App Related · E-Comm Related: account, order, delivery (dispatched / not), payment & refund, invoice, pricing, offers, product, quality, content',
+      'App Related · E-Comm Related: account, order, delivery (dispatched / not), payment & refund, invoice, pricing, offers, product, quality, content',
       'BDA related · Membership Related · Not registered: Member related -NR',
     ],
     to: '/cases?caseType=Issues%20or%20Complaint', how: 'All complaint categories from the LOTS case master are in the case form. Each one goes to its row of the store escalation matrix.',
@@ -207,7 +207,7 @@ const NODES = [
     options: [
       'Membership related Request: add-on card, membership data, membership card',
       'Store related Request: operational, payment or invoice, pricing, delivery, return of goods, stock, offers',
-      'Lots-App Related Request · E Commerce Related Request · BDA Related REQUESTS',
+      'Related Request · E Commerce Related Request · BDA Related REQUESTS',
       'Not registered: New Member · New Supplier',
     ],
     to: '/cases?caseType=Request', how: 'Required documents for the chosen request are shown to the agent while logging it.',

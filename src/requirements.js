@@ -64,7 +64,7 @@ export function requirementsFor(x) {
 }
 
 // Categories whose workflow needs a store / an order number (LOTS case master).
-const APP_CATEGORIES = ['LOTS-App Related', 'E-Comm Related', 'Lots-App Related Request', 'E Commerce Related Request'];
+const APP_CATEGORIES = ['App Related', 'E-Comm Related', 'App Related Request', 'E Commerce Related Request'];
 // the store escalation matrix is per store, so these need the store too
 const STORE_CATEGORIES = ['Store related', 'BDA related', 'Store related Request', 'BDA Related REQUESTS', ...APP_CATEGORIES];
 

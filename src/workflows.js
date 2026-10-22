@@ -82,11 +82,11 @@ export const WORKFLOWS = [
     step('store', 'Store of purchase recorded', A.store),
     step('bill', 'Bill / invoice number and purchase details taken', A.orderRef, 'Not always available: the store can verify'),
   ]), { match: { caseType: 'Issues or Complaint', category: 'Store related' }, requires: ['store'] }),
-  W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaint', category: 'LOTS-App Related' }, requires: ['store'] }),
+  W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaint', category: 'App Related' }, requires: ['store'] }),
   W('cmp-ecom-refund', 'Refund not received', 'ecom', 7, escalationPath('the E-commerce / App team', [
     step('order', 'App / website order number recorded', A.orderRef),
     step('inform', 'Inform: the amount refunds automatically within 7 working days, or the customer contacts their bank (SOP)'),
-  ]), { match: { caseType: 'Issues or Complaint', subCategory: ['Lots-App Payment & Refund Related', 'Website Payment & Refund Related'], sub2: 'Refund Related' }, requires: ['store', 'orderRef'] }),
+  ]), { match: { caseType: 'Issues or Complaint', subCategory: ['Payment & Refund Related', 'Website Payment & Refund Related'], sub2: 'Refund Related' }, requires: ['store', 'orderRef'] }),
   W('cmp-ecom', 'E-commerce complaint', 'ecom', 1, escalationPath('the E-commerce / App team', [
     step('order', 'App / website order number recorded', A.orderRef),
     step('status', 'Order status checked (dispatched / not dispatched)'),
@@ -104,7 +104,7 @@ export const WORKFLOWS = [
   ]), { match: { caseType: 'Request', subCategory: 'Return of goods related Request' }, requires: ['store'] }),
   W('req-stock', 'Stock availability / price request', 'store', 1, escalationPath('the store team'), { match: { caseType: 'Request', subCategory: ['Stock availablity related Request', 'Pricing Related Request'] }, requires: ['store'] }),
   W('req-store', 'Store request', 'store', 1, escalationPath('the store contact', [step('store', 'Store recorded', A.store)]), { match: { caseType: 'Request', category: 'Store related Request' }, requires: ['store'] }),
-  W('req-ecom', 'App / E-comm request', 'ecom', 1, escalationPath('the E-commerce / App team', [step('order', 'Order number recorded', A.orderRef)]), { match: { caseType: 'Request', category: ['Lots-App Related Request', 'E Commerce Related Request'] }, requires: ['store', 'orderRef'] }),
+  W('req-ecom', 'App / E-comm request', 'ecom', 1, escalationPath('the E-commerce / App team', [step('order', 'Order number recorded', A.orderRef)]), { match: { caseType: 'Request', category: ['App Related Request', 'E Commerce Related Request'] }, requires: ['store', 'orderRef'] }),
   W('req-bda', 'BDA request', 'bda', 1, escalationPath('the BDA team'), { match: { caseType: 'Request', category: 'BDA Related REQUESTS' }, requires: ['store'] }),
   W('req-new-member', 'New membership', 'careDesk', 0, answerPath('Explain: membership is free; visit the preferred store with a business licence (or supporting documents), PAN, Aadhaar, mobile and selfie'), { match: { caseType: 'Request', category: 'New Member' } }),
   W('req-supplier', 'New supplier registration', 'supplier', 7, escalationPath('the Category / Supplier team', [step('docs', 'Company profile and product catalogue received')]), { match: { caseType: 'Request', category: 'New Supplier' } }),

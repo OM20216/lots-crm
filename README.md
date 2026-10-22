@@ -48,7 +48,7 @@ Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch
 | Email: every mail to contactus@cpwi.in becomes a Pending case automatically | ✅ Built. **Connect with "Sign in with Microsoft" on the Automation page** (§9.3) |
 | Automation engine (assign, acknowledge, escalation emails, chase stores, reports) | ✅ Ready. Email-based parts start once the mailbox is connected |
 | Cases follow LOTS's case master: the **"Case catergory" sheet of the escalation workbook** (type of contact → case type → category → sub-category → sub-category 2) | ✅ Built and tested on a test copy (§6.1). **Live CRM not restarted yet** |
-| Store escalation matrix: every store × Lots-App / Ecommerce / BDA / Store related, each row with its own To / Cc / TAT, automatic Level 1 → Level 2 | ✅ Built and tested on a test copy (§6.8). DH 105 and GNI Ecommerce to confirm with LOTS. **Live CRM not restarted yet** |
+| Store escalation matrix: every store × App / Ecommerce / BDA / Store related, each row with its own To / Cc / TAT, automatic Level 1 → Level 2 | ✅ Built and tested on a test copy (§6.8). DH 105 and GNI Ecommerce to confirm with LOTS. **Live CRM not restarted yet** |
 | Workflow per case type and escalation: right store / team, TAT, escalation matrix (Level 2 / 3), holidays, re-assign, store-reply reading, promised dates, follow-up flags, report | ✅ Ready. **Store / team contacts and the matrix need filling in** |
 | Email previews in Microsoft Teams (every email the CRM would send, nobody emailed) | ✅ Live — on until the mailbox is connected |
 | Attachments: add files to a case; escalation emails carry them | ✅ Ready |
@@ -199,11 +199,12 @@ Fields: **case type → category → sub-category (the sheet's Sub-1) → sub-ca
 
 | Type of contact | Case types (categories) |
 | --- | --- |
-| **Registered With Lots** | **Inquiry** (Legal · Real Estate · HR or Jobs · General Query · IT or Website · Admin Related · Marketing related · Festive Gifting) · **Issues or Complaint** (Store related · Membership Related · E-Comm Related · LOTS-App Related · BDA related) · **Request** (Membership related Request · Store related Request · E Commerce Related Request · Lots-App Related Request · BDA Related REQUESTS) |
+| **Registered With Lots** | **Inquiry** (Legal · Real Estate · HR or Jobs · General Query · IT or Website · Admin Related · Marketing related · Festive Gifting) · **Issues or Complaint** (Store related · Membership Related · E-Comm Related · App Related · BDA related) · **Request** (Membership related Request · Store related Request · E Commerce Related Request · App Related Request · BDA Related REQUESTS) |
 | **Not Registered** | **Inquiry** (same) · **Issues and Complaint (NR)** (Member related -NR) · **Request** (New Member · New Supplier) |
 | **Others** | **Not Relevent or Spam** (no category) |
 
-- **Sub-categories and sub-categories 2** are the sheet's: 88 sub-2 values. For example, Store related › Behaviour of staff › rude behaviour / no knowledge / No Support, and LOTS-App Related › Lots-App Order Related › order not complete / Wrong products received / ….
+- **Sub-categories and sub-categories 2** are the sheet's: 88 sub-2 values. For example, Store related › Behaviour of staff › rude behaviour / no knowledge / No Support, and App Related › Order Related › order not complete / Wrong products received / ….
+- **"Lots-App" taken out of the names (user, 22 Oct 2026):** the sheet's "LOTS-App Related" is **App Related**, "Lots-App Related Request" is **App Related Request**, and its app sub-categories lose the prefix ("Lots-App Order Related" → **Order Related**; "Lots-App related- Others" → **Others**). The website ones keep "Website …". The workbook's own tab and row text still says "Lots-App"; the CRM reads it as before but shows it without the prefix.
 - **General Query** now uses the sheet's sub-categories: About Store, Member registration Inquiry, Store Branding, Pricing and product Inquiry, Mode of Payment, About Add on Cards, Delivery Inquiry, Offers & Schemes, Ecomm query, Supplier Registration Inquiry, Membership card Related.
 - The SOP sub-categories the CRM had added are gone: General Query, HR or Jobs, and the store / app / e-commerce / BDA complaints.
 - **New Supplier** keeps the six supplier types as sub-category 2, because the HO matrix rows use them.
@@ -214,7 +215,7 @@ Fields: **case type → category → sub-category (the sheet's Sub-1) → sub-ca
   - Issues or Complaints - NR → Issues or Complaint;
   - Store Related → Store related;
   - ECommerce Related → E-Comm Related;
-  - App Related → LOTS-App Related;
+  - LOTS-App Related → App Related; Lots-App Related Request → App Related Request; app sub-categories lose "Lots-App " (e.g. Lots-App Order Related → Order Related);
   - Membership Related - NR → Member related -NR;
   - … (`CASE_ALIASES` in `src/taxonomy.js`).
 
@@ -300,11 +301,11 @@ Every case type, category and sub-category has a **workflow**: who owns it, its 
 | General Query · New Member | Care desk (answered on the call, ROT) | — | — |
 | Pricing and product Inquiry · Stock availablity / Pricing Related Request | Store team | 1 working day | Store (requests) |
 | HR or Jobs | HR / Careers (careers@cpwi.in) | 1 | — |
-| IT or Website · LOTS-App Related | IT / Website team | 1 | Store (app) |
+| IT or Website · App Related | IT / Website team | 1 | Store (app) |
 | Marketing related · Festive Gifting | Marketing team | 1 | — |
 | Admin Related · Legal · Real Estate | Administration | 1 | — |
 | Store related · Store related Request · Return of goods related Request | The case's **store** contact | 1 | Store |
-| E-Comm Related · E Commerce Related Request · Lots-App Related Request | E-commerce / App team | 1 | **Store** and order / invoice no. |
+| E-Comm Related · E Commerce Related Request · App Related Request | E-commerce / App team | 1 | **Store** and order / invoice no. |
 | BDA related · BDA Related REQUESTS | BDA team | 1 | **Store** |
 | Membership Related · Member related -NR · Membership related Request | The member's **home store** | 1 | — |
 | New Supplier | Category / Supplier team | **7** (SOP: reply within 7 days) | — |
@@ -372,7 +373,7 @@ LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 
 
 | Tab | Stores in the workbook | Rows per store | CRM cases that go there |
 | --- | --- | --- | --- |
-| Lots-App | 101 NSP · 102 Ithum · 103 AKD · 104 SV · 106 GNI | 17 | LOTS-App Related · Lots-App Related Request |
+| App (workbook tab "Lots-App") | 101 NSP · 102 Ithum · 103 AKD · 104 SV · 106 GNI | 17 | App Related · App Related Request |
 | Ecommerce (website) | 101 · 102 · 103 · 104 (**no GNI**) | 16 | E-Comm Related · E Commerce Related Request |
 | BDA | 101 · 102 · 103 · 104 · 106 | 14 | BDA related · BDA Related REQUESTS |
 | Store related | 101 · 102 · 103 · 104 · 106 | 11 | Store related · Membership Related (row "Member complaint") |
@@ -382,7 +383,7 @@ LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 
 
 **How a case finds its row** (`src/storeMatrix.js`): case category › sub-category › sub-category 2 → the tab row, for the case's **store** (membership: the member's home store). The most specific match wins. Every category of the case master reaches a row. This was checked by a script: 0 left without a row. The routes the sheet doesn't state directly are marked `assumed` (⚠ to confirm):
 - a store request → the store-related row of the same kind (the tab has complaints only);
-- "Lots-App / Website Delivery Related" → the *not dispatched* row;
+- "Delivery Related" / "Website Delivery Related" (app / website order) → the *not dispatched* row;
 - BDA "Order Cancelled" → *Order Cancelled without communication*;
 - BDA "delayed delivery" → the *not dispatched* row;
 - Member related -NR and Membership related Request → *Member complaint*;
@@ -401,7 +402,7 @@ The app tab's **"Product Damage"** row has no case-master category, so no case r
 - **Escalate:** a store, membership, app, e-commerce or BDA case goes to its store-matrix row, for its store (membership: the member's home store). The HO matrix still comes first for its own categories. The email goes to the row's First Time Resolution To with its Cc and says "as per the escalation matrix (store)"; the due time is the row's TAT (4 working hours for store delivery).
 - **TAT passes → Level 1 → Level 2**, then a daily reminder: the same engine as the HO matrix (§6.8 above), with each stage's own To, Cc and TAT. Store-matrix rows use the sheet's TAT (the SOP's 7-day refund TAT is not added on top).
 - **No store on the case** (or "Not Specific"): app, e-commerce and BDA cases can't be escalated until the store is recorded.
-- **Stores & settings → Escalation matrix – stores (per store and kind):** pick a store and a tab (Lots-App, Ecommerce, BDA, Store related). Each row shows its three stages with To, Cc and TAT; **Edit** (applies at once, also to cases already escalated), **Back to the workbook**, **Sample to Teams**. A ⚠ banner shows on the made-up tabs.
+- **Stores & settings → Escalation matrix – stores (per store and kind):** pick a store and a tab (App, Ecommerce, BDA, Store related). Each row shows its three stages with To, Cc and TAT; **Edit** (applies at once, also to cases already escalated), **Back to the workbook**, **Sample to Teams**. A ⚠ banner shows on the made-up tabs.
 - **Case page and New case form** show the row a case goes to as soon as the category and store are chosen.
 - **Updates from LOTS:** uploading the workbook (or the live link, or an email from cpwi.in) reads the store tabs too. Each changed cell is shown (yellow marked), applied, and can be undone. Rows the CRM doesn't know are listed as "skipped"; tabs missing from the file are left as they are.
 - **Replies** from any address in the store matrix are recognised as the store's replies.
