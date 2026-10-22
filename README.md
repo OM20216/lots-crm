@@ -47,8 +47,8 @@ Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch
 | Missed calls in the top bar (Recent missed / 2nd round), opening on a new missed call | ✅ Ready |
 | Email: every mail to contactus@cpwi.in becomes a Pending case automatically | ✅ Built. **Connect with "Sign in with Microsoft" on the Automation page** (§9.3) |
 | Automation engine (assign, acknowledge, escalation emails, chase stores, reports) | ✅ Ready. Email-based parts start once the mailbox is connected |
-| Cases follow LOTS's case master: the **"Case catergory" sheet of the escalation workbook** (type of contact → case type → category → sub-category → sub-category 2) | 🟡 **In progress (paused 17 Oct 2026)**: lists, forms, workflows and email reader switched; not tested yet (§6.1) |
-| Store escalation matrix: every store × Lots-App / Ecommerce / BDA / Store related, with each row's own emails | 🟡 **In progress (paused)**: rows and routing written, server + screens not finished (§6.8) |
+| Cases follow LOTS's case master: the **"Case catergory" sheet of the escalation workbook** (type of contact → case type → category → sub-category → sub-category 2) | ✅ Built and tested on a test copy (§6.1). **Live CRM not restarted yet** |
+| Store escalation matrix: every store × Lots-App / Ecommerce / BDA / Store related, each row with its own To / Cc / TAT, automatic Level 1 → Level 2 | ✅ Built and tested on a test copy (§6.8). DH 105 and GNI Ecommerce to confirm with LOTS. **Live CRM not restarted yet** |
 | Workflow per case type and escalation: right store / team, TAT, escalation matrix (Level 2 / 3), holidays, re-assign, store-reply reading, promised dates, follow-up flags, report | ✅ Ready. **Store / team contacts and the matrix need filling in** |
 | Email previews in Microsoft Teams (every email the CRM would send, nobody emailed) | ✅ Live — on until the mailbox is connected |
 | Attachments: add files to a case; escalation emails carry them | ✅ Ready |
@@ -191,7 +191,7 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 
 ### 6.1 Case types (LOTS case master)
 
-> **🟡 In progress (paused 17 Oct 2026).** The case master was switched to the escalation workbook's sheet (decided with the user). The code is changed but **not tested yet**, and the live CRM still runs the earlier version. Until it is finished, read this section as the target.
+> Switched on 17 Oct 2026 and tested on 22 Oct 2026 (decided with the user). The live CRM picks it up at its next restart; saved cases are renamed then (below).
 
 The case taxonomy now comes from the **"Case catergory" sheet of LOTS's escalation workbook** ("Escalation Matrix LOTS", the file with the store tabs; it replaces the older "lot cases excel"). It is defined in `src/taxonomy.js`, with the names written exactly as in the sheet (including its spellings, e.g. "Stock availablity", "Not Relevent or Spam"). The SOP still drives the workflows, answers and requirements.
 
@@ -309,7 +309,7 @@ Every case type, category and sub-category has a **workflow**: who owns it, its 
 | Membership Related · Member related -NR · Membership related Request | The member's **home store** | 1 | — |
 | New Supplier | Category / Supplier team | **7** (SOP: reply within 7 days) | — |
 
-🟡 The owner above is the fallback. Once the store matrix (§6.8) is finished, the store, membership, app, e-commerce and BDA cases go to their row of the store matrix, and the **store** is required on app, e-commerce and BDA cases for that reason.
+The owner above is the fallback. Store, membership, app, e-commerce and BDA cases go to their row of the **store escalation matrix** (§6.8), and the **store** is required on app, e-commerce and BDA cases for that reason.
 
 **On the case page**, the **Workflow** card shows the owner, the TAT, where the case escalates to (with the contact's email, or a link to add it), and a **step checklist**:
 - Steps the CRM can see tick **themselves** (details captured, customer called, escalated, follow-up done, resolution, confirmation, closed, store / order number recorded).
@@ -361,12 +361,12 @@ The copy lists are in the sheet / on the Settings page. Days are working days.
 - **TAT missing in the sheet (⚠, filled from the row's pattern, decided 17 Oct 2026, to confirm with LOTS):** Legal Level 2 "Within 2 working" → 2 working days; Admin and Marketing Level 2 empty → 3 working days.
 - **Two new supplier types** from the sheet were added to New Supplier: Suppliers - FMCG - Non Food, Suppliers - D&F.
 - **Crisis / miscellaneous** contacts below the table (Sumil Mudgal, Richa Singh; rigzin.yangdol, ajay.sharma, navni.jain) are shown on the Settings page; the CRM does not email them.
-- **Not in the HO sheet:** store cases, e-commerce / app, BDA and membership go to the **store escalation matrix** below (🟡 in progress). General Query, Festive Gifting and New Member keep the store / team escalation.
+- **Not in the HO sheet:** store cases, e-commerce / app, BDA and membership go to the **store escalation matrix** below. General Query, Festive Gifting and New Member keep the store / team escalation.
 - Cases already escalated before 17 Oct 2026 keep their team; only new escalations use the sheet.
 
 **Escalation flow** (Admin → Escalation flow, `/escalation-flow`, also "See as flow chart" on the Settings card): the same rules as a React Flow chart. Pick a sheet row; the boxes show its SPOCs, copy lists and TATs and how many cases are at each stage now; click a box for the full To / Cc list and what the CRM does there.
 
-#### Store escalation matrix (workbook store tabs) — 🟡 in progress, paused 17 Oct 2026
+#### Store escalation matrix (workbook store tabs)
 
 LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 17 Oct 2026) has 21 tabs: *Case catergory* (the new case master, §6.1), one tab per **store × kind**, and *HO*. Each store tab has the same CRM TABLE as the HO sheet, with SUB1 + SUB 2, and First Time Resolution / Level 1 / Level 2 with To, Cc and TAT. The people differ per store: the store's own mailboxes (`st101.reception`, `.delivery`, `.quality`, `.admin`, `.checkout`, `.cdm`, `.sgm`, `.asgm`) plus HO people.
 
@@ -392,33 +392,22 @@ The app tab's **"Product Damage"** row has no case-master category, so no case r
 
 **Read from the workbook** (checked 17 Oct 2026):
 - every tab uses only its own store's mailboxes;
-- two kinds of faulty address: `Isha.kohli@cpwi` (HO tab) and `p.khamank@c…` cut off in 12 cells, both completed to `@cpwi.in`;
+- faulty addresses: `Isha.kohli@cpwi` (HO tab), `p.khamank@c…` cut off in 12 cells, `St101.pbm.in` (each store tab, written without "@cpwi") and a bare "@cpwi.in"; all corrected or left out and noted (below);
 - two tabs have a different SUB 2 text for "Lots-App Pricing Related - REQUESTS" (SV, GNI), so rows are matched by SUB1;
 - Delivery related (store tabs) has a First Time Resolution TAT of **4 hours**, and the quality rows have Level 2 at 2 days.
 
-**Done so far (code, not tested):**
-- `src/storeMatrix.js`: the rows of the four tabs, the case → row routes, and `storeRouteFor(c)`.
-- `server/matrixImport.js` reads the store tabs as well as the HO sheet:
-  - tab from the sheet name ("NSP Lots-App(Store 101)");
-  - row by SUB1 (SUB 2 only to tell apart rows with the same SUB1);
-  - the 9 columns by position, because the headers differ from tab to tab;
-  - cut-off `@c…` addresses completed;
-  - store tabs missing from the file are listed and left as they are;
-  - new rows in a store tab are listed as "skipped";
-  - store rows are saved in `settings.storeMatrix` and can be undone.
+**How it works (built 22 Oct 2026):**
+- **The people per store** are in `server/storeMatrix.json`: 348 rows (6 stores × 58). `node server/buildStoreMatrix.js "<workbook.xlsx>"` reads them from the workbook, and the store tabs the workbook lacks (DH 105, GNI 106 Ecommerce) are made from NSP 101 with the store's own mailboxes and marked ⚠.
+- **Escalate:** a store, membership, app, e-commerce or BDA case goes to its store-matrix row, for its store (membership: the member's home store). The HO matrix still comes first for its own categories. The email goes to the row's First Time Resolution To with its Cc and says "as per the escalation matrix (store)"; the due time is the row's TAT (4 working hours for store delivery).
+- **TAT passes → Level 1 → Level 2**, then a daily reminder: the same engine as the HO matrix (§6.8 above), with each stage's own To, Cc and TAT. Store-matrix rows use the sheet's TAT (the SOP's 7-day refund TAT is not added on top).
+- **No store on the case** (or "Not Specific"): app, e-commerce and BDA cases can't be escalated until the store is recorded.
+- **Stores & settings → Escalation matrix – stores (per store and kind):** pick a store and a tab (Lots-App, Ecommerce, BDA, Store related). Each row shows its three stages with To, Cc and TAT; **Edit** (applies at once, also to cases already escalated), **Back to the workbook**, **Sample to Teams**. A ⚠ banner shows on the made-up tabs.
+- **Case page and New case form** show the row a case goes to as soon as the category and store are chosen.
+- **Updates from LOTS:** uploading the workbook (or the live link, or an email from cpwi.in) reads the store tabs too. Each changed cell is shown (yellow marked), applied, and can be undone. Rows the CRM doesn't know are listed as "skipped"; tabs missing from the file are left as they are.
+- **Replies** from any address in the store matrix are recognised as the store's replies.
+- **Sheet text cleaned when read:** links and rich text in a cell are read as the text shown; `St101.pbm.in` → `st101.pbm@cpwi.in`; cut-off `p.khamank@c…` completed; a bare "@cpwi.in" left out. Corrections show as ✎ on the row (38 stages).
 
-**Still to do (where it was paused):**
-1. `server/storeMatrix.json`: the people per store read from the workbook, plus the generated DH 105 rows and GNI Ecommerce rows (⚠).
-2. `server/core.js`:
-   - `storeRow(key)` / `storeRowFor(c)`;
-   - `hoRow` also finds store rows;
-   - `targetFor` uses the store row when the HO sheet has none;
-   - replies from the store-matrix addresses are recognised.
-3. Screens:
-   - Stores & settings card **Escalation matrix – stores**, per store and tab, with Edit / Sample to Teams;
-   - the case page and the New case hint show the store row;
-   - the escalation flow chart.
-4. Tests on a test copy, including the existing suites, whose case names must be updated. Then a README / WORKLOG pass and a live restart (only with `database.pending == 0`).
+**Tested (22 Oct 2026, test copy, fake Teams):** 29 end-to-end checks: rows per store and tab; DH 105 and GNI Ecommerce marked to confirm; an AKD app complaint going First Time Resolution → Level 1 → Level 2 with the sheet's To / Cc, and nothing above Level 2; store delivery at 4 working hours; BDA, website, DH and not-registered membership routes; "Pricing mismatched" on the app vs website tab; Legal still on the HO matrix; a BDA case without a store refused; edit / bad email refused / back to the workbook; the whole workbook uploaded (274 store rows, 0 changes; the HO tab matches the CRM's 12 rows); one changed yellow cell found, applied and undone; an old case renamed at start-up; Sample to Teams. Settings card checked in Chrome (NSP Lots-App 17 rows, DH Store related 11 rows with the ⚠ banner, Edit form). Email reader: 10 sample emails, all land on case-master categories.
 
 #### Updated matrix from LOTS (Excel / CSV)
 
@@ -786,12 +775,17 @@ server/
   sparktg.js       SparkTG API client (call record, agents, recordings, field mapping)
   automation.js    Rules, assignment, categorisation, scheduled jobs, outbox, mailbox polling
   mail.js          Microsoft 365: Sign in with Microsoft (device code) or app secret; read, send, reply in thread, attachments
-  teams.js         Microsoft Teams: email previews posted to a channel (Power Automate workflow link)
+  teams.js         Microsoft Teams: email previews and escalation cards posted to a channel (Power Automate workflow link)
+  matrixImport.js  Escalation matrix from LOTS's Excel / CSV: HO sheet and store tabs, preview, apply, undo
+  matrixLink.js    Live link to the matrix Excel on OneDrive / SharePoint
+  storeMatrix.json Store escalation matrix as read from the workbook (348 rows); built by buildStoreMatrix.js
   data/            JSON data / backups / attachments (not in git)
 src/
   App.jsx          Layout: sidebar, top bar, routes, sign-in, dialer, caller panel
   sparktg.jsx      SparkTG widget connection (adapted from PSRI SparkTGContext)
-  taxonomy.js      Case types, categories, case master columns, statuses, customer groups, product types (LOTS case master + SOP)
+  taxonomy.js      Case types, categories, sub-categories 1 / 2, case master columns, statuses, customer groups, product types (workbook "Case catergory" sheet + SOP)
+  escalationMatrix.js  HO escalation matrix (sheet V_6), working hours, stage names
+  storeMatrix.js   Store escalation matrix: the tab rows and which case goes to which row
   workflows.js     Workflow per case type: owner team, TAT, steps, escalation target (also used by the server)
   picklists.js     Picklists and dependencies: base values from taxonomy.js + the ones added on the screens
   knowledge.js     SOP / FAQ answers, scripts, email templates (also used by the server)
@@ -816,6 +810,9 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | PUT | `/api/stores/:code` | Store contact and hours |
 | PUT | `/api/teams/:key` | Team contact (contact, phone, email) for workflow escalations |
 | PUT | `/api/escalation-matrix/:key` | Levels above Level 1 for `*` (default), `store:<code>` or `team:<key>`: `{ levels: [{ name, email, phone, tatDays }] }` |
+| GET | `/api/store-matrix?store=<code>` | Store escalation matrix of one store: its rows per tab with the three stages, ⚠ to confirm, edits |
+| PUT / DELETE | `/api/store-matrix/:key` | Change a store row (`s101.app-tech`) `{ stages: [{ to, cc, tat: { value, unit } } ×3] }` / back to the workbook |
+| POST | `/api/store-matrix/:key/sample` | Post the row's three emails for a sample case to Teams |
 | PUT | `/api/holidays` | `{ dates: ["YYYY-MM-DD", …] }` — not counted as working days |
 | POST | `/api/cases/:id/reroute` | Move an escalated case to `{ kind: store \| team, code, note }` |
 | POST | `/api/cases/:id/raise-level` | Next escalation level now, `{ reason }` (400 if the matrix has no next level) |
@@ -896,7 +893,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - Settled 15 Oct 2026: Duhai store code is **DH** (case master).
 - [x] **HO escalation matrix** (April 2026 V_6) applied, 17 Oct 2026 (§6.8).
 - [ ] **Confirm with LOTS:** the 3 TATs missing in the sheet (Legal / Admin / Marketing Level 2), the 3 corrected addresses, and that each stage's TAT counts from when the case reaches it.
-- [x] The **store escalation matrix**: received 17 Oct 2026 (workbook with store tabs). 🟡 Being built (§6.8).
+- [x] The **store escalation matrix**: received 17 Oct 2026 (workbook with store tabs). Built 22 Oct 2026 (§6.8).
 - [ ] **Confirm with LOTS:**
   - the DH 105 rows and GNI Ecommerce rows (not in the workbook; made from NSP's pattern);
   - the `assumed` routes (§6.8);
@@ -907,6 +904,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [ ] LOTS's Vtiger lists for **Contact Type, Source of Information and cities**.
 
 **Not built yet**
+- [ ] The **Escalation flow** chart shows the HO matrix rows only (the store matrix is on Stores & settings).
 - [ ] **Run the CRM as a Windows service** (starts with the PC, runs with VS Code closed).
 - [ ] **Logins** with passwords and roles, before the CRM is reachable outside the office network.
 - [ ] **OMS link** for orders on call: needs OMS access.
@@ -979,4 +977,5 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 42 | **Editable escalation matrix for stores & teams**: same table as the HO matrix (First Time Resolution / Level 1 / Level 2 with To, Cc, TAT; Edit, Sample to Teams, Clear); default row; every case (HO, store, team) now runs on one automatic path; case page shows the three stages for store cases too. Tested: 20 new checks + all earlier suites, browser checked |
 | 43 | **Escalation matrix updates from LOTS's Excel**: upload .xlsx / .csv → changes shown (yellow cells marked) → Apply; typos fixed; unclear cells keep the CRM value; new rows mapped or added as new HO rows; automatic when the sheet arrives by email from cpwi.in; history with Undo. New dependency `exceljs`. Tested: 19 + 6 checks, earlier suites passing, browser checked |
 | 44 | **Live link to the matrix Excel** on OneDrive / SharePoint: checked every 10 min, applied when LOTS saves a change, errors shown and posted to Teams; Microsoft sign-in now also asks Files.Read.All. Tested against a stand-in for OneDrive (11 checks) |
-| 45 | 🟡 **In progress (paused 17 Oct 2026): store escalation matrix and the new case master** from LOTS's workbook (21 tabs). Case types / categories / sub-categories / sub-categories 2 switched to the "Case catergory" sheet: taxonomy, picklists, Caller Type → Case Type and Sub Category → Sub Category 2 dependencies, case form, workflows, requirements, email reader, dashboard, flow chart; saved cases renamed once at start-up. Store tabs: rows and case → row routes (`src/storeMatrix.js`); the Excel import reads the store tabs. Not finished: per-store data file, server routing, screens, tests (§6.8) |
+| 45 | **Store escalation matrix and the new case master** from LOTS's workbook (21 tabs). Case types / categories / sub-categories / sub-categories 2 follow the "Case catergory" sheet (taxonomy, picklists, Caller Type → Case Type and Sub Category → Sub Category 2 dependencies, case form, workflows, requirements, email reader, dashboard, flow chart; saved cases renamed once at start-up). Store tabs: 348 rows (6 stores × 58) in `server/storeMatrix.json` (`server/buildStoreMatrix.js`), DH 105 and GNI Ecommerce made from NSP (to confirm); case → row routing; First Time Resolution → Level 1 → Level 2 automatic; Stores & settings card per store and tab (Edit, Back to the workbook, Sample to Teams); case page / New case hint; Excel upload / live link read the store tabs. 29 end-to-end checks + browser check |
+| 46 | **Teams card per escalation email** (built by the user, checked and fixed): one card for every escalation email (First Time Resolution, Level 1 / 2, overdue) once emails really go out, with the case, To / Cc / subject and the full email; it now says **sent** or **NOT sent — reason** (before, an unsent email showed as sent). Tested with no mailbox and a fake mailbox |

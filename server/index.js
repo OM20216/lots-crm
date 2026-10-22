@@ -33,6 +33,7 @@ const matrixLink = await import('./matrixLink.js');
 const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
 const { workflowFor } = await import('../src/workflows.js');
 const { CRISIS_CONTACTS, HO_MATRIX, MATRIX_SOURCE, STAGES, WORK_HOURS } = await import('../src/escalationMatrix.js');
+const { STORE_TABS } = await import('../src/storeMatrix.js');
 
 const { db, save, now, log, findCase, applyStatus, phoneKey, TRANSITIONS } = core;
 const { normalizeCallerType, normalizeCaseNames } = await import('../src/taxonomy.js');
@@ -78,6 +79,8 @@ api.get('/meta', (req, res) => {
     escalationMatrix: db().settings?.escalationMatrix || {},
     hoMatrix: hoMatrixView(),
     contactMatrix: contactMatrixView(),
+    // store matrix, First Time Resolution only (the New case form shows where a case will go): { '101': { 'app-tech': 'a@cpwi.in' } }
+    storeMatrixTo: Object.fromEntries(db().stores.map((s) => [s.code, Object.fromEntries(core.storeRows(s.code).map((r) => [r.rowKey, core.hoStage(r, 0)?.to.join(', ') || '']))])),
     workHours: { ...WORK_HOURS, ...(db().settings?.workHours || {}) },
     holidays: db().settings?.holidays || [],
     dependencies: db().dependencies || [],
@@ -222,7 +225,7 @@ function view(c) {
     levels: core.escalationLevels(at),
     levelName: core.levelName({ ...c, escalatedTo: at }),
     // the three stages (First Time Resolution, Level 1, Level 2) of the HO row or the store / team row
-    matrix: row && { key: row.key, row: row.row, ho: at.kind === 'matrix', levelsFrom: row.levelsFrom || null, stages: [0, 1, 2].map((i) => core.hoStage(row, i)).filter(Boolean) },
+    matrix: row && { key: row.key, row: row.row, ho: at.kind === 'matrix' && !row.store, store: row.store || null, toConfirm: row.toConfirm || '', levelsFrom: row.levelsFrom || null, stages: [0, 1, 2].map((i) => core.hoStage(row, i)).filter(Boolean) },
   };
 }
 
@@ -407,11 +410,10 @@ api.post(
 
 // HO escalation matrix: change a row's SPOCs / escalation lists / TATs (LOTS sends a new version of the sheet)
 const EMAIL = /^[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}$/i;
-api.put('/ho-matrix/:key', (req, res) => {
-  const base = core.hoRow(req.params.key);
-  if (!base) return res.status(404).json({ error: 'Unknown escalation matrix row' });
+/** The three stages from the edit form, checked (valid emails, a SPOC per stage, a sensible TAT). */
+function stagesFrom(body) {
   const list = (v) => (Array.isArray(v) ? v : String(v || '').split(/[,;\s]+/)).map((e) => String(e).trim()).filter(Boolean);
-  const stages = (req.body.stages || []).slice(0, 3).map((s, i) => {
+  const stages = (body.stages || []).slice(0, 3).map((s, i) => {
     const to = list(s?.to);
     const cc = list(s?.cc);
     const value = Number(s?.tat?.value);
@@ -422,7 +424,14 @@ api.put('/ho-matrix/:key', (req, res) => {
     if (!(value > 0 && value <= (unit === 'hours' ? 72 : 30))) throw core.fail(`${STAGES[i]}: TAT must be 1–${unit === 'hours' ? 72 : 30} working ${unit}`);
     return { to, cc, tat: { value, unit } };
   });
-  if (stages.length !== 3) return res.status(400).json({ error: 'The row needs all three stages: First Time Resolution, Level 1 and Level 2' });
+  if (stages.length !== 3) throw core.fail('The row needs all three stages: First Time Resolution, Level 1 and Level 2');
+  return stages;
+}
+
+api.put('/ho-matrix/:key', (req, res) => {
+  const base = core.hoMatrix().find((r) => r.key === req.params.key);
+  if (!base) return res.status(404).json({ error: 'Unknown escalation matrix row' });
+  const stages = stagesFrom(req.body);
   const d = db();
   d.settings ||= {};
   d.settings.hoMatrix = { ...(d.settings.hoMatrix || {}), [base.key]: { stages, updatedAt: now(), updatedBy: agentOf(req) } };
@@ -444,6 +453,42 @@ api.delete('/ho-matrix/:key', (req, res) => {
 api.post(
   '/ho-matrix/:key/sample',
   wrap(async (req, res) => {
+    if (!auto.previewing()) return res.status(400).json({ error: 'Teams preview is off or not connected (Automation → Teams preview)' });
+    res.json({ count: await auto.sendMatrixSamples(req.params.key, agentOf(req)) });
+  })
+);
+
+// Store escalation matrix (workbook store tabs): one store's rows, edit a row, back to the workbook, samples
+const storeMatrixView = (code) => ({
+  source: core.storeMatrixSource(),
+  tabs: STORE_TABS.map((t) => ({ tab: t.tab, label: t.label })),
+  rows: core.storeRows(code).map((r) => ({ key: r.key, store: r.store, tab: r.tab, row: r.row, sheet: r.sheet, toConfirm: r.toConfirm, edited: r.edited, updatedAt: r.updatedAt, updatedBy: r.updatedBy, stages: [0, 1, 2].map((i) => core.hoStage(r, i)).filter(Boolean) })),
+});
+api.get('/store-matrix', (req, res) => res.json(storeMatrixView(String(req.query.store || ''))));
+
+api.put('/store-matrix/:key', (req, res) => {
+  const row = core.storeRow(req.params.key);
+  if (!row) return res.status(404).json({ error: 'Unknown store matrix row' });
+  const stages = stagesFrom(req.body);
+  const d = db();
+  d.settings ||= {};
+  d.settings.storeMatrix = { ...(d.settings.storeMatrix || {}), [row.key]: { stages, updatedAt: now(), updatedBy: agentOf(req) } };
+  save();
+  res.json(storeMatrixView(row.store));
+});
+
+api.delete('/store-matrix/:key', (req, res) => {
+  const row = core.storeRow(req.params.key);
+  if (!row) return res.status(404).json({ error: 'Unknown store matrix row' });
+  if (db().settings?.storeMatrix) delete db().settings.storeMatrix[row.key];
+  save();
+  res.json(storeMatrixView(row.store));
+});
+
+api.post(
+  '/store-matrix/:key/sample',
+  wrap(async (req, res) => {
+    if (!core.storeRow(req.params.key)) return res.status(404).json({ error: 'Unknown store matrix row' });
     if (!auto.previewing()) return res.status(400).json({ error: 'Teams preview is off or not connected (Automation → Teams preview)' });
     res.json({ count: await auto.sendMatrixSamples(req.params.key, agentOf(req)) });
   })

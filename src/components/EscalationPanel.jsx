@@ -98,7 +98,7 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
       <div className="esc-grid small">
         <span className="muted">With</span>
         <span>
-          <strong>{m ? `${m.ho ? m.row : to.name} – ${m.stages[Math.min(level, m.stages.length) - 1]?.label}` : to.name}</strong>
+          <strong>{m ? `${m.ho || m.store ? m.row : to.name} – ${m.stages[Math.min(level, m.stages.length) - 1]?.label}` : to.name}</strong>
           {!m && to.contact && ` · ${to.contact}`}{' '}
           {m?.stages[Math.min(level, m.stages.length) - 1]?.to.length ? <span className="muted">{m.stages[Math.min(level, m.stages.length) - 1].to.join(', ')}</span> : to.email ? <span className="muted">{to.email}</span> : <span className="over">no email — <Link to="/settings">add</Link></span>}
         </span>

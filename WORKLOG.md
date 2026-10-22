@@ -4,6 +4,39 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
+## 22 October 2026
+
+### Teams card per escalation email (added by the user, checked)
+- The user added a Teams card for every escalation email (First Time Resolution, Level 1 / 2, overdue reminder): case facts, To / Cc / subject and the full email, sent once emails really go out (with Teams preview on, the preview card already shows them).
+- Found in testing: with no mailbox the email was "not sent", but the card still read as if it had gone out. Fixed: the card now says **✅ Escalation email sent** or **⚠ NOT sent — reason**.
+- Tested on a test copy with a fake Teams channel: no mailbox → 2 cards "NOT sent — Mailbox not connected"; fake Microsoft 365 mailbox → 2 emails sent, 2 cards "sent".
+- Note: Teams cards can't contain HTML or JavaScript. The card is an Adaptive Card (JSON) built in JavaScript, which is what Teams accepts.
+- Committed and merged (feature/teams-escalation-card).
+
+### Store escalation matrix finished
+- The workbook was downloaded through the share link (17 Oct). Its store tabs were read into `server/storeMatrix.json` with `server/buildStoreMatrix.js`: 348 rows, 6 stores × 58 (Lots-App 17, Ecommerce 16, BDA 14, Store related 11).
+- DH 105 (no tabs) and GNI 106 Ecommerce (no tab) were made from NSP 101 with the store's own st105 / st106 mailboxes, marked "to confirm with LOTS".
+- Text cleaned when read:
+  - links and rich text in cells (read as the text shown);
+  - `St10x.pbm.in` → `st10x.pbm@cpwi.in`;
+  - cut-off `p.khamank@c…` completed;
+  - a bare "@cpwi.in" left out;
+  - 38 stages carry a ✎ note.
+- Server: a store, membership, app, e-commerce or BDA case escalates to its store row (by category › sub-category › sub-category 2 and the store; membership: the home store). Then Level 1 and Level 2 follow automatically with each stage's own To / Cc / TAT. Replies from the matrix addresses are recognised. Store-matrix rows use the sheet's TAT.
+- Screens:
+  - **Stores & settings → Escalation matrix – stores (per store and kind)**: pick store and tab; Edit, Back to the workbook, Sample to Teams; ⚠ banner on the made-up tabs.
+  - The case page and the New case hint show the row.
+- Excel upload / live link read the store tabs; changes are shown, applied and can be undone.
+- Email reader fix: "duplicate copy of the invoice" is now recognised.
+- Tested on a test copy:
+  - 29 end-to-end checks, including uploading the whole workbook: 274 store rows read with no changes, and the HO tab equals the CRM's 12 rows;
+  - the browser check of the Settings card in Chrome;
+  - 10 sample emails through the email reader;
+  - the Teams card tests again.
+- Not done: the live CRM is still running the version started on 17 Oct (before these changes); restart only with no pending database writes. The escalation flow chart still shows only the HO rows.
+
+---
+
 ## 17 October 2026
 
 ### HO escalation matrix applied (LOTS sheet "Escalation Matrix LOTS – April 2026 – V_6 (HO)")
