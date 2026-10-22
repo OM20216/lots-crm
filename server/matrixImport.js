@@ -46,7 +46,26 @@ const isYellow = (cell) => {
   return r > 200 && g > 190 && b < 140;
 };
 
-async function readFile(bytes, name) {
+// The text LOTS sees in a cell: plain, rich text (several fonts), a link (its shown text, not the link
+// behind it) or a formula's result. exceljs throws on a merged cell whose first cell is empty: that is empty.
+const valueText = (v) => {
+  if (v == null) return '';
+  if (typeof v !== 'object') return String(v);
+  if (v instanceof Date) return v.toISOString();
+  if (v.richText) return v.richText.map((r) => r.text).join('');
+  if ('text' in v) return valueText(v.text);
+  if ('result' in v) return valueText(v.result);
+  return '';
+};
+const cellText = (cell) => {
+  try {
+    return valueText(cell.value).trim();
+  } catch {
+    return '';
+  }
+};
+
+export async function readFile(bytes, name) {
   if (/\.csv$/i.test(name)) {
     let text = new TextDecoder('utf-8').decode(bytes);
     if (text.includes('�')) text = new TextDecoder('windows-1252').decode(bytes); // Excel's "CSV" is often Windows-1252
@@ -60,7 +79,7 @@ async function readFile(bytes, name) {
       const cells = [];
       for (let c = 1; c <= Math.min(Math.max(r.cellCount, 11), 20); c++) {
         const cell = r.getCell(c);
-        cells.push({ text: String(cell.text ?? '').trim(), yellow: isYellow(cell) });
+        cells.push({ text: cellText(cell), yellow: isYellow(cell) });
       }
       rows[n - 1] = cells;
     });
@@ -117,7 +136,7 @@ function tableRows(sheets) {
 }
 
 /** The store tabs' rows, each placed on its store-matrix row: [{ key: 's101.app-tech', code, tab, label, … }]. */
-function storeTableRows(sheets) {
+export function storeTableRows(sheets) {
   const out = [];
   for (const rows of sheets) {
     const at = storeTabOf(rows.name);
@@ -147,6 +166,8 @@ export function cleanEmails(raw) {
     if (!t) continue;
     let m = t.match(/^([^@]+@cpwi\.in)@.+$/i);
     if (m) fixes.push(`${t} → ${m[1]}`), (t = m[1]);
+    m = t.match(/^(st\d{3}\.[a-z]+)\.in$/i); // store mailbox without "@cpwi": "St101.pbm.in"
+    if (m) fixes.push(`${t} → ${m[1].toLowerCase()}@cpwi.in`), (t = `${m[1].toLowerCase()}@cpwi.in`);
     m = t.match(/^([^@]+)@(c[a-z.]*)$/i);
     if (m && 'cpwi.in'.startsWith(m[2].toLowerCase()) && m[2].toLowerCase() !== 'cpwi.in') fixes.push(`${t} → ${m[1]}@cpwi.in`), (t = `${m[1]}@cpwi.in`); // cut off: "a@cpwi", "a@cp", "a@c"
     if (EMAIL.test(t)) {

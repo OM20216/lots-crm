@@ -12,6 +12,7 @@ import * as store from './db.js';
 import { EMAIL_TEMPLATES, fillTemplate } from '../src/knowledge.js';
 import { extractRefs, missingInfo } from '../src/requirements.js';
 import { workflowFor } from '../src/workflows.js';
+import { STORE_ROWS } from '../src/storeMatrix.js';
 
 const { db, save, now, log, on, applyStatus } = core;
 const ATTACH_DIR = path.join(store.DATA_DIR, 'attachments');
@@ -248,13 +249,16 @@ function dueText(iso, tat) {
   return tat?.unit === 'hours' ? d.toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : d.toLocaleDateString('en-IN');
 }
 
-/** Post the emails of one HO matrix row (First Time Resolution, Level 1, Level 2) to Teams, for a sample case. */
+/** Post the emails of one matrix row (HO, store matrix, store / team) — First Time Resolution, Level 1, Level 2 — to Teams, for a sample case. */
 export async function sendMatrixSamples(key, by) {
   const [kind, ...rest] = key.split(':');
   const code = rest.join(':');
   const row = kind === 'store' || kind === 'team' ? core.escalationRow({ kind, code }) : core.hoRow(key);
   if (!row) throw core.fail('Unknown escalation matrix row', 404);
-  const c = row.match
+  const route = row.store && STORE_ROWS.find((x) => x.key === row.rowKey)?.routes[0];
+  const c = route
+    ? { ...SAMPLE_CASE, category: route.category, subCategory: route.subCategory || '', sub2: route.sub2 || '', caseType: route.category.includes('Request') || route.category.includes('REQUESTS') ? 'Request' : 'Issues or Complaint', store: row.store, escalatedAt: now(), escalatedTo: { kind: 'matrix', code: key }, description: `Sample case for the store escalation matrix row “${row.row}”.` }
+    : row.match
     ? { ...SAMPLE_CASE, ...row.match, subCategory: '', store: '', orderRef: '', escalatedAt: now(), escalatedTo: { kind: 'matrix', code: key }, description: `Sample case for the escalation matrix row “${row.row}”.` }
     : { ...SAMPLE_CASE, store: kind === 'store' ? code : '', escalatedAt: now(), escalatedTo: { kind, code } };
   const out = [];
@@ -332,7 +336,7 @@ const RULES = [
   { name: 'Overcharged / price', re: /overcharg\w*|extra (charged|amount)|price (mismatch|difference|different)|charged more|mrp/i, caseType: 'Issues or Complaint', app: appC('{P} Pricing Related', 'Price higher than market/store charged'), shop: C('Store related', 'Payment or invoice', 'price mismatch') },
   { name: 'Staff behaviour', re: /\b(rude|misbehav\w*|behaviou?r|arrogant|shout\w*|abus\w*)\b/i, caseType: 'Issues or Complaint', to: C('Store related', 'Behaviour of staff', 'rude behaviour') },
   { name: 'Freebie / coupon', re: /(freebie|free (gift|item)|coupon|voucher).{0,30}(not|nahi)|(not|didn.?t) (get|receive).{0,20}(freebie|free|coupon|voucher)/i, caseType: 'Issues or Complaint', to: C('Store related', 'Offer related', 'freebie not given') },
-  { name: 'Invoice copy', re: /(invoice|bill).{0,25}(copy|reissue|re-issue|again|resend|duplicate)|(copy|duplicate) (of )?(invoice|bill)/i, caseType: 'Request', to: C('Store related Request', 'Payment or invoice Related Request', 're-issue invoive') },
+  { name: 'Invoice copy', re: /(invoice|bill).{0,25}(copy|reissue|re-issue|again|resend|duplicate)|(copy|duplicate) (of )?(the |my )?(invoice|bill)/i, caseType: 'Request', to: C('Store related Request', 'Payment or invoice Related Request', 're-issue invoive') },
   { name: 'GST', re: /\bgst(in)?\b/i, caseType: 'Request', to: C('Store related Request', 'Payment or invoice Related Request', 'Gst related') },
   { name: 'Return / exchange', re: /\b(return|exchange|replace\w*)\b/i, caseType: 'Request', to: C('Store related Request', 'Return of goods related Request', 'Request to return/ Exchange') },
   { name: 'Bulk booking', re: /\b(bulk|wholesale quantity|regular supply|book (the )?products?)\b/i, caseType: 'Request', to: C('Store related Request', 'Stock availablity related Request', 'Request to increase Stock') },
@@ -448,10 +452,10 @@ function recipient(c) {
   const label = t.kind === 'matrix' ? row?.row || t.name : t.kind === 'team' ? core.teams()[t.code]?.name || t.name || t.code : st ? `store ${st.short || st.code}` : `store ${c.store}`;
   // "Dear <store contact>" at First Time Resolution; otherwise the names in the addresses
   const contact = i === 0 && row?.contact ? row.contact : row?.stages?.[i]?.name || greet(s.to);
-  return { key: `${t.kind}:${t.code || c.store || ''}`, label, email: s.to.join(', '), cc: s.cc.join(', '), contact, stage: s, ho: t.kind === 'matrix' };
+  return { key: `${t.kind}:${t.code || c.store || ''}`, label, email: s.to.join(', '), cc: s.cc.join(', '), contact, stage: s, matrix: t.kind === 'matrix', ho: t.kind === 'matrix' && !row?.store };
 }
 
-const MATRIX = (r) => `the escalation matrix${r.ho ? ' (HO)' : ''}`;
+const MATRIX = (r) => `the escalation matrix${r.ho ? ' (HO)' : r.matrix ? ' (store)' : ''}`;
 const concern = (c) => `${c.category}${c.sub2 ? ' / ' + c.sub2 : c.subCategory ? ' / ' + c.subCategory : ''}`;
 
 function assign(c) {
@@ -529,7 +533,7 @@ async function escalationEmail(c, note) {
   const t = template('escalate', c, { subCategory: c.subCategory || c.sub2 || '' }); // supplier type for New Supplier cases
   if (r.contact) t.body = t.body.replace(/^Dear [^,\n]*,/, `Dear ${r.contact},`);
   // the TAT really applied (store / team cases keep the SOP's longer TAT for refunds and new suppliers)
-  const wf = !r.ho && r.stage.tat.unit === 'days' ? workflowFor(c)?.tatDays || 0 : 0;
+  const wf = !r.matrix && r.stage.tat.unit === 'days' ? workflowFor(c)?.tatDays || 0 : 0; // matrix rows: the sheet's TAT
   const tat = wf > r.stage.tat.value ? `${wf} working days` : r.stage.tatText;
   t.body = t.body.replace('As per the escalation matrix, the TAT for Level 1 is 1 working day.', `As per ${MATRIX(r)}, the First Time Resolution TAT for this case is ${tat} (by ${dueText(c.dueAt, r.stage.tat)}).`);
   if (note) t.body = t.body.replace('\n\nAs per the escalation matrix', `\nAction needed: ${note}\n\nAs per the escalation matrix`);

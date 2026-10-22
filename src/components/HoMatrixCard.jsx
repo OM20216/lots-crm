@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import { fmtDate, useMeta } from '../ui.jsx';
@@ -159,7 +159,7 @@ export default function HoMatrixCard() {
         From <strong>{hoMatrix.source}</strong>. A case of these types is escalated to the <strong>First Time Resolution</strong> SPOC with the listed people in copy. If it is not resolved within the TAT, it goes to <strong>Level 1</strong>, then <strong>Level 2</strong>, automatically, each with its own SPOC, copy list and TAT
         (counted from when the case reaches that level). After Level 2's TAT, a reminder goes to Level 2 every working day. TATs count Monday–Saturday, without holidays.
       </p>
-      <p className="muted small">Other case types (store, e-commerce / app, BDA, membership…) use the store / team rows below.</p>
+      <p className="muted small">Store, membership, app, e-commerce and BDA cases use the store matrix below; the rest use the store / team rows.</p>
       <MatrixImport />
       <div className="row small hom-hours">
         Working hours for TATs in hours:
@@ -206,7 +206,7 @@ export function ContactMatrixCard() {
     <section className="card">
       <h2>Escalation matrix – stores &amp; teams</h2>
       <p className="muted small">
-        Where store cases, e-commerce / app, BDA, membership and other cases go. Same as the HO matrix: the case goes to the store's / team's <strong>First Time Resolution</strong> email, then automatically to <strong>Level 1</strong> and <strong>Level 2</strong> when each TAT passes, each with
+        For the cases neither matrix covers (General Query, Festive Gifting, …), and for a store matrix case whose store isn’t set. Same as the HO matrix: the case goes to the store's / team's <strong>First Time Resolution</strong> email, then automatically to <strong>Level 1</strong> and <strong>Level 2</strong> when each TAT passes, each with
         its own To, Cc and TAT. After Level 2, a reminder every working day. A store or team without its own Level 1 / Level 2 uses the <strong>Default</strong> row. Press <strong>Edit</strong> to change any email or TAT; it applies at once, also to cases already escalated.
       </p>
       <p className="muted small">Refunds and new suppliers keep the SOP's 7 working days at First Time Resolution when that is longer than the row's TAT.</p>
@@ -226,6 +226,80 @@ export function ContactMatrixCard() {
                 onSaved={reloadMeta}
               />
             ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
+/**
+ * Store escalation matrix (LOTS workbook, one tab per store and kind): pick a store and a tab; each row has its own
+ * First Time Resolution, Level 1 and Level 2. Store, membership, app, e-commerce and BDA cases go to their row.
+ */
+export function StoreMatrixCard() {
+  const { stores, reloadMeta } = useMeta();
+  const [code, setCode] = useState(stores[0]?.code || '101');
+  const [tab, setTab] = useState('app');
+  const [data, setData] = useState(null);
+  const [err, setErr] = useState('');
+  const load = () =>
+    api
+      .get(`/store-matrix?store=${code}`)
+      .then((d) => (setData(d), setErr('')))
+      .catch((e) => setErr(e.message));
+  useEffect(() => {
+    load();
+  }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
+  const rows = (data?.rows || []).filter((r) => r.tab === tab);
+  const confirm = rows.find((r) => r.toConfirm)?.toConfirm;
+  return (
+    <section className="card">
+      <h2>Escalation matrix – stores (per store and kind)</h2>
+      <p className="muted small">
+        From LOTS's workbook <strong>{data?.source || '…'}</strong>: one table per store for <strong>Lots-App</strong>, <strong>Ecommerce</strong>, <strong>BDA</strong> and <strong>Store related</strong>. A case goes to the row of its category ›
+        sub-category › sub-category 2, for its store (membership: the member's home store), then to Level 1 and Level 2 by itself when each TAT passes. <strong>Edit</strong> changes a row at once, also for cases already escalated; the
+        workbook (upload or live link above) updates them too.
+      </p>
+      <div className="row wrap small hom-hours">
+        Store
+        <select value={code} onChange={(e) => setCode(e.target.value)}>
+          {stores.map((s) => (
+            <option key={s.code} value={s.code}>
+              {s.code} {s.short} – {s.name}
+            </option>
+          ))}
+        </select>
+        {(data?.tabs || []).map((t) => (
+          <button key={t.tab} className={`btn sm ${tab === t.tab ? 'primary' : ''}`} onClick={() => setTab(t.tab)}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {err && <div className="error small">{err}</div>}
+      {confirm && <div className="notice small hom-flag">⚠ To confirm with LOTS: {confirm}</div>}
+      <div className="table-wrap">
+        <table className="table hom-table">
+          <Head first="Sheet row (SUB1 / SUB 2)" />
+          <tbody>
+            {rows.map((r) => (
+              <MatrixRow
+                key={r.key + (r.updatedAt || '')}
+                r={{ ...r, row: r.sheet[0].replace(/,$/, '') }}
+                base="/store-matrix"
+                sub={r.sheet[1] !== r.sheet[0] ? r.sheet[1] : ''}
+                resetLabel="Back to the workbook"
+                resetAsk={`Put “${r.row}” back as in the workbook?`}
+                onSaved={() => (load(), reloadMeta())}
+              />
+            ))}
+            {data && !rows.length && (
+              <tr>
+                <td colSpan={5} className="muted small">
+                  No rows.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

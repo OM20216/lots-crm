@@ -5,6 +5,12 @@ import { extractRefs } from '../src/requirements.js';
 import { normalizeCallerType } from '../src/taxonomy.js';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
 import { HO_MATRIX, STAGES, WORK_HOURS, cleanList, matrixRowFor, tatText } from '../src/escalationMatrix.js';
+import { STORE_ROWS, parseStoreRowKey, storeRouteFor, storeRowKey } from '../src/storeMatrix.js';
+import fs from 'node:fs';
+
+// The store escalation matrix as read from LOTS's workbook (server/buildStoreMatrix.js); edits are in settings.storeMatrix
+const STORE_MATRIX = JSON.parse(fs.readFileSync(new URL('./storeMatrix.json', import.meta.url), 'utf8'));
+export const storeMatrixSource = () => STORE_MATRIX.source;
 
 export const db = () => store.get();
 export const save = () => store.save();
@@ -235,7 +241,8 @@ export function hoMatrix() {
   const extra = db().settings?.hoExtra || []; // rows LOTS added to the sheet later (Excel import)
   return [...HO_MATRIX, ...extra].map((r) => (saved[r.key] ? { ...r, stages: saved[r.key].stages, updatedAt: saved[r.key].updatedAt, updatedBy: saved[r.key].updatedBy } : r));
 }
-export const hoRow = (key) => hoMatrix().find((r) => r.key === key) || null;
+/** A matrix row by key: an HO row, or a store-matrix row ('s101.app-tech'). */
+export const hoRow = (key) => hoMatrix().find((r) => r.key === key) || storeRow(key);
 export const hoRowFor = (c) => matrixRowFor(c, hoMatrix());
 
 /** One stage of a row, ready to send: To, Cc (without anyone already in To), TAT. index 0 = First Time Resolution. */
@@ -244,6 +251,48 @@ export function hoStage(row, i) {
   if (!s || (i > 0 && !s.to?.length)) return null;
   const to = cleanList(s.to);
   return { label: STAGES[i], to, cc: cleanList(s.cc, to), tat: s.tat, tatText: tatText(s.tat), toConfirm: s.toConfirm || s.tat?.toConfirm || '', fixed: s.fixed || '' };
+}
+
+// ---------- store escalation matrix (workbook store tabs; src/storeMatrix.js) ----------
+/** One store's row: { key: 's101.app-tech', store, tab, row, sheet, stages, toConfirm, edited… }, or null. */
+export function storeRow(key) {
+  const p = parseStoreRowKey(key);
+  if (!p) return null;
+  const def = STORE_ROWS.find((r) => r.key === p.rowKey);
+  const s = db().stores.find((x) => x.code === p.code);
+  if (!def || !s) return null;
+  const base = STORE_MATRIX.stores?.[p.code]?.[p.rowKey];
+  const saved = db().settings?.storeMatrix?.[key];
+  return {
+    key,
+    store: p.code,
+    tab: def.tab,
+    rowKey: p.rowKey,
+    row: `${s.short} ${def.tabLabel}: ${def.sheet[0].replace(/,$/, '')}${def.sheet[1] && def.sheet[1] !== def.sheet[0] ? ` (${def.sheet[1]})` : ''}`,
+    sheet: def.sheet,
+    stages: saved?.stages || base?.stages || [null, null, null],
+    toConfirm: saved ? '' : base?.toConfirm || '',
+    edited: Boolean(saved),
+    updatedAt: saved?.updatedAt,
+    updatedBy: saved?.updatedBy,
+  };
+}
+
+/** Every row of one store (or of all stores). */
+export const storeRows = (code) => db().stores.filter((s) => !code || s.code === code).flatMap((s) => STORE_ROWS.map((r) => storeRow(storeRowKey(s.code, r.key))).filter(Boolean));
+
+/**
+ * The store-matrix row a case goes to: its category › sub-category › sub-category 2 picks the tab row, its store
+ * the people (membership cases: the member's home store). Null when the case has no store or the row has no SPOC.
+ */
+export function storeRowFor(c) {
+  const route = storeRouteFor(c);
+  if (!route) return null;
+  const home = workflowFor(c)?.owner === 'homeStore' ? db().members.find((m) => m.id === c.memberId)?.homeStore : '';
+  const code = home || c.store;
+  if (!code || code === 'NS') return null;
+  const row = storeRow(storeRowKey(code, route.row.key));
+  return row && hoStage(row, 0)?.to.length ? row : null;
 }
 
 // ---------- store / team escalation rows (Stores & settings → Escalation matrix – stores & teams) ----------
@@ -318,7 +367,7 @@ export function escalationRow(target) {
 
 const matrixTarget = (row) => {
   const first = hoStage(row, 0);
-  return { kind: 'matrix', code: row.key, name: `${row.row} (HO matrix)`, email: first.to.join(', '), phone: '', contact: '' };
+  return { kind: 'matrix', code: row.key, name: `${row.row} (${row.store ? 'store' : 'HO'} matrix)`, email: first.to.join(', '), phone: '', contact: '' };
 };
 
 /** A store or team as an escalation target: { kind, code, name, email, phone, contact }. */
@@ -340,7 +389,7 @@ export function targetByKey({ kind, code } = {}) {
 /** Where this case escalates to: the agent's choice if they picked one, else the case type's workflow. */
 export function targetFor(c) {
   if (c.escalateTo?.kind) return targetByKey(c.escalateTo);
-  const row = hoRowFor(c); // the HO matrix has a row for this case type: its SPOCs, not the team
+  const row = hoRowFor(c) || storeRowFor(c); // the HO or store matrix has a row for this case: its SPOCs, not the team
   if (row) return matrixTarget(row);
   return escalationTarget(c, db().stores, teams(), db().members);
 }
@@ -574,7 +623,7 @@ export function storeForSender(email) {
   if (team) return { code: null, team: team[0] };
   const matrix = Object.values(db().settings?.escalationMatrix || {}).flat();
   if (matrix.some((l) => listed(l?.email))) return { code: null, internal: true };
-  if ([...hoMatrix(), ...contactRows()].some((r) => r.stages.some((s) => s && [...s.to, ...(s.cc || [])].some((x) => x.toLowerCase() === e)))) return { code: null, internal: true };
+  if ([...hoMatrix(), ...contactRows(), ...storeRows()].some((r) => r.stages.some((s) => s && [...s.to, ...(s.cc || [])].some((x) => x.toLowerCase() === e)))) return { code: null, internal: true };
   return e.endsWith('@cpwi.in') ? { code: null, internal: true } : null;
 }
 

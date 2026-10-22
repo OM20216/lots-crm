@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { fmtDate, useLoad, useMeta } from '../ui.jsx';
 import { TEAMS } from '../workflows.js';
-import HoMatrixCard, { ContactMatrixCard } from '../components/HoMatrixCard.jsx';
+import HoMatrixCard, { ContactMatrixCard, StoreMatrixCard } from '../components/HoMatrixCard.jsx';
 
 function SparkTgPanel() {
   const [status, reload] = useLoad(() => api.get('/sparktg/status'));
@@ -270,6 +270,7 @@ export default function Settings() {
         </table>
       </section>
       <HoMatrixCard />
+      <StoreMatrixCard />
       <ContactMatrixCard />
       <HolidaysCard />
       <SparkTgPanel />

@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor, workflowSteps } from '../workflows.js';
 import { fmtDate, useMeta } from '../ui.jsx';
 import { matrixRowFor } from '../escalationMatrix.js';
+import { storeRouteFor } from '../storeMatrix.js';
 
 const tatText = (d) => (d ? `TAT ${d} working day${d > 1 ? 's' : ''}` : 'Resolve on the call');
 // HO escalation matrix: "First Time Resolution 4 working hours → Level 1 1 working day → Level 2 2 working days"
@@ -15,13 +16,31 @@ export function useHoRow(c) {
 
 const matrixTarget = (row) => ({ kind: 'matrix', code: row.key, name: `${row.row} (HO matrix)`, email: row.stages[0].to.join(', '), contact: '' });
 
+/**
+ * The store escalation matrix row for the case as it is on screen: its category picks the tab row, its store the people
+ * (a membership case: the home store the server worked out). Null when there is no row or no store yet.
+ */
+export function useStoreTarget(c) {
+  const { storeMatrixTo, stores } = useMeta();
+  const route = c ? storeRouteFor(c) : null;
+  const fromServer = /^s(\d{3})\./.exec(c?.target?.kind === 'matrix' ? c.target.code : '')?.[1];
+  const code = workflowFor(c)?.owner === 'homeStore' && fromServer ? fromServer : c?.store;
+  if (!route || !code || code === 'NS') return null;
+  const email = storeMatrixTo?.[code]?.[route.row.key];
+  if (!email) return null;
+  const s = stores.find((x) => x.code === code);
+  return { kind: 'matrix', code: `s${code}.${route.row.key}`, name: `${s?.short || code} ${route.row.tabLabel}: ${route.row.sheet[0].replace(/,$/, '')} (store matrix)`, email, contact: '' };
+}
+
 /** Who an escalation goes to: saved on the case once escalated, else the HO matrix row, else worked out from the workflow. */
 export function useEscalationTarget(c) {
   const { stores, teams } = useMeta();
   const row = useHoRow(c);
+  const store = useStoreTarget(c);
   if (!c) return null;
   if (c.status === 'Escalated' && c.escalatedTo) return c.escalatedTo;
   if (row) return matrixTarget(row);
+  if (store) return store;
   return (c.target?.kind !== 'matrix' && c.target) || escalationTarget(c, stores, teams || TEAMS);
 }
 
@@ -30,8 +49,16 @@ export function WorkflowHint({ c }) {
   const { stores, teams } = useMeta();
   const wf = workflowFor(c);
   const row = useHoRow(c);
+  const store = useStoreTarget(c);
   if (!wf) return null;
   const t = escalationTarget(c, stores, teams || TEAMS);
+  if (!row && store)
+    return (
+      <div className="wf-hint">
+        <strong>Workflow: {wf.title}</strong> · escalates to <strong>{store.email}</strong> ({store.name})
+        <div className="muted small">Then Level 1 and Level 2 of that row, each when the TAT before it passes</div>
+      </div>
+    );
   if (row)
     return (
       <div className="wf-hint">
@@ -75,6 +102,10 @@ export default function WorkflowCard({ c, onTick }) {
         {target?.kind === 'matrix' && row ? (
           <>
             HO escalation matrix – {row.row}: {stagesText(row)}
+          </>
+        ) : target?.kind === 'matrix' && c.matrix?.store ? (
+          <>
+            Store escalation matrix – {c.matrix.row}: {stagesText(c.matrix)}
           </>
         ) : (
           <>
