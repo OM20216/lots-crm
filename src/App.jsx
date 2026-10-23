@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
+﻿import { lazy, Suspense, useEffect, useState, useCallback } from 'react';
 import { Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { api, currentAgent } from './api.js';
 import { MetaContext } from './ui.jsx';
@@ -256,23 +256,18 @@ export default function App() {
             {/* Only what agents use every day; setup pages are under Admin */}
             <NavItem to="/" end icon="dashboard" label="Dashboard" />
             <NavItem to="/new" icon="cases" label="Log new case" accent />
-            <NavItem to={`/cases?assignedTo=${encodeURIComponent(agent)}&status=Pending,Waiting,Escalated,Resolved`} icon="user" label="My cases" count={stats?.mine} plain />
-            <NavItem to="/cases" icon="search" label="All cases" />
-            <NavItem to="/followups" icon="store" label="Follow-ups" count={stats?.byStatus?.Escalated} />
-
-            <div className="nav-group">Calls &amp; emails</div>
-            <NavItem to="/calls" icon="incoming" label="Calls" />
-            <NavItem to="/emails" icon="mail" label="Emails" count={stats?.pendingEmails} />
-            <NavItem to="/leads" icon="outgoing" label="Outbound calls" count={stats?.leadsDue} />
-
-            <div className="nav-group">Look up</div>
+            <NavItem to="/emails" icon="mail" label="Inbox" count={stats?.pendingEmails} />
             <NavItem to="/contacts" icon="members" label="Contacts" />
-            <NavItem to="/kb" icon="book" label="Knowledge base" />
-
-            <div className="nav-group" />
-            {isAdmin && <NavItem to="/admin" icon="settings" label="Admin" />}
-            <NavItem to="/support" icon="help" label="Support tokens" count={stats?.supportTokens} plain />
+            <NavItem to="/cases" icon="search" label="Cases" />
+            <NavItem to="/reports" icon="book" label="Report" />
+            <NavItem to="/support" icon="help" label="Support" count={stats?.supportTokens} plain />
           </nav>
+          {/* Admin at the very end of the menu, at the bottom of the left side */}
+          {isAdmin && (
+            <nav className="nav-bottom">
+              <NavItem to="/admin" icon="settings" label="Admin" />
+            </nav>
+          )}
           <div className="sidebar-foot">
             <div>Customer care 1860-123-5687</div>
             <div>contactus@cpwi.in · everyday 9 AM – 9 PM</div>
@@ -332,3 +327,4 @@ export default function App() {
     </MetaContext.Provider>
   );
 }
+

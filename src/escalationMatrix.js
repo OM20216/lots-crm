@@ -1,7 +1,7 @@
 // LOTS Head Office escalation matrix ("Escalation Matrix LOTS - April 2026 - V_6(HO)", CRM TABLE).
 // Each row: First Time Resolution → Level 1 → Level 2, each with a SPOC (To), an escalation list (Cc) and a TAT.
-// Copied from the sheet as written. The only changes are marked `fixed` (typos in the sheet) and
-// `toConfirm` (TAT missing in the sheet: filled from the row's pattern, decided 17 Oct 2026) — LOTS to confirm both.
+// Copied from the sheet as written. The changes are marked `fixed` (typos corrected, and the TATs LOTS
+// confirmed on 23 Oct 2026). Every row's Level 2 TAT is 3 working days, except Legal (2, as written).
 // Rows the sheet does not have (store, e-commerce / app, BDA, membership, general query, festive gifting)
 // keep the store / team escalation (Stores & settings) until LOTS sends their matrix.
 
@@ -47,7 +47,7 @@ export const HO_MATRIX = [
     stages: [
       S(['Hemanshu.Yadav@cpwi.in'], COPY, hours(4)),
       S(['Hemanshu.Yadav@cpwi.in'], ['Amritraj.Kaur@cpwi.in', ...COPY], days(1)),
-      S(['Hemanshu.Yadav@cpwi.in'], ['Amritraj.Kaur@cpwi.in', ...COPY, 'p.khamank@cpwi.in', 'Nishant.Rayirath@cpwi.in'], days(2, { toConfirm: 'Sheet says “Within 2 working” (unit missing): read as 2 working days' })),
+      S(['Hemanshu.Yadav@cpwi.in'], ['Amritraj.Kaur@cpwi.in', ...COPY, 'p.khamank@cpwi.in', 'Nishant.Rayirath@cpwi.in'], days(2, { fixed: 'Sheet says "Within 2 working" (unit missing): read as 2 working days — confirmed by LOTS (23 Oct 2026)' })),
     ],
   },
   {
@@ -81,17 +81,17 @@ export const HO_MATRIX = [
     stages: [
       S(['varun.tomar@cpwi.in'], ['cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'tushar.gupta@cpwi.in', 'Rajneesh.verma@cpwi.in'], days(1)),
       S(['varun.tomar@cpwi.in'], ['Amritraj.Kaur@cpwi.in', 'cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'tushar.gupta@cpwi.in', 'Rajneesh.verma@cpwi.in'], days(2)),
-      S(['varun.tomar@cpwi.in'], ['Rajneesh.verma@cpwi.in', 'Amritraj.Kaur@cpwi.in', 'ajay.sharma@cpwi.in', 'cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'p.khamank@cpwi.in', 'tushar.gupta@cpwi.in', 'vijay.panchal@cpwi.in', 'Nishant.Rayirath@cpwi.in'], days(3, { toConfirm: 'TAT empty in the sheet: 3 working days like the other rows' })),
+      S(['varun.tomar@cpwi.in'], ['Rajneesh.verma@cpwi.in', 'Amritraj.Kaur@cpwi.in', 'ajay.sharma@cpwi.in', 'cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'p.khamank@cpwi.in', 'tushar.gupta@cpwi.in', 'vijay.panchal@cpwi.in', 'Nishant.Rayirath@cpwi.in'], days(3, { fixed: 'TAT empty in the sheet: LOTS (23 Oct 2026) confirmed 3 working days, like the other rows' })),
     ],
   },
   {
     key: 'marketing',
     row: 'Marketing Related',
-    match: { caseType: 'Inquiry', category: 'Marketing Related' },
+    match: { caseType: 'Inquiry', category: 'Marketing related' }, // case-master spelling (was "Marketing Related", so the row never matched)
     stages: [
       S(['cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'Rigzin.Yangdol@cpwi.in'], ['navni.jain@cpwi.in'], days(1)),
       S(['cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'Rigzin.Yangdol@cpwi.in'], ['Amritraj.Kaur@cpwi.in'], days(2)),
-      S(['Amritraj.Kaur@cpwi.in', 'cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'rigzin.yangdol@cpwi.in'], ['Nishant.Rayirath@cpwi.in', 'p.khamank@cpwi.in'], days(3, { toConfirm: 'TAT empty in the sheet: 3 working days like the other rows' })),
+      S(['Amritraj.Kaur@cpwi.in', 'cpwi.consultant80@cpwi.in', 'navni.jain@cpwi.in', 'rigzin.yangdol@cpwi.in'], ['Nishant.Rayirath@cpwi.in', 'p.khamank@cpwi.in'], days(3, { fixed: 'TAT empty in the sheet: LOTS (23 Oct 2026) confirmed 3 working days, like the other rows' })),
     ],
   },
 ];

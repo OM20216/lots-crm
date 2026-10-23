@@ -7,7 +7,7 @@ import * as store from './db.js';
 import * as teams from './teams.js';
 import { STAGES, cleanList, tatText } from '../src/escalationMatrix.js';
 import { CASE_TREE } from '../src/taxonomy.js';
-import { STORE_TABS, parseStoreRowKey, storeRowKey } from '../src/storeMatrix.js';
+import { IGNORED_ROWS, STORE_TABS, parseStoreRowKey, storeRowKey } from '../src/storeMatrix.js';
 
 const db = () => store.get();
 const now = () => new Date().toISOString();
@@ -144,6 +144,7 @@ export function storeTableRows(sheets) {
     const tab = STORE_TABS.find((t) => t.tab === at.tab);
     const seen = {};
     for (const r of sheetTable(rows) || []) {
+      if ((IGNORED_ROWS[at.tab] || []).some((x) => norm(x) === norm(r.sub1))) continue; // left out on purpose (e.g. Product Damage)
       // by SUB1; SUB2 only tells apart the rows with the same SUB1 (its text varies between the store tabs)
       const same = tab.rows.filter((x) => norm(x.sheet[0]) === norm(r.sub1));
       const n = (seen[norm(r.sub1)] = (seen[norm(r.sub1)] || 0) + 1);

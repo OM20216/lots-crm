@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useParams } from 'react-router-dom';
 import { api, currentAgent } from '../api.js';
-import { ACTIONS, STATUSES, STATUS_HELP } from '../taxonomy.js';
+import { ACTIONS, CALL_TYPES, STATUSES, STATUS_HELP } from '../taxonomy.js';
 import { CRM_NOTE_TEMPLATES, EMAIL_TEMPLATES, fillTemplate } from '../knowledge.js';
 import { Due, Empty, Field, Select, StatusBadge, copy, fmtDate, storeLabel, useLoad, useMeta, usePicklists } from '../ui.jsx';
 import Classifier from '../components/Classifier.jsx';
@@ -157,6 +157,8 @@ export default function CaseDetail() {
     ['Type of contact', c.callerType],
     ['Name', c.name],
     ['Phone', c.phone],
+    ['Type of call', c.channel !== 'Email' ? c.callType : ''],
+    ['Called number', c.calledNumber],
     ['Email', c.email],
     ['Business', c.businessName],
     ['Card no.', c.cardNo],
@@ -344,6 +346,16 @@ export default function CaseDetail() {
                     <Field label="Phone">
                       <input value={edit.phone} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} />
                     </Field>
+                    {c.channel !== 'Email' && (
+                      <>
+                        <Field label="Type of call">
+                          <Select value={edit.callType} options={CALL_TYPES} onChange={(v) => setEdit({ ...edit, callType: v })} />
+                        </Field>
+                        <Field label="Called number">
+                          <input value={edit.calledNumber} onChange={(e) => setEdit({ ...edit, calledNumber: e.target.value })} />
+                        </Field>
+                      </>
+                    )}
                     <Field label="Email">
                       <input value={edit.email} onChange={(e) => setEdit({ ...edit, email: e.target.value })} />
                     </Field>
@@ -552,6 +564,6 @@ export default function CaseDetail() {
 }
 
 function pickEditable(c) {
-  const keys = ['callerType', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'purchaseAmount', 'refundAmount', 'subject', 'description', 'assignedTo'];
+  const keys = ['callerType', 'name', 'phone', 'callType', 'calledNumber', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'purchaseAmount', 'refundAmount', 'subject', 'description', 'assignedTo'];
   return Object.fromEntries(keys.map((k) => [k, c[k] || '']));
 }

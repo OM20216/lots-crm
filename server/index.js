@@ -271,7 +271,7 @@ api.post('/cases', (req, res) => {
   res.status(201).json({ ...c, warning });
 });
 
-const EDITABLE = ['callerType', 'memberId', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'purchaseAmount', 'refundAmount', 'subject', 'description', 'assignedTo'];
+const EDITABLE = ['callerType', 'memberId', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'requestFor', 'sub2', 'closureType', 'productType', 'productCategory', 'orderRef', 'purchaseDate', 'callType', 'calledNumber', 'purchaseAmount', 'refundAmount', 'subject', 'description', 'assignedTo'];
 
 api.patch('/cases/:id', (req, res) => {
   const c = findCase(req.params.id);
@@ -519,8 +519,8 @@ api.post(
   })
 );
 api.get('/matrix-import', (req, res) => res.json({ open: matrixImport.openImports(), history: matrixImport.history(), choices: matrixImport.mappingChoices(), link: matrixLink.status() }));
-// Live link to the Excel on OneDrive / SharePoint: checked every few minutes, applied when LOTS saves a change
-api.put('/matrix-link', wrap(async (req, res) => res.json(await matrixLink.setLink(req.body.url, req.body.every, agentOf(req)))));
+// Live link to the Excel on OneDrive / SharePoint: read when someone presses Refresh now (and once when linked)
+api.put('/matrix-link', wrap(async (req, res) => res.json(await matrixLink.setLink(req.body.url, agentOf(req)))));
 api.post('/matrix-link/check', wrap(async (req, res) => res.json(await matrixLink.check(Boolean(req.body?.force)))));
 api.delete('/matrix-link', (req, res) => res.json(matrixLink.unlink()));
 api.post('/matrix-import/:id/apply', (req, res) => res.json(matrixImport.apply(req.params.id, agentOf(req), req.body.mapping || {})));
@@ -834,11 +834,26 @@ api.get('/lookup', (req, res) => {
     });
   }
 
+  // One search box (Identify caller): mobile, card no., membership ID, name, business name or email —
+  // of the contact or of its add-on card holders.
   const hit = (v) => v && String(v).toLowerCase().includes(s);
-  const members = db().members.filter((m) => [m.phone, m.altPhone, m.cardNo, m.email, m.businessName, m.ownerName].some(hit)).slice(0, 10);
-  const cases = db().cases.filter((c) => [c.phone, c.email, c.cardNo].some(hit)).slice(-10).reverse().map(summary);
-  const byCard = db().members.find((m) => m.cardNo && m.cardNo.toLowerCase() === s);
-  res.json({ members, cases, match: byCard ? { member: byCard, via: 'card' } : null });
+  const fields = (m) => [m.id, m.phone, m.altPhone, ...(m.otherPhones || []), m.cardNo, m.email, m.businessName, m.ownerName, ...(m.addOnCards || []).flatMap((a) => [a.name, a.phone, a.cardNo])];
+  const members = db().members.filter((m) => fields(m).some(hit)).slice(0, 10);
+  const cases = db().cases.filter((c) => [c.phone, c.email, c.cardNo, c.name, c.businessName].some(hit)).slice(-10).reverse().map(summary);
+  // an exact card no., membership ID or email identifies the caller (as a full mobile does)
+  const same = (v) => v && String(v).trim().toLowerCase() === s;
+  let match = null;
+  for (const m of db().members) {
+    if (same(m.cardNo)) match = { member: m, via: 'card' };
+    else if (same(m.id)) match = { member: m, via: 'id' };
+    else if (same(m.email)) match = { member: m, via: 'email' };
+    else {
+      const addOn = (m.addOnCards || []).find((a) => same(a.cardNo));
+      if (addOn) match = { member: m, via: 'add-on', addOn };
+    }
+    if (match) break;
+  }
+  res.json({ members: match && !members.includes(match.member) ? [match.member, ...members] : members, cases, match });
 });
 
 // ----- members -----
@@ -956,18 +971,9 @@ api.get('/leads', (req, res) => {
 // Customer survey results (SOP: collect feedback to improve our service)
 api.get('/leads/survey-summary', (req, res) => {
   const done = db().leads.filter((l) => l.survey);
-  const avg = (k) => {
-    const v = done.map((l) => l.survey[k]).filter((x) => typeof x === 'number');
-    return v.length ? Math.round((v.reduce((a, b) => a + b, 0) / v.length) * 10) / 10 : null;
-  };
-  const rec = done.filter((l) => l.survey.recommend);
   res.json({
     count: done.length,
-    overall: avg('overall'),
-    store: avg('store'),
-    care: avg('care'),
-    recommendPct: rec.length ? Math.round((rec.filter((l) => l.survey.recommend === 'Yes').length / rec.length) * 100) : null,
-    comments: done.filter((l) => l.survey.comments).slice(-20).reverse().map((l) => ({ id: l.id, name: l.businessName || l.name, store: l.store, at: l.survey.at, text: l.survey.comments, overall: l.survey.overall })),
+    comments: done.filter((l) => l.survey.comments).slice(-20).reverse().map((l) => ({ id: l.id, name: l.businessName || l.name, store: l.store, at: l.survey.at, text: l.survey.comments })),
   });
 });
 
@@ -1012,9 +1018,9 @@ api.patch('/leads/:id', (req, res) => {
     else if (c && l.type === 'Follow-up' && outcome === 'Update given') log(c, { by, type: 'call', text: `Follow-up call: update given to the customer${note ? ' — ' + note : ''}` });
     if (outcome === 'Survey completed') {
       const sv = req.body.survey || {};
-      const clean = (k, v) => (['overall', 'store', 'care'].includes(k) ? Math.max(1, Math.min(5, Number(v) || 0)) || null : k === 'recommend' ? (['Yes', 'No'].includes(v) ? v : null) : String(v || '').slice(0, 2000));
-      l.survey = { ...Object.fromEntries(['overall', 'store', 'care', 'recommend', 'comments'].map((k) => [k, clean(k, sv[k])])), by, at: now() };
-      if (c) log(c, { by, type: 'call', text: `Customer survey: ${['overall', 'store', 'care'].filter((k) => l.survey[k]).map((k) => `${k} ${l.survey[k]}/5`).join(', ')}${l.survey.recommend ? `, recommends LOTS: ${l.survey.recommend}` : ''}${l.survey.comments ? ` — “${l.survey.comments}”` : ''}` });
+      // SOP: the survey collects the customer's feedback (no rating questions)
+      l.survey = { comments: String(sv.comments || '').trim().slice(0, 2000), by, at: now() };
+      if (c) log(c, { by, type: 'call', text: `Customer survey: ${l.survey.comments ? `“${l.survey.comments}”` : 'no feedback given'}` });
     }
     l.status = outcome;
     l.callbackAt = callbackAt || null;

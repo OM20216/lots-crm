@@ -6,10 +6,59 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 23 October 2026
 
+### Log new case: call details and contact buttons (as on LOTS's Vtiger case form)
+- **Channel cards and greeting line removed** (user's request). ① now has a **Channel** dropdown (Call / Email, as on the Vtiger form). For a call, **Type of call** says which: Inbound → Inbound call, Outbound → Outbound call, Abandoned Call → Missed call callback. Email shows the sender email and subject as before. The closing line ("Is there anything else…") stays.
+- **Under ① How did they contact us?** (calls only), a **Call details** block:
+  - **Type of call** (Abandoned Call / Inbound / Outbound), required. It goes with the channel cards both ways: Inbound call ↔ Inbound, Outbound call ↔ Outbound, Missed call callback ↔ Abandoned Call.
+  - **Called number**, with **Same as contact's mobile**.
+  - **Call transaction ID** (the SparkTG call ID, moved up from ② Who is it?).
+  - "Call For" left out, as asked.
+- **Member card:** **Edit**, **+ Add Another Contact** (both open the contact form in a new tab, so the case being written isn't lost) and **Change** (not this member).
+- New case fields `callType` and `calledNumber`, shown and editable on the case page.
+- **Also:** the Identify caller panel was moved between ① and ② and then **moved back to the top** (user's request), and Admin is pinned to the bottom of the left menu. Garbled characters from a wrong file encoding in `App.jsx` ("Â·", "â€“") were fixed.
+- Tested in Chrome on a test copy: 11 checks (fields, both-way channel link, no Call For, same-as-mobile, contact buttons, saved case and case page).
+- **One search box in Identify caller** (user: "search all the things like phone no, email, name, membership ID"). The mobile and card boxes became one box that searches mobiles (owner, alternate, add-on), card numbers (incl. add-on cards), membership ID (M-00123), name, business name and email:
+  - an exact mobile, card no., membership ID or email fills the caller in (an add-on card or mobile fills in the add-on holder);
+  - a name or business name lists *Matching members* to click;
+  - an unknown 10-digit mobile or email is copied onto the case, and "Not a registered member … create the contact" shows as you type (before, only after pressing Search);
+  - **Mobile** and **Card no.** are now fields in ② Who is it?;
+  - a screen-pop / live call number still lands in the box and fills the caller in.
+- Tested on a test copy: 8 server searches and 14 Chrome checks, and the call-details test (11) again.
+- **① How did they contact us? uses the full width** (user: "justify this space"): Channel, Type of call, Called number and Call transaction ID on one row of four equal columns (two per row on narrow screens); for Email, Channel, Sender email and Email subject fill the row.
+- **All cases:** the search box moved into the page header, beside **Export CSV** (user's request); the five filters (status, channel, type, store, agent) now share the full width of their row equally, wrapping on narrow screens.
+
+### Open points settled by the documents (user: "keep these according to the docs")
+- Checked against the SOP ("Lots Process Documents 2026") and the case master.
+- **Customer survey:** the SOP only says "collecting feedback to improve our service". The 5 rating questions the CRM had added (overall, store, customer care, would-recommend) are removed: the survey call records the customer's feedback, shown in **Survey feedback** and on the case timeline. Old survey records keep their comments.
+- **Kept, because the documents say so:**
+  - the call outcome labels (the SOP's own words for follow-up and confirmation calls);
+  - the 7 working days for refunds and new suppliers (the SOP's FAQ);
+  - "Others" = Not Relevent or Spam only (the case master).
+- **Not in the documents (stay with LOTS):** calling lists, current offers, extra email templates, the Vtiger lists (contact type, source, cities), and the SparkTG service for 1860-123-5687.
+- Tested on a test copy: feedback saved and listed; rating fields sent anyway are dropped.
+
+### Every escalation matrix checked end-to-end
+- Checked the HO matrix (12 rows) and the store matrix (6 stores × 58 rows = 348) against the case master (228 paths), the routing code and each other.
+- **Found and fixed:** the HO row “Marketing Related” was written with a capital R, while the case master (and every saved case, after the 17 Oct rename) says “Marketing related”. The row could never match a case, so marketing enquiries fell through to the Marketing team instead of the matrix SPOCs. `src/escalationMatrix.js` now uses the case-master spelling; all 12 HO rows are reachable.
+- **Routing:** 93 routes over the 58 store rows; 22 marked `confirmed` (the six store-request kinds, app/website delivery → not dispatched, BDA cancelled / delayed → not dispatched, member NR / membership request → member complaint, and the “Others” fallbacks) — exactly the routes listed in the README. 0 routes are unreachable, 0 case paths are ambiguous (no two rows win at the same specificity), and every path of every store-matrix category (app, e-commerce, BDA, store, membership, NR, requests) reaches a row. Only the app “Product Damage” row has no case category, as documented.
+- **Coverage:** the 26 paths without a store row are the ones that by design use the HO matrix (Inquiry) or the team escalation (General Query, Festive Gifting, New Member, New Supplier without a supplier type).
+- **Data:** all 348 rows have the three stages with a non-empty To, a valid `@cpwi.in` address and a TAT; no duplicated addresses; every store mailbox is the row’s own store (no st101 left in 105/106); the 74 rows LOTS confirmed (DH 105 × 58, GNI Ecommerce × 16) carry the provenance note and are identical to NSP 101’s rows with only the store mailbox swapped (274 workbook rows + 58 + 16 = 348); delivery First Time Resolution is 4 hours and the quality Level 2 is 2 days, as in the sheet.
+- **Data note:** the HO Marketing row repeats `navni.jain@cpwi.in` in Cc although it is already in To (as written in the sheet); the CRM already removes it when sending (`cleanList`).
+- README: the “every category reaches a row” sentence now says which categories use the HO / team rows, and the two stale “to confirm” mentions for DH 105 / GNI Ecommerce are gone.
+
 ### LOTS confirmed the store matrix rows and routes
 - LOTS confirmed, as they are: the DH 105 rows and GNI Ecommerce rows (made from NSP 101's rows with the store's own mailboxes) and every route the sheet doesn't state directly.
 - The ⚠ “to confirm” flags are gone. Those 74 rows now carry a ⓘ note on where they came from (“confirmed by LOTS, 23 Oct 2026”), and the routes are marked `confirmed` in `src/storeMatrix.js`. `server/storeMatrix.json` was rebuilt from the same workbook; only those flags changed.
-- Still open with LOTS: the HO sheet's 3 filled-in TATs, “Others” = spam only, the “Product Damage” row.
+- LOTS also confirmed the HO Level 2 TAT (23 Oct 2026): **3 working days on every row except Legal (2, as its sheet says)** (Admin and Marketing were empty → 3). The three ⚠ flags on the HO matrix are gone, replaced by a ⓘ note.
+- Still open with LOTS: “Others” = spam only.
+
+### “Product Damage” as a category without sub-category (user's decision)
+- The App tab's “Product Damage” row had no case-master category. Now **Issues or Complaint › Product Damage** is a category with **no sub-category** (the sub-category field is disabled for it, no sub-category 2). It goes to the store's App-tab Product Damage row (e.g. st103.delivery), needs the store and the order no. like app complaints, and is one of the AI reader's 229 paths.
+- Store matrix back to 348 rows (6 stores × 58).
+- Tested: store matrix 32 checks (incl. a Product Damage case at AKD → s103.app-damage → st103.delivery), AI reader 9 checks, and in Chrome: the category is in the list, the sub-category is disabled (“None for this category”), no sub-category 2.
+
+### Live link to the matrix Excel: Refresh now instead of automatic checks (user's request)
+- The "check every N min" box and the automatic re-read are gone. The linked Excel is read once when it is linked, and then only when someone presses **↻ Refresh now** ("No changes" when nothing changed). The "last read" time is shown.
 
 ### Unique card numbers
 - A membership card or add-on card number now belongs to one person only, like mobile numbers.

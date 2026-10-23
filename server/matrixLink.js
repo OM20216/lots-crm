@@ -1,6 +1,6 @@
 // Live link to LOTS's escalation-matrix Excel on OneDrive / SharePoint (Stores & settings → Escalation matrix).
-// Every few minutes the CRM looks at the file's version; when LOTS has saved a change, it downloads the file
-// and applies it like an upload (server/matrixImport.js): recognised rows at once, new rows wait for a decision.
+// Read when someone presses "Refresh now" (no automatic checking, user's request 23 Oct 2026): the CRM downloads the
+// file and applies it like an upload (server/matrixImport.js): recognised rows at once, new rows wait for a decision.
 import * as store from './db.js';
 import * as mail from './mail.js';
 import * as teams from './teams.js';
@@ -25,12 +25,12 @@ export function status() {
 }
 
 /** Link the file (share link from OneDrive / SharePoint: Share → Copy link). Checked at once. */
-export async function setLink(url, every, by) {
+export async function setLink(url, by) {
   url = String(url || '').trim();
   if (!/^https:\/\/[^/]+\.(sharepoint\.com|onedrive\.live\.com|1drv\.ms)\//i.test(url) && !/^https?:\/\/localhost/.test(url)) {
     throw Object.assign(new Error('Paste the OneDrive / SharePoint share link of the Excel (Share → Copy link)'), { status: 400 });
   }
-  set({ url, every: Math.max(5, Math.min(1440, Number(every) || 10)), linkedAt: now(), linkedBy: by, version: null, error: null, lastResult: null });
+  set({ url, linkedAt: now(), linkedBy: by, version: null, error: null, lastResult: null });
   return check(true);
 }
 
@@ -63,10 +63,3 @@ export async function check(force = false) {
   }
 }
 
-/** From the automation timer: check when it's due. */
-export async function tick() {
-  const l = link();
-  if (!l?.url) return;
-  if (l.checkedAt && Date.now() - new Date(l.checkedAt).getTime() < (l.every || 10) * 60000) return;
-  await check();
-}

@@ -49,6 +49,9 @@ code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
 .card { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
 .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
 .grid.one { grid-template-columns: 1fr; }
+.grid.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.grid.four .field.span-2 { grid-column: span 2; }
+@media (max-width: 900px) { .grid.four { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 .field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
 .field.wide { grid-column: 1 / -1; }
 .field-label { font-size: 12px; font-weight: 600; color: var(--muted); }
@@ -65,6 +68,14 @@ textarea { resize: vertical; }
 .filters { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
 .filters > * { width: auto; min-width: 160px; }
 .filters form, .filters > input { flex: 1; min-width: 260px; }
+/* page header with a search beside the action button (All cases) */
+.head-actions { flex: 1; display: flex; gap: 10px; align-items: center; justify-content: flex-end; min-width: 280px; margin-left: 24px; }
+.head-actions form { flex: 1; max-width: 640px; }
+.head-actions input { width: 100%; }
+.head-actions .btn { white-space: nowrap; }
+/* filters sharing the row equally */
+.filters.even > * { flex: 1 1 0; min-width: 150px; }
+.filters.even > .link { flex: 0 0 auto; min-width: 0; }
 
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 14px; border-radius: 6px; border: 1px solid #cfd4dc; background: #fff; color: var(--ink); cursor: pointer; font: inherit; font-weight: 500; white-space: nowrap; }
 .btn:hover { background: #f3f4f6; text-decoration: none; }
@@ -229,7 +240,9 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .sidebar nav a.nav-item.active .icon { color: var(--red); }
 .sidebar nav a.nav-item.accent:not(.active) { background: var(--red); color: #fff; }
 .sidebar nav a.nav-item.accent:not(.active):hover { background: var(--red-dark); }
-.sidebar-foot { margin-top: auto; padding: 14px 16px 0; color: #6b7280; font-size: 11px; line-height: 1.6; border-top: 1px solid #2b3242; }
+.sidebar nav.nav-bottom { margin-top: auto; padding: 10px 10px 8px; }
+.sidebar nav.nav-bottom + .sidebar-foot { margin-top: 0; }
+.sidebar-foot { padding: 14px 16px 0; color: #6b7280; font-size: 11px; line-height: 1.6; border-top: 1px solid #2b3242; }
 .layout.collapsed .sidebar { width: 68px; }
 .layout.collapsed .collapse-btn { left: 55px; }
 .layout.collapsed .brand-text, .layout.collapsed .nav-label, .layout.collapsed .nav-group, .layout.collapsed .sidebar-foot, .layout.collapsed .sidebar .count { display: none; }
@@ -514,8 +527,6 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 /* ----- Customer survey (outbound) ----- */
 .survey-form { display: flex; flex-direction: column; gap: 8px; padding: 8px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
 .survey-q { display: flex; flex-direction: column; gap: 3px; }
-.stars button { border: 0; background: none; cursor: pointer; font-size: 20px; line-height: 1; color: #cbd5e1; padding: 0 1px; }
-.stars button.on { color: #f59e0b; }
 .survey-stats { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 10px; }
 .survey-stats > div { display: flex; flex-direction: column; min-width: 110px; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 8px; }
 .survey-stats strong { font-size: 20px; }

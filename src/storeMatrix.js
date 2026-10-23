@@ -9,7 +9,8 @@ export const STORE_MATRIX_SOURCE = 'Escalation Matrix LOTS – store tabs (Lots-
 const R = (category, subCategory, sub2, extra = {}) => ({ category, ...(subCategory ? { subCategory } : {}), ...(sub2 ? { sub2 } : {}), ...extra });
 const confirmed = { confirmed: 'LOTS, 23 Oct 2026' };
 
-// Lots-App and Ecommerce tabs: the same 16 rows, "Lots-App …" / "Website …" (the app tab has one more, Product Damage)
+// Lots-App and Ecommerce tabs: the same 16 rows, "Lots-App …" / "Website …"; the app tab has one more, Product Damage,
+// reached by the complaint category "Product Damage" (no sub-category; added, user's decision 23 Oct 2026)
 function onlineRows(P, complaint, request, app) {
   const t = (s) => s.replace(/\{P\}/g, P); // the workbook's text (SUB1 / SUB 2)
   const n = (s) => (app ? s.replace(/\{P\} /g, '').replace(/^related- Others$/, 'Others') : t(s)); // case-master name: the app's have no prefix
@@ -42,7 +43,7 @@ function onlineRows(P, complaint, request, app) {
       routes: [R(complaint, order), R(complaint, n('{P} related- Others')), R(request, n('{P} Order status inquiry Request')), R(request, n('{P} related- Others')), R(complaint, '', '', confirmed), R(request, '', '', confirmed)],
     },
     { key: 'quality', sheet: app ? ['Lots App-Product Quality', 'Product Quality'] : ['Product Quality', 'Product Quality'], routes: [R(complaint, n('{P} Product Quality Related'))] },
-    ...(app ? [{ key: 'damage', sheet: ['Lots App-Product Damage', 'Product Damage'], routes: [] }] : []), // no such category in the case master
+    ...(app ? [{ key: 'damage', sheet: ['Lots App-Product Damage', 'Product Damage'], routes: [R('Product Damage')] }] : []),
   ];
 }
 
@@ -50,6 +51,9 @@ const BDA = 'BDA related';
 const BDA_REQ = 'BDA Related REQUESTS';
 const STORE = 'Store related';
 const STORE_REQ = 'Store related Request';
+
+/** Workbook rows the CRM leaves out on purpose (no case-master category reaches them); the Excel import skips them quietly. */
+export const IGNORED_ROWS = {};
 
 export const STORE_TABS = [
   { tab: 'app', label: 'App', sheetName: /lots-?\s*app/i, rows: onlineRows('Lots-App', 'App Related', 'App Related Request', true) },

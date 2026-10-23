@@ -2,7 +2,7 @@
 import * as store from './db.js';
 import * as sparktg from './sparktg.js';
 import { extractRefs } from '../src/requirements.js';
-import { normalizeCallerType } from '../src/taxonomy.js';
+import { CALL_TYPE_OF_CHANNEL, normalizeCallerType } from '../src/taxonomy.js';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
 import { HO_MATRIX, STAGES, WORK_HOURS, cleanList, matrixRowFor, tatText } from '../src/escalationMatrix.js';
 import { STORE_ROWS, parseStoreRowKey, shownText, storeRouteFor, storeRowKey } from '../src/storeMatrix.js';
@@ -207,6 +207,8 @@ export function newCase(body, by) {
     createdAt: now(),
     updatedAt: now(),
     channel: body.channel || 'Inbound call',
+    callType: body.callType || CALL_TYPE_OF_CHANNEL[body.channel || 'Inbound call'] || '', // Abandoned Call / Inbound / Outbound (calls only)
+    calledNumber: body.calledNumber || '', // the number on the call
     callerType: normalizeCallerType(body.callerType) || 'Registered With Lots',
     memberId: body.memberId || null,
     name: body.name || '',

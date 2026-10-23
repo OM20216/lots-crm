@@ -89,9 +89,9 @@ export function copy(text) {
   }
 }
 
-export function Field({ label, children, hint, wide }) {
+export function Field({ label, children, hint, wide, className = '' }) {
   return (
-    <label className={`field ${wide ? 'wide' : ''}`}>
+    <label className={`field ${wide ? 'wide' : ''} ${className}`}>
       <span className="field-label">{label}</span>
       {children}
       {hint && <span className="hint">{hint}</span>}

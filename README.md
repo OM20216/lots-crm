@@ -160,13 +160,13 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 | Screen | What it is for |
 | --- | --- |
 | **Dashboard** | What needs attention now: missed calls past 30 minutes, pending emails, overdue escalations, follow-ups due today, store replies to check, leads due, unassigned cases, automated actions today. Open cases by status, today's totals, escalations by store, top categories |
-| **Log new case** | Four numbered steps in the SOP order, under the **Identify caller** panel (mobile or card number → contact details fill in): ① **How did they contact us?** (inbound call, missed-call callback, email, outbound call, with the SOP greeting) ② **Who is it?** (type of contact, name, business) ③ **What is the concern?** (case type cards → category → sub-category, store, invoice / order no.; the case master's other fields only when there's a real choice, product under *More details*; the workflow for the category) ④ **What happens now?** (resolved on call, info missing → Waiting, or escalate, with the EDC). SOP checks (§6.5), documents needed and SOP answers on the side |
+| **Log new case** | Four numbered steps in the SOP order, under the **Identify caller** panel: one search box for mobile, card no., membership ID, name, business name or email (owner, alternate and add-on card holders). An exact mobile, card no., membership ID or email fills the contact in; a name or business shows *Matching members* to click; an unknown mobile or email is copied onto the case: ① **How did they contact us?** (inbound call, missed-call callback, email, outbound call, with the SOP greeting) ② **Who is it?** (type of contact, name, business, mobile, card no.) ③ **What is the concern?** (case type cards → category → sub-category, store, invoice / order no.; the case master's other fields only when there's a real choice, product under *More details*; the workflow for the category) ④ **What happens now?** (resolved on call, info missing → Waiting, or escalate, with the EDC). SOP checks (§6.5), documents needed and SOP answers on the side |
 | **My cases** | Open cases assigned to the signed-in agent |
 | **All cases** | Search and filter all cases (status, channel, type, store, agent), CSV export |
 | **Follow-ups** | Escalated cases by **store or team** with deadlines, level, promised date and flags (*not followed up today*, *store replied — check*, *promise missed*); the daily call script, logging the call with the store's promised date, one follow-up email per store / team. **Report** tab: on time %, average days, overdue, levels, promises missed per store / team (§6.8) |
 | **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
 | **Emails** | Mailbox (once connected), email cases by status, logging an email by hand |
-| **Outbound calls** | Calling lists for every SOP outbound purpose: new registration, inactive customer, order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record ratings and comments, with a **Survey results** panel |
+| **Outbound calls** | Calling lists for every SOP outbound purpose: new registration, inactive customer, order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record the customer's feedback (SOP: "collecting feedback to improve our service"), with a **Survey feedback** panel |
 | **Contacts** | The member master: list, **+ Create Contact** / **Edit** (Vtiger-style form, §11), **Call**, **Cases**, CSV import |
 | **Knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
 | **Admin** | One page linking the setup pages below |
@@ -206,7 +206,7 @@ Fields: **case type → category → sub-category (the sheet's Sub-1) → sub-ca
 
 | Type of contact | Case types (categories) |
 | --- | --- |
-| **Registered With Lots** | **Inquiry** (Legal · Real Estate · HR or Jobs · General Query · IT or Website · Admin Related · Marketing related · Festive Gifting) · **Issues or Complaint** (Store related · Membership Related · E-Comm Related · App Related · BDA related) · **Request** (Membership related Request · Store related Request · E Commerce Related Request · App Related Request · BDA Related REQUESTS) |
+| **Registered With Lots** | **Inquiry** (Legal · Real Estate · HR or Jobs · General Query · IT or Website · Admin Related · Marketing related · Festive Gifting) · **Issues or Complaint** (Store related · Membership Related · E-Comm Related · App Related · **Product Damage** · BDA related) · **Request** (Membership related Request · Store related Request · E Commerce Related Request · App Related Request · BDA Related REQUESTS) |
 | **Not Registered** | **Inquiry** (same) · **Issues and Complaint (NR)** (Member related -NR) · **Request** (New Member · New Supplier) |
 | **Others** | **Not Relevent or Spam** (no category) |
 
@@ -353,11 +353,11 @@ For the case types in the sheet, escalation follows the sheet: **First Time Reso
 | Suppliers – FMCG – Non Food | … › Suppliers - FMCG - Non Food (**new**) | Shalini Dani · 1 day | Satish Thaker · 2 days | Satish Thaker · 3 days |
 | Suppliers – Non Food | … › Suppliers - Non Food | Anu Bakhshi · 1 day | Anu Bakhshi · 2 days | Anu Bakhshi · 3 days |
 | Suppliers – D&F | … › Suppliers - D&F (**new**) | Anu Bakhshi · 1 day | Anu Bakhshi · 2 days | Anu Bakhshi · 3 days |
-| Legal | Inquiry › Legal | Hemanshu Yadav · **4 working hours** | Hemanshu Yadav · 1 day | Hemanshu Yadav · 2 days ⚠ |
+| Legal | Inquiry › Legal | Hemanshu Yadav · **4 working hours** | Hemanshu Yadav · 1 day | Hemanshu Yadav · 2 days |
 | HR (only if required) | Inquiry › HR or Jobs | Yuktanshi Srivastava, Apoorv Tyagi · 1 day | Isha Kohli · 2 days | Isha Kohli · 3 days |
 | IT / Website (only if required) | Inquiry › IT or Website | Tarang Shah · 1 day | Tarang Shah · 2 days | Tarang Shah · 3 days |
-| Admin Related | Inquiry › Admin Related | Varun Tomar · 1 day | Varun Tomar · 2 days | Varun Tomar · 3 days ⚠ |
-| Marketing Related | Inquiry › Marketing related | consultant80, Navni Jain, Rigzin Yangdol · 1 day | same · 2 days | Amritraj Kaur + same · 3 days ⚠ |
+| Admin Related | Inquiry › Admin Related | Varun Tomar · 1 day | Varun Tomar · 2 days | Varun Tomar · 3 days |
+| Marketing Related | Inquiry › Marketing related | consultant80, Navni Jain, Rigzin Yangdol · 1 day | same · 2 days | Amritraj Kaur + same · 3 days |
 
 The copy lists are in the sheet / on the Settings page. Days are working days.
 
@@ -366,7 +366,7 @@ The copy lists are in the sheet / on the Settings page. Days are working days.
 - **Daily follow-up email:** one per sheet row, to the SPOCs of each case's current stage, listing the stage and due date.
 - **Replies** from any address in the sheet are recognised as the team's replies (same rules as store replies below).
 - **Corrected from the sheet (✎ on the Settings page):** HR Level 1 "Isha.kohli@cpwi" → Isha.kohli@cpwi.in; HR "Hemanshu.Yadav@cpwi.in@cpwi" → Hemanshu.Yadav@cpwi.in; IT Level 1, missing comma between two addresses. Stray commas and spaces cleaned; nobody is copied who is already in To.
-- **TAT missing in the sheet (⚠, filled from the row's pattern, decided 17 Oct 2026, to confirm with LOTS):** Legal Level 2 "Within 2 working" → 2 working days; Admin and Marketing Level 2 empty → 3 working days.
+- **Level 2 TAT confirmed by LOTS (23 Oct 2026):** **3 working days on every row except Legal**, whose sheet's "Within 2 working" is read as 2 working days; Admin and Marketing were empty → 3.
 - **Two new supplier types** from the sheet were added to New Supplier: Suppliers - FMCG - Non Food, Suppliers - D&F.
 - **Crisis / miscellaneous** contacts below the table (Sumil Mudgal, Richa Singh; rigzin.yangdol, ajay.sharma, navni.jain) are shown on the Settings page; the CRM does not email them.
 - **Not in the HO sheet:** store cases, e-commerce / app, BDA and membership go to the **store escalation matrix** below. General Query, Festive Gifting and New Member keep the store / team escalation.
@@ -380,7 +380,7 @@ LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 
 
 | Tab | Stores in the workbook | Rows per store | CRM cases that go there |
 | --- | --- | --- | --- |
-| App (workbook tab "Lots-App") | 101 NSP · 102 Ithum · 103 AKD · 104 SV · 106 GNI | 17 | App Related · App Related Request |
+| App (workbook tab "Lots-App") | 101 NSP · 102 Ithum · 103 AKD · 104 SV · 106 GNI | 17 | App Related · App Related Request · **Product Damage** |
 | Ecommerce (website) | 101 · 102 · 103 · 104 (**no GNI**) | 16 | E-Comm Related · E Commerce Related Request |
 | BDA | 101 · 102 · 103 · 104 · 106 | 14 | BDA related · BDA Related REQUESTS |
 | Store related | 101 · 102 · 103 · 104 · 106 | 11 | Store related · Membership Related (row "Member complaint") |
@@ -388,7 +388,7 @@ LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 
 
 **DH 105 has no tabs**, and GNI 106 has no Ecommerce tab. User decision (17 Oct 2026): build them from the same rows with the store's own mailboxes (e.g. `st105.reception`), copied from NSP 101's pattern. **Confirmed by LOTS on 23 Oct 2026**; each of these rows carries a note saying where it came from.
 
-**How a case finds its row** (`src/storeMatrix.js`): case category › sub-category › sub-category 2 → the tab row, for the case's **store** (membership: the member's home store). The most specific match wins. Every category of the case master reaches a row. This was checked by a script: 0 left without a row. The routes the sheet doesn't state directly are marked `confirmed` (**confirmed by LOTS, 23 Oct 2026**):
+**How a case finds its row** (`src/storeMatrix.js`): case category › sub-category › sub-category 2 → the tab row, for the case's **store** (membership: the member's home store). The most specific match wins. Every category that goes to a store tab reaches a row (checked by a script: 0 left without a row); the Inquiry categories stay on the HO matrix, and General Query, Festive Gifting and New Member on the team escalation. The routes the sheet doesn't state directly are marked `confirmed` (**confirmed by LOTS, 23 Oct 2026**):
 - a store request → the store-related row of the same kind (the tab has complaints only);
 - "Delivery Related" / "Website Delivery Related" (app / website order) → the *not dispatched* row;
 - BDA "Order Cancelled" → *Order Cancelled without communication*;
@@ -396,7 +396,7 @@ LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 
 - Member related -NR and Membership related Request → *Member complaint*;
 - a category with no sub-category → the tab's "Others" row.
 
-The app tab's **"Product Damage"** row has no case-master category, so no case reaches it.
+The app tab's **"Product Damage"** row has no category in the Case catergory sheet, so the CRM has a complaint category **Product Damage** with **no sub-category** (the sub-category field is disabled for it; user's decision, 23 Oct 2026). It goes to the store's App-tab Product Damage row and needs the store. Every row of the store matrix is reached by at least one case category.
 
 **Read from the workbook** (checked 17 Oct 2026):
 - every tab uses only its own store's mailboxes;
@@ -415,7 +415,7 @@ The app tab's **"Product Damage"** row has no case-master category, so no case r
 - **Replies** from any address in the store matrix are recognised as the store's replies.
 - **Sheet text cleaned when read:** links and rich text in a cell are read as the text shown; `St101.pbm.in` → `st101.pbm@cpwi.in`; cut-off `p.khamank@c…` completed; a bare "@cpwi.in" left out. Corrections show as ✎ on the row (38 stages).
 
-**Tested (22 Oct 2026, test copy, fake Teams):** 29 end-to-end checks: rows per store and tab; DH 105 and GNI Ecommerce marked to confirm; an AKD app complaint going First Time Resolution → Level 1 → Level 2 with the sheet's To / Cc, and nothing above Level 2; store delivery at 4 working hours; BDA, website, DH and not-registered membership routes; "Pricing mismatched" on the app vs website tab; Legal still on the HO matrix; a BDA case without a store refused; edit / bad email refused / back to the workbook; the whole workbook uploaded (274 store rows, 0 changes; the HO tab matches the CRM's 12 rows); one changed yellow cell found, applied and undone; an old case renamed at start-up; Sample to Teams. Settings card checked in Chrome (NSP Lots-App 17 rows, DH Store related 11 rows with the ⚠ banner, Edit form). Email reader: 10 sample emails, all land on case-master categories.
+**Tested (22 Oct 2026, test copy, fake Teams):** 29 end-to-end checks: rows per store and tab; DH 105 and GNI Ecommerce rows (confirmed by LOTS, 23 Oct 2026); an AKD app complaint going First Time Resolution → Level 1 → Level 2 with the sheet's To / Cc, and nothing above Level 2; store delivery at 4 working hours; BDA, website, DH and not-registered membership routes; "Pricing mismatched" on the app vs website tab; Legal still on the HO matrix; a BDA case without a store refused; edit / bad email refused / back to the workbook; the whole workbook uploaded (274 store rows, 0 changes; the HO tab matches the CRM's 12 rows); one changed yellow cell found, applied and undone; an old case renamed at start-up; Sample to Teams. Settings card checked in Chrome (NSP Lots-App 17 rows, DH Store related 11 rows with the ⚠ banner, Edit form). Email reader: 10 sample emails, all land on case-master categories.
 
 #### Updated matrix from LOTS (Excel / CSV)
 
@@ -427,10 +427,10 @@ LOTS updates the sheet: changed emails and new rows are highlighted in yellow, a
 - **Automatic by email:** when the mailbox is connected, an email from a **cpwi.in** address with the matrix attached (.xlsx / .csv) is applied by itself. Its new rows wait on the Settings page, a note goes on the email's case and a card is posted to Teams. Files from outside cpwi.in are never applied.
 - **History with Undo** (the last 5 updates, also after a restart).
 - **Live link to the Excel** (`server/matrixLink.js`): LOTS keeps the matrix on OneDrive / SharePoint. Paste its share link (Share → Copy link) in **Update from Excel → Live link**.
-  - The CRM looks at the file's version every 10 minutes (adjustable). Only when LOTS has saved a change does it download the file and apply it as above; **Read it now** checks at once.
+  - **Refresh now** (since 23 Oct 2026, no automatic checking) downloads the file and applies it as above; when nothing changed it says “No changes”. Linking a file reads it once straight away.
   - It needs the Microsoft 365 sign-in (the same as the mailbox) with **Files.Read.All**, which was added to the sign-in. The signed-in account must be able to open the file. In app mode, IT grants Files.Read.All.
   - If the file can't be read (access removed, link deleted), the matrix stays as it is and the error shows on the page and in Teams.
-  - Hand edits in the CRM stay until the next change in the Excel; the Excel is the master.
+  - Hand edits in the CRM stay until the Excel is refreshed with a change there; the Excel is the master.
 
 #### Store / team escalation (case types not in the HO matrix)
 
@@ -659,7 +659,7 @@ The **Automation** page switches each rule on or off. Everything the automation 
 | Email the resolution to the customer | Quotes the store's reply | On | Yes |
 | Queue the confirmation call | Resolved case → Outbound leads "Confirmation / resolution" | On | No |
 | Queue the follow-up call | Waiting case → Outbound leads "Follow-up" to ask for the missing details. **Info received** on the call moves the case back to Pending; **Update given** goes on the timeline. If the case goes back to Pending another way, the call closes itself | On | No |
-| Queue a customer survey call | Closed case → Outbound leads "Customer survey" (once per case). Ratings for overall, store and customer care, would-recommend, and comments; saved on the case timeline and in **Survey results** | **Off** | No |
+| Queue a customer survey call | Closed case → Outbound leads "Customer survey" (once per case). The customer's feedback (as the SOP says; no rating questions), saved on the case timeline and in **Survey feedback** | **Off** | No |
 | Chase overdue escalations | A level's deadline passed: the case moves up one level of the **escalation matrix** (next contact copied in, that level's TAT). At the highest level (or with no matrix): one reminder per working day, the level stays. A **promised date** that passes is flagged | On | Yes (levels still change without it) |
 | Answer standard enquiries | Job, supplier and new-membership emails answered with the SOP template. **Not in the SOP** (call first) | **Off** | Yes |
 | Information complete? | Complaints / requests checked against the SOP requirements; missing → "information required" email, Waiting. **Not in the SOP** | **Off** | Yes |
@@ -972,19 +972,22 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [x] **MySQL password changed** (it had been shared in a chat; the same login opened other databases on that server). ✅ Done. The SparkTG password was left unchanged by choice.
 
 **From LOTS**
-- [ ] **Confirm the CRM's own additions** (kept until LOTS decides): the 5 customer-survey questions; the follow-up / survey call outcome labels (Info received, Update given, Survey completed, Refused survey); the 7-day TAT for refund and new-supplier escalations (taken from the FAQ promises; the SOP's escalation TAT is 1 working day).
+- [x] **Settled by the documents (23 Oct 2026, user's decision "keep these according to the docs"):**
+  - **Customer survey:** the SOP says only "collecting feedback to improve our service", so the 5 rating questions the CRM had added were removed; the survey call records the customer's feedback.
+  - **Call outcome labels:** kept. They are the SOP's own words: follow-up "giving updates or asking for missing info" (Update given / Info received), confirmation "is he satisfied … resolved or not" (Confirmed resolved / Not satisfied); "Survey completed" / "Refused survey" only record whether the feedback was collected.
+  - **7 working days for refunds and new suppliers:** kept. The SOP's FAQ says so ("automatically refunded within 7 working days"; suppliers: "our representatives will get in touch with you within 7 days").
+  - **"Others" = Not Relevent or Spam only:** kept, as the case master (Case catergory sheet) says.
 - [x] ~~Confirm the SOP sub-categories~~: replaced by the workbook's Case catergory sheet (17 Oct 2026, §6.1).
 - Settled 15 Oct 2026: Duhai store code is **DH** (case master).
 - [x] **HO escalation matrix** (April 2026 V_6) applied, 17 Oct 2026 (§6.8).
-- [ ] **Confirm with LOTS:** the 3 TATs missing in the sheet (Legal / Admin / Marketing Level 2), the 3 corrected addresses, and that each stage's TAT counts from when the case reaches it.
+- [x] **Level 2 TAT confirmed by LOTS (23 Oct 2026):** 3 working days on every HO row except Legal (2, as in the sheet).
+- [ ] **Confirm with LOTS:** the 3 corrected addresses, and that each stage's TAT counts from when the case reaches it.
 - [x] The **store escalation matrix**: received 17 Oct 2026 (workbook with store tabs). Built 22 Oct 2026 (§6.8).
 - [x] **Confirmed by LOTS (23 Oct 2026):** the DH 105 rows and GNI Ecommerce rows (made from NSP's pattern), and the routes the sheet doesn't state directly (§6.8).
-- [ ] **Confirm with LOTS:**
-  - "Others" = spam only (B2C customers);
-  - the "Product Damage" row, which has no case category.
-- [ ] **Calling lists** for outbound leads, and current **offers / schemes** for festival calls.
-- [ ] Official **email templates**, if LOTS has them.
-- [ ] LOTS's Vtiger lists for **Contact Type, Source of Information and cities**.
+- [ ] **Data the documents don't contain** (the SOP has the call types, the customer groups and the reply templates, already in the CRM). LOTS to send when they have it:
+  - **calling lists** for outbound leads, and current **offers / schemes** for festival calls;
+  - official **email templates**, beyond the SOP's;
+  - Vtiger lists for **Contact Type, Source of Information and cities** (or the Vtiger contacts export).
 
 **Not built yet**
 - [x] **Escalation flow** chart for the store matrix (23 Oct 2026).
@@ -1060,7 +1063,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 42 | **Editable escalation matrix for stores & teams**: same table as the HO matrix (First Time Resolution / Level 1 / Level 2 with To, Cc, TAT; Edit, Sample to Teams, Clear); default row; every case (HO, store, team) now runs on one automatic path; case page shows the three stages for store cases too. Tested: 20 new checks + all earlier suites, browser checked |
 | 43 | **Escalation matrix updates from LOTS's Excel**: upload .xlsx / .csv → changes shown (yellow cells marked) → Apply; typos fixed; unclear cells keep the CRM value; new rows mapped or added as new HO rows; automatic when the sheet arrives by email from cpwi.in; history with Undo. New dependency `exceljs`. Tested: 19 + 6 checks, earlier suites passing, browser checked |
 | 44 | **Live link to the matrix Excel** on OneDrive / SharePoint: checked every 10 min, applied when LOTS saves a change, errors shown and posted to Teams; Microsoft sign-in now also asks Files.Read.All. Tested against a stand-in for OneDrive (11 checks) |
-| 45 | **Store escalation matrix and the new case master** from LOTS's workbook (21 tabs). Case types / categories / sub-categories / sub-categories 2 follow the "Case catergory" sheet (taxonomy, picklists, Caller Type → Case Type and Sub Category → Sub Category 2 dependencies, case form, workflows, requirements, email reader, dashboard, flow chart; saved cases renamed once at start-up). Store tabs: 348 rows (6 stores × 58) in `server/storeMatrix.json` (`server/buildStoreMatrix.js`), DH 105 and GNI Ecommerce made from NSP (to confirm); case → row routing; First Time Resolution → Level 1 → Level 2 automatic; Stores & settings card per store and tab (Edit, Back to the workbook, Sample to Teams); case page / New case hint; Excel upload / live link read the store tabs. 29 end-to-end checks + browser check |
+| 45 | **Store escalation matrix and the new case master** from LOTS's workbook (21 tabs). Case types / categories / sub-categories / sub-categories 2 follow the "Case catergory" sheet (taxonomy, picklists, Caller Type → Case Type and Sub Category → Sub Category 2 dependencies, case form, workflows, requirements, email reader, dashboard, flow chart; saved cases renamed once at start-up). Store tabs: 348 rows (6 stores × 58) in `server/storeMatrix.json` (`server/buildStoreMatrix.js`), DH 105 and GNI Ecommerce made from NSP (confirmed by LOTS, 23 Oct 2026); case → row routing; First Time Resolution → Level 1 → Level 2 automatic; Stores & settings card per store and tab (Edit, Back to the workbook, Sample to Teams); case page / New case hint; Excel upload / live link read the store tabs. 29 end-to-end checks + browser check |
 | 46 | **Teams card per escalation email** (built by the user, checked and fixed): one card for every escalation email (First Time Resolution, Level 1 / 2, overdue) once emails really go out, with the case, To / Cc / subject and the full email; it now says **sent** or **NOT sent — reason** (before, an unsent email showed as sent). Tested with no mailbox and a fake mailbox |
 | 47 | **Emails to stores and teams in the layout of LOTS's Vtiger mails**: Hi Team / Greeting for the day, Reminder#n, and "The Details of the Query" with every field of the sample (contact, segments, case master fields, store, invoice details, complaint, the customer's email, attachments) as a table in the HTML email and the Teams card; new case fields purchase amount and amount to be refunded; date of purchase for every case. 18 checks |
 | 48 | **Support button** (built by the user, checked and finished): 38 help articles (18 rewritten to match the CRM), support tokens for the help desk manager, two-way chat (the agent can write back, answers show as a badge when the panel is closed), Support tokens page with the conversation and auto-refresh, token status badges. 11 browser checks |
@@ -1070,3 +1073,5 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 52 | **Unique card numbers**: a membership or add-on card number belongs to one person only (contact form, API, import), like mobile numbers |
 | 53 | **AI email reader** (server/aiReader.js, @anthropic-ai/sdk): Claude picks the case-master path, store and numbers from each new email; answer limited to the case master; keyword rules as fallback; on when ANTHROPIC_API_KEY is in the secrets file. 9 checks against a fake API |
 | 54 | LOTS confirmed the DH 105 / GNI Ecommerce store-matrix rows and the routes the sheet doesn't state; ⚠ flags replaced by a provenance note |
+| 55 | **Log new case, as on LOTS's Vtiger form:** call details under ① (Type of call Abandoned / Inbound / Outbound linked to the channel, Called number with "Same as contact's mobile", Call transaction ID); member card Edit / + Add Another Contact / Change; Channel dropdown (Call / Email) instead of the channel cards; Admin at the bottom of the menu |
+| 56 | **One search box** in Identify caller (user's request): mobile, card no., membership ID, name, business name or email, of the contact or its add-on card holders; Mobile and Card no. moved to ② Who is it? |

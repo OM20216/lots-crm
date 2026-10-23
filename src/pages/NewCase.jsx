@@ -1,41 +1,51 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { KB, SCRIPTS } from '../knowledge.js';
+import { KB } from '../knowledge.js';
 import { Field, Select, StatusBadge, fmtDate, useMeta, usePicklists } from '../ui.jsx';
 import Classifier, { allowedCategories, allowedTypes } from '../components/Classifier.jsx';
 import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
 import { useSparkTG } from '../sparktg.jsx';
 import { requirementsFor, sopWarnings } from '../requirements.js';
+import { CALL_TYPES, CALL_TYPE_OF_CHANNEL } from '../taxonomy.js';
 
 // SOP "Resolve within TAT?": resolved over telephone, info missing (Waiting) or escalate to the store team.
 const OUTCOMES = [
-  { status: 'Closed', label: 'Resolved over telephone (ROT)', hint: 'Answered from the SOP / FAQ; the case closes now' },
-  { status: 'Waiting', label: 'Info missing → Waiting', hint: 'Discrepancy or missing details; stays Waiting until the customer provides them' },
-  { status: 'Escalated', label: 'Escalate', hint: 'To the store or team of this case type (see Workflow above) · as per the escalation matrix' },
+  {
+    status: 'Closed',
+    label: 'Resolved over telephone (ROT)',
+    hint: 'Answered from the SOP / FAQ; the case closes now',
+  },
+  {
+    status: 'Waiting',
+    label: 'Info missing → Waiting',
+    hint: 'Discrepancy or missing details; stays Waiting until the customer provides them',
+  },
+  {
+    status: 'Escalated',
+    label: 'Escalate',
+    hint: 'To the store or team of this case type (see Workflow above) · as per the escalation matrix',
+  },
 ];
 
 // SOP communication channels. "Missed call callback" = calling back a missed / abandoned call (TAT 30 min).
-const SOURCES = [
-  { value: 'Inbound call', icon: 'incoming', hint: 'Customer called 1860-123-5687' },
-  { value: 'Missed call callback', icon: 'missed', hint: 'Calling back a missed call (30 min)' },
-  { value: 'Email', icon: 'mail', hint: 'Mail to contactus@cpwi.in' },
-  { value: 'Outbound call', icon: 'outgoing', hint: 'Lead / confirmation / offer call' },
-];
-
 // SOP glossary EDC = expected date of closure: L1 TAT is 1 working day (Sunday not counted).
 function edc() {
   const d = new Date();
   do d.setDate(d.getDate() + 1);
   while (d.getDay() === 0);
-  return d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  return d.toLocaleDateString('en-IN', {
+    weekday: 'short',
+    day: 'numeric',
+    month: 'short',
+  });
 }
 
 export default function NewCase() {
   const [params] = useSearchParams();
   const nav = useNavigate();
-  const { refreshStats, agent } = useMeta();
+  const { refreshStats } = useMeta();
   const { tree, list, dependents } = usePicklists();
 
   const [form, setForm] = useState({
@@ -55,12 +65,27 @@ export default function NewCase() {
     orderRef: '',
     description: '',
     callTxnId: params.get('txn') || '',
+    callType: '', // set from the channel below
+    calledNumber: '',
     subject: '',
     purchaseDate: '',
   });
   const [outcome, setOutcome] = useState('Closed');
+  // “Same as contact's mobile”: the called number follows the mobile
+  const [sameNumber, setSameNumber] = useState(false);
+  useEffect(() => {
+    setForm((f) => (f.callType || !CALL_TYPE_OF_CHANNEL[f.channel] ? f : { ...f, callType: CALL_TYPE_OF_CHANNEL[f.channel] }));
+  }, []);
+  useEffect(() => {
+    if (sameNumber) setForm((f) => (f.calledNumber === f.phone ? f : { ...f, calledNumber: f.phone }));
+  }, [sameNumber, form.phone]);
   const [note, setNote] = useState('');
-  const [lookup, setLookup] = useState({ members: [], cases: [], calls: [], match: null });
+  const [lookup, setLookup] = useState({
+    members: [],
+    cases: [],
+    calls: [],
+    match: null,
+  });
   const [dismissed, setDismissed] = useState(null); // member the agent unlinked — don't auto-link it again
   const [sparkMsg, setSparkMsg] = useState('');
   const [err, setErr] = useState('');
@@ -89,7 +114,9 @@ export default function NewCase() {
     api
       .get('/sparktg/call/' + encodeURIComponent(txnParam))
       .then((info) => {
-        const digits = String(info.phone || '').replace(/\D/g, '').slice(-10);
+        const digits = String(info.phone || '')
+          .replace(/\D/g, '')
+          .slice(-10);
         if (digits) {
           setForm((f) => (f.phone ? f : { ...f, phone: digits }));
           setSparkMsg(`Caller number ${digits} fetched from SparkTG.`);
@@ -98,7 +125,24 @@ export default function NewCase() {
       .catch((e) => setSparkMsg(`Could not fetch the caller from SparkTG: ${e.message}`));
   }, [txnParam, phoneParam]);
 
-  const q = form.phone || form.cardNo;
+  // one search box: mobile, card no., membership ID, name, business name or email
+  const [search, setSearch] = useState(params.get('phone') || '');
+  const q = search.trim() || form.phone || form.cardNo;
+  // a number filled in by a live call / screen-pop shows in the search box
+  useEffect(() => {
+    if (form.phone && !search) setSearch(form.phone);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.phone]);
+  function onSearchChange(v) {
+    setSearched(false);
+    setSearch(v);
+    const digits = v.replace(/\D/g, '');
+    // what the search is, for a caller who isn't registered: a mobile or an email goes on the case
+    const patch = { memberId: null };
+    if (/^[\d+ -]+$/.test(v.trim()) && digits.length >= 10) patch.phone = digits.slice(-10);
+    if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v.trim())) patch.email = v.trim();
+    set(patch);
+  }
   const [searched, setSearched] = useState(false);
   async function searchNow(value) {
     if (!value || value.length < 3) return;
@@ -124,6 +168,7 @@ export default function NewCase() {
           .then((r) => {
             if (!live) return;
             setLookup(r);
+            setSearched(true);
             if (r.match && dismissed !== r.match.member.id) fillFromMatch(r.match);
           })
           .catch(() => {}),
@@ -167,7 +212,10 @@ export default function NewCase() {
   const linked = form.memberId && lookup.members.find((m) => m.id === form.memberId);
 
   const tips = useMemo(() => {
-    const words = `${form.category} ${form.subCategory}`.toLowerCase().split(/[^a-z0-9]+/).filter((w) => w.length > 3);
+    const words = `${form.category} ${form.subCategory}`
+      .toLowerCase()
+      .split(/[^a-z0-9]+/)
+      .filter((w) => w.length > 3);
     if (!words.length) return [];
     return KB.filter((k) => words.some((w) => k.tags.includes(w) || k.title.toLowerCase().includes(w))).slice(0, 2);
   }, [form.category, form.subCategory]);
@@ -177,6 +225,7 @@ export default function NewCase() {
     setErr('');
     if (form.channel === 'Email' && (!form.email || !form.subject.trim())) return setErr('Enter the sender’s email and the email subject.');
     if (form.channel !== 'Email' && !form.phone) return setErr('Enter the caller’s mobile number.');
+    if (form.channel !== 'Email' && !form.callType) return setErr('Select the type of call.');
     if (!form.caseType || (!form.category && Object.keys(tree[form.caseType] || {}).length)) return setErr('Select case type and category.');
     if ((tree[form.caseType]?.[form.category] || []).length && !form.subCategory) return setErr('Select the sub-category.');
     if (!form.description.trim()) return setErr('Describe the query / concern.');
@@ -188,7 +237,10 @@ export default function NewCase() {
         subject: form.channel === 'Email' ? form.subject : form.subCategory || form.category,
         status: outcome,
         note: note || undefined,
-        source: { missedCallId: params.get('missedId') || undefined, leadId: params.get('leadId') || undefined },
+        source: {
+          missedCallId: params.get('missedId') || undefined,
+          leadId: params.get('leadId') || undefined,
+        },
       });
       refreshStats();
       nav(`/cases/${c.id}`, { state: { created: true, warning: c.warning } });
@@ -199,7 +251,6 @@ export default function NewCase() {
   }
 
   const isCall = form.channel !== 'Email';
-  const greeting = SCRIPTS[form.channel === 'Outbound call' ? 3 : 0].text.replace('[Name]', agent);
   const onLiveCall = Boolean(form.callTxnId && callState?.callId === form.callTxnId && !callState?.ended);
   const found = form.memberId;
   const notFound = searched && !found && q && q.length >= 3 && lookup.members.length === 0;
@@ -216,7 +267,8 @@ export default function NewCase() {
       {params.get('missedId') && <div className="notice">Calling back missed call {params.get('missedId')}. It is marked “Called back” when you save.</div>}
       {txnParam && (
         <div className="notice">
-          SparkTG call {txnParam} is linked to this case when you save.{sparkMsg && <> {sparkMsg}</>}
+          SparkTG call {txnParam} is linked to this case when you save.
+          {sparkMsg && <> {sparkMsg}</>}
         </div>
       )}
       {params.get('leadId') && <div className="notice">Concern raised on outbound lead {params.get('leadId')}.</div>}
@@ -227,52 +279,21 @@ export default function NewCase() {
           <section className="identify">
             <div className="identify-head">
               <strong>Identify caller</strong>
-              <span>Registered member? A registered mobile or card number fills in every member detail</span>
+              <span>Registered member? Search by anything you have; a match fills in every member detail</span>
             </div>
-            <div className="identify-grid">
-              <div className="identify-col">
-                <label>
-                  MOBILE NUMBER <span className="tag">Recommended</span>
-                </label>
-                <div className="identify-row">
-                  <input
-                    value={form.phone}
-                    onChange={(e) => {
-                      setSearched(false);
-                      set({ phone: e.target.value.replace(/[^\d+ ]/g, ''), memberId: null });
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), searchNow(form.phone))}
-                    placeholder="10-digit mobile (+91 / 0 fine)"
-                    autoFocus={isCall}
-                  />
-                  <button type="button" onClick={() => searchNow(form.phone)}>
-                    <Icon name="search" size={16} /> Search
-                  </button>
-                </div>
-                <div className="identify-hint">Finds owner, alternate and add-on card mobiles</div>
-              </div>
-              <div className="identify-divider" />
-              <div className="identify-col">
-                <label>
-                  CARD NUMBER <span className="tag dim">If mobile unavailable</span>
-                </label>
-                <div className="identify-row">
-                  <input
-                    value={form.cardNo}
-                    onChange={(e) => {
-                      setSearched(false);
-                      set({ cardNo: e.target.value, memberId: null });
-                    }}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), searchNow(form.cardNo))}
-                    placeholder="Membership / add-on card no."
-                  />
-                  <button type="button" onClick={() => searchNow(form.cardNo)}>
-                    <Icon name="search" size={16} /> Search
-                  </button>
-                </div>
-                <div className="identify-hint">Member card or add-on card</div>
-              </div>
+            <div className="identify-row">
+              <input
+                value={search}
+                onChange={(e) => onSearchChange(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), searchNow(search.trim()))}
+                placeholder="Mobile, card no., membership ID, name, business name or email"
+                autoFocus={isCall}
+              />
+              <button type="button" onClick={() => searchNow(search.trim())}>
+                <Icon name="search" size={16} /> Search
+              </button>
             </div>
+            <div className="identify-hint">Finds the owner, alternate and add-on card holders: by any of their mobiles or card numbers, the membership ID (M-00123), name, business name or email</div>
             {found && (
               <div className="identify-result ok">
                 <Icon name="check" size={16} /> Registered member: <strong>{form.businessName}</strong> · details filled in below
@@ -281,7 +302,7 @@ export default function NewCase() {
             {notFound && (
               <div className="identify-result">
                 Not a registered member. Choose <strong>Not Registered</strong> or <strong>Others</strong> (e.g. B2C walk-in customers at AKD &amp; NSP, food items of Indian origin), or{' '}
-                <Link to={`/contacts/new?phone=${encodeURIComponent(form.phone)}`}>create the contact</Link>.
+                <Link to={`/contacts/new?phone=${encodeURIComponent(form.phone || '')}`}>create the contact</Link>.
               </div>
             )}
           </section>
@@ -300,7 +321,8 @@ export default function NewCase() {
           {(lookup.cases.length > 0 || lookup.calls?.length > 0) && (
             <details className="history" open>
               <summary>
-                Caller history: {lookup.cases.length} case(s){lookup.calls?.length ? `, ${lookup.calls.length} recent call(s)` : ''}
+                Caller history: {lookup.cases.length} case(s)
+                {lookup.calls?.length ? `, ${lookup.calls.length} recent call(s)` : ''}
               </summary>
               {lookup.cases.map((c) => (
                 <Link key={c.id} to={`/cases/${c.id}`} target="_blank" className="lookup-row">
@@ -320,32 +342,81 @@ export default function NewCase() {
             <h2 className="section-h">
               <span className="step-no">1</span> How did they contact us? <span className="req">*</span>
             </h2>
-            <div className="source-cards">
-              {SOURCES.map((o) => (
-                <button type="button" key={o.value} className={`source-card ${form.channel === o.value ? 'on' : ''}`} onClick={() => set({ channel: o.value })}>
-                  <Icon name={o.icon} size={20} />
-                  <span>
-                    <strong>{o.value}</strong>
-                    <small>{o.hint}</small>
-                  </span>
-                </button>
-              ))}
+            {/* channel and call details on one row, across the full width */}
+            <div className="grid four">
+              <Field label="Channel *">
+                <Select
+                  value={isCall ? 'Call' : 'Email'}
+                  options={['Call', 'Email']}
+                  onChange={(v) =>
+                    set(
+                      v === 'Email'
+                        ? { channel: 'Email' }
+                        : {
+                            channel: Object.keys(CALL_TYPE_OF_CHANNEL).find((ch) => CALL_TYPE_OF_CHANNEL[ch] === form.callType) || 'Inbound call',
+                            callType: form.callType || 'Inbound',
+                          }
+                    )
+                  }
+                />
+              </Field>
+              {isCall ? (
+                <>
+                  {/* call details, as on LOTS's Vtiger case form */}
+                  <Field label="Type of call *">
+                    <Select
+                      value={form.callType}
+                      options={CALL_TYPES}
+                      onChange={(v) =>
+                        set({
+                          callType: v,
+                          channel: Object.keys(CALL_TYPE_OF_CHANNEL).find((ch) => CALL_TYPE_OF_CHANNEL[ch] === v) || form.channel,
+                        })
+                      }
+                    />
+                  </Field>
+                  <div className="field">
+                    <span className="field-label">Called number</span>
+                    <input
+                      value={form.calledNumber}
+                      onChange={(e) =>
+                        set({
+                          calledNumber: e.target.value.replace(/[^\d+ ]/g, ''),
+                        })
+                      }
+                      disabled={sameNumber}
+                      placeholder="Number on the call"
+                    />
+                    <label className="row small">
+                      <input
+                        type="checkbox"
+                        checked={sameNumber}
+                        onChange={(e) => (
+                          setSameNumber(e.target.checked),
+                          set({
+                            calledNumber: e.target.checked ? form.phone : form.calledNumber,
+                          })
+                        )}
+                      />{' '}
+                      Same as contact&apos;s mobile
+                    </label>
+                  </div>
+                  <Field label="Call transaction ID" hint="Filled in automatically on a live SparkTG call">
+                    <input value={form.callTxnId} onChange={(e) => set({ callTxnId: e.target.value.trim() })} placeholder="e.g. 5e15d0d8-f557-491f-…" />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field label="Sender email *">
+                    <input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} placeholder="customer@example.com" />
+                  </Field>
+                  <Field label="Email subject *" className="span-2">
+                    <input value={form.subject} onChange={(e) => set({ subject: e.target.value })} placeholder="e.g. Wrong product billed at Akshardham" />
+                  </Field>
+                  <div className="field wide hint">SOP: call the customer to understand the complete details before creating the case, then reply as per the template.</div>
+                </>
+              )}
             </div>
-            {isCall ? (
-              <div className="script-line">
-                <Icon name="phone" size={14} /> “{greeting}”
-              </div>
-            ) : (
-              <div className="grid" style={{ marginTop: 12 }}>
-                <Field label="Sender email *">
-                  <input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} placeholder="customer@example.com" />
-                </Field>
-                <Field label="Email subject *" wide>
-                  <input value={form.subject} onChange={(e) => set({ subject: e.target.value })} placeholder="e.g. Wrong product billed at Akshardham" />
-                </Field>
-                <div className="field wide hint">SOP: call the customer to understand the complete details before creating the case, then reply as per the template.</div>
-              </div>
-            )}
           </section>
 
           <section className="card">
@@ -354,7 +425,24 @@ export default function NewCase() {
             </h2>
             <div className="grid">
               <Field label="Type of contact">
-                <Select value={form.callerType} options={list('Caller Type')} onChange={(v) => set({ callerType: v, memberId: v === 'Registered With Lots' ? form.memberId : null, ...(allowedTypes(v, tree, dependents).includes(form.caseType) && (!form.category || allowedCategories(form.caseType, v, tree).includes(form.category)) ? {} : { caseType: '', category: '', subCategory: '', sub2: '' }) })} />
+                <Select
+                  value={form.callerType}
+                  options={list('Caller Type')}
+                  onChange={(v) =>
+                    set({
+                      callerType: v,
+                      memberId: v === 'Registered With Lots' ? form.memberId : null,
+                      ...(allowedTypes(v, tree, dependents).includes(form.caseType) && (!form.category || allowedCategories(form.caseType, v, tree).includes(form.category))
+                        ? {}
+                        : {
+                            caseType: '',
+                            category: '',
+                            subCategory: '',
+                            sub2: '',
+                          }),
+                    })
+                  }
+                />
               </Field>
               <Field label="Name">
                 <input value={form.name} onChange={(e) => set({ name: e.target.value })} />
@@ -362,14 +450,15 @@ export default function NewCase() {
               <Field label="Business name">
                 <input value={form.businessName} onChange={(e) => set({ businessName: e.target.value })} />
               </Field>
+              <Field label={isCall ? 'Mobile *' : 'Mobile'}>
+                <input value={form.phone} onChange={(e) => set({ phone: e.target.value.replace(/[^\d+ ]/g, '') })} placeholder="10-digit mobile" />
+              </Field>
+              <Field label="Card no.">
+                <input value={form.cardNo} onChange={(e) => set({ cardNo: e.target.value })} placeholder="Membership / add-on card no." />
+              </Field>
               {isCall && (
                 <Field label="Email">
                   <input type="email" value={form.email} onChange={(e) => set({ email: e.target.value })} />
-                </Field>
-              )}
-              {isCall && (
-                <Field label="SparkTG call ID" hint="Filled in automatically on a live call">
-                  <input value={form.callTxnId} onChange={(e) => set({ callTxnId: e.target.value.trim() })} placeholder="Call ID" />
                 </Field>
               )}
             </div>
@@ -493,9 +582,18 @@ function MemberCard({ member: m, match, openCases, memberId, onUnlink }) {
           {match?.via === 'add-on' && <span className="badge st-resolved">Add-on holder: {match.addOn.name || match.addOn.phone}</span>}
           {blocked && <span className="badge st-escalated">Card blocked</span>}
         </div>
-        <button type="button" className="link" onClick={onUnlink}>
-          not this member
-        </button>
+        {/* as on the Vtiger contact block; the contact form opens in a new tab so this case isn't lost */}
+        <div className="row">
+          <Link className="btn sm" to={`/contacts/${m.id}`} target="_blank" title="Edit this contact (opens in a new tab)">
+            Edit
+          </Link>
+          <Link className="btn sm" to={`/contacts/new?phone=${encodeURIComponent(m.phone || '')}`} target="_blank" title="Create another contact (opens in a new tab)">
+            + Add Another Contact
+          </Link>
+          <button type="button" className="btn sm" onClick={onUnlink} title="Not this member: pick or search another">
+            Change
+          </button>
+        </div>
       </div>
       <div className="member-grid small">
         {rows.map(([k, v]) => (
