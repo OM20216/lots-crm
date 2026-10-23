@@ -131,7 +131,7 @@ export const SUPPORT_ARTICLES = [
     keywords: ['excel', 'update matrix', 'matrix from excel', 'import matrix', 'one drive', 'sharepoint', 'live link', 'matrix workbook', 'upload matrix'],
     answer:
       'Stores & settings → Escalation matrix (HO) → Update from Excel:\n' +
-      '• Upload LOTS’s .xlsx / .csv, or paste the OneDrive / SharePoint share link (Live link: the CRM checks it every 10 minutes and applies a change when LOTS saves the file).\n' +
+      '• Upload LOTS’s .xlsx / .csv, or paste the OneDrive / SharePoint share link (Live link: press Refresh now to read LOTS’s latest version).\n' +
       '• The CRM reads the HO sheet and the store tabs and shows every change (old → new, yellow cells marked) before anything is saved; Apply saves it.\n' +
       '• Typos are fixed and noted; where the sheet is unclear (empty SPOC, TAT without a unit) the CRM keeps its value. Rows or tabs missing from the file are left as they are.\n' +
       '• An email from a cpwi.in address with the matrix attached is applied by itself (once the mailbox is connected).',
@@ -265,7 +265,7 @@ export const SUPPORT_ARTICLES = [
     keywords: ['lead', 'outbound', 'outbound call', 'call back list', 'prospect', 'lead status', 'order placed'],
     answer:
       'Outbound calls holds the call lists of the SOP: new registration, inactive customer, order on call, LCC, confirmation, follow-up, customer survey and festival offers.\n' +
-      'Call from the list and record the outcome. A confirmation call closes or re-escalates its case; a follow-up call with “Info received” moves a Waiting case back to Pending; a survey call records the ratings.\n' +
+      'Call from the list and record the outcome. A confirmation call closes or re-escalates its case; a follow-up call with “Info received” moves a Waiting case back to Pending; a survey call records the customer’s feedback.\n' +
       'The CRM queues confirmation and follow-up calls by itself when those switches are on (Automation).',
   },
   {

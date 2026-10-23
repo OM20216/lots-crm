@@ -34,19 +34,22 @@ export default function Cases() {
     <>
       <div className="page-head">
         <h1>All cases</h1>
-        <button className="btn" onClick={exportCsv} disabled={!cases?.length}>
-          Export CSV
-        </button>
+        {/* search beside Export CSV */}
+        <div className="head-actions">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              setF('q', q);
+            }}
+          >
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search case no., phone, name, email, card, order…" />
+          </form>
+          <button className="btn" onClick={exportCsv} disabled={!cases?.length}>
+            Export CSV
+          </button>
+        </div>
       </div>
-      <div className="card filters">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            setF('q', q);
-          }}
-        >
-          <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search case no., phone, name, email, card, order…" />
-        </form>
+      <div className="card filters even">
         <Select value={filters.status} options={STATUSES} onChange={(v) => setF('status', v)} placeholder="Any status" />
         <Select value={filters.channel} options={list('Channel')} onChange={(v) => setF('channel', v)} placeholder="Any channel" />
         <Select value={filters.caseType} options={list('Case Type')} onChange={(v) => setF('caseType', v)} placeholder="Any type" />

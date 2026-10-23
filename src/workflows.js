@@ -82,7 +82,7 @@ export const WORKFLOWS = [
     step('store', 'Store of purchase recorded', A.store),
     step('bill', 'Bill / invoice number and purchase details taken', A.orderRef, 'Not always available: the store can verify'),
   ]), { match: { caseType: 'Issues or Complaint', category: 'Store related' }, requires: ['store'] }),
-  W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaint', category: 'App Related' }, requires: ['store'] }),
+  W('cmp-app', 'App complaint', 'it', 1, escalationPath('the IT / Website team', [step('device', 'Note the registered mobile, device and error shown')]), { match: { caseType: 'Issues or Complaint', category: ['App Related', 'Product Damage'] }, requires: ['store'] }),
   W('cmp-ecom-refund', 'Refund not received', 'ecom', 7, escalationPath('the E-commerce / App team', [
     step('order', 'App / website order number recorded', A.orderRef),
     step('inform', 'Inform: the amount refunds automatically within 7 working days, or the customer contacts their bank (SOP)'),

@@ -7,7 +7,6 @@ import * as core from './core.js';
 import * as mail from './mail.js';
 import * as teams from './teams.js';
 import * as matrixImport from './matrixImport.js';
-import * as matrixLink from './matrixLink.js';
 import * as store from './db.js';
 import { EMAIL_TEMPLATES, fillTemplate } from '../src/knowledge.js';
 import { extractRefs, missingInfo } from '../src/requirements.js';
@@ -942,7 +941,6 @@ export async function tick(opts = {}) {
     await waitingCases(s);
     await storeDigest(s);
     await dailyReport(s);
-    await matrixLink.tick(); // linked escalation-matrix Excel: re-read when LOTS saved a change
   } catch (e) {
     console.error('[automation]', e);
   } finally {

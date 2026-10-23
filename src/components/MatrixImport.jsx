@@ -5,7 +5,6 @@ import { fmtDate, useLoad, useMeta } from '../ui.jsx';
 /** Live link to the Excel on OneDrive / SharePoint: the CRM re-reads it when LOTS saves a change. */
 function LiveLink({ link, onChange }) {
   const [url, setUrl] = useState('');
-  const [every, setEvery] = useState(10);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
   const run = async (fn) => {
@@ -24,16 +23,18 @@ function LiveLink({ link, onChange }) {
     return (
       <div className="mx-link">
         <strong className="small">Live link to the Excel</strong>
-        <span className="muted small"> · LOTS keeps the matrix on OneDrive / SharePoint; the CRM re-reads it whenever they save a change.</span>
+        <span className="muted small"> · LOTS keeps the matrix on OneDrive / SharePoint; press <strong>Refresh now</strong> whenever you want their latest version read.</span>
         <div className="row wrap">
           <input className="mx-url" value={url} onChange={(e) => setUrl(e.target.value)} placeholder="Share link of the Excel (OneDrive / SharePoint → Share → Copy link)" />
-          <span className="small">
-            check every <input className="tat" type="number" min="5" value={every} onChange={(e) => setEvery(Number(e.target.value) || 10)} /> min
-          </span>
-          <button className="btn sm primary" disabled={!url.trim() || busy} onClick={() => run(() => api.put('/matrix-link', { url, every }))}>
+          <button className="btn sm primary" disabled={!url.trim() || busy} onClick={() => run(() => api.put('/matrix-link', { url }))}>
             Link
           </button>
+          {/* shown so it can be found; it works once an Excel is linked */}
+          <button className="btn sm" disabled title="Link the Excel first, then press this to read LOTS's latest version">
+            ↻ Refresh now
+          </button>
         </div>
+        <div className="muted small">Paste the link and press Link: the Excel is read once. After that, <strong>↻ Refresh now</strong> reads it again whenever you want.</div>
         {!link?.microsoft && <div className="muted small">Needs the Microsoft 365 sign-in (Automation page, same as the mailbox). You can link now; it starts reading once signed in.</div>}
         {err && <div className="error small">{err}</div>}
       </div>
@@ -42,12 +43,12 @@ function LiveLink({ link, onChange }) {
     <div className={`mx-link ${link.error ? 'bad' : 'good'}`}>
       <div className="row between wrap">
         <span className="small">
-          <strong>🔗 Linked Excel</strong> {link.file && <>· {link.webUrl ? <a href={link.webUrl} target="_blank" rel="noreferrer">{link.file}</a> : link.file}</>} · checked every {link.every} min
-          {link.checkedAt && <> · last check {fmtDate(link.checkedAt)}</>}
+          <strong>🔗 Linked Excel</strong> {link.file && <>· {link.webUrl ? <a href={link.webUrl} target="_blank" rel="noreferrer">{link.file}</a> : link.file}</>}
+          {link.checkedAt && <> · last read {fmtDate(link.checkedAt)}</>}
         </span>
         <span className="row">
-          <button className="btn sm" disabled={busy} onClick={() => run(() => api.post('/matrix-link/check', { force: true }))}>
-            Read it now
+          <button className="btn sm primary" disabled={busy} onClick={() => run(() => api.post('/matrix-link/check', { force: true }))}>
+            {busy ? 'Reading…' : '↻ Refresh now'}
           </button>
           <button className="btn sm" disabled={busy} onClick={() => confirm('Stop reading the linked Excel? The matrix stays as it is.') && run(() => api.del('/matrix-link'))}>
             Unlink

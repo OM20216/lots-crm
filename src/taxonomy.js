@@ -33,7 +33,10 @@ export const SUPPLIER_TYPES = ['Suppliers - Fresh', 'Suppliers - FMCG - Food', '
 // Excel `resolution_type`
 export const RESOLUTION_TYPES = ['Answer Received', 'Clarity required from LOTS', 'Escalated and Auto Closed', 'Escalated to LOTS', 'Information Provided'];
 
-export const CALL_TYPES = ['Inbound'];
+// Type of call, as on LOTS's Vtiger case form (user, 23 Oct 2026); it goes with the channel: Inbound call → Inbound,
+// Outbound call → Outbound, Missed call callback → Abandoned Call.
+export const CALL_TYPES = ['Abandoned Call', 'Inbound', 'Outbound'];
+export const CALL_TYPE_OF_CHANNEL = { 'Inbound call': 'Inbound', 'Outbound call': 'Outbound', 'Missed call callback': 'Abandoned Call' };
 
 // ---------- the case master ----------
 // LOTS's "Case catergory" sheet in the escalation workbook (Escalation Matrix LOTS, store tabs; adopted 17 Oct 2026,
@@ -57,6 +60,9 @@ export const CASE_TREE = {
     'Membership Related': ['Member complaint'],
     'E-Comm Related': ['Website Technical issues and Pricing Issue', 'Website Account/ Profile Related', 'Website Order Related', 'Website Pricing Related', 'Website Payment & Refund Related', 'Website Invoice Related', 'Website Offers and scheme', 'Website Product related', 'Website Product Quality Related', 'Website related- Others', 'Website Content issues', 'Website Order-Delivery Related (order status not dispatched)', 'Website Order-Delivery Related (order status dispatched)'],
     'App Related': ['Technical issues and Pricing Issue', 'Account/ Profile Related', 'Order Related', 'Pricing Related', 'Payment & Refund Related', 'Invoice Related', 'Offers and scheme', 'Product related', 'Product Quality Related', 'Others', 'Content issues', 'Order-Delivery Related (order status not dispatched)', 'Order-Delivery Related (order status dispatched)'],
+    // not in the Case catergory sheet: the App tab of the escalation workbook has a Product Damage row; a category with no
+    // sub-category so it can be chosen (user's decision, 23 Oct 2026)
+    'Product Damage': [],
     'BDA related': ['BDA - Order Related', 'BDA - Cancellation and Invoice related', 'BDA-Product Quality Related', 'BDA-Behaviour Related', 'BDA-Pricing related', 'BDA Order-Delivery Related (order status not dispatched)', 'BDA Order-Delivery Related (order status dispatched)', 'BDA-Others'],
   },
   'Issues and Complaint (NR)': {
@@ -229,13 +235,9 @@ export const FOLLOWUP_OUTCOMES = ['Info received', 'Update given', 'Call back', 
 
 // SOP "Customer survey – collecting feedback to improve our service".
 export const SURVEY_OUTCOMES = ['Survey completed', 'Refused survey', 'Call back', 'Not reachable'];
-export const SURVEY_QUESTIONS = [
-  { key: 'overall', label: 'Overall, how satisfied are you with LOTS?', type: 'rating' },
-  { key: 'store', label: 'Store experience (staff, billing, availability)', type: 'rating' },
-  { key: 'care', label: 'How was your experience with customer care?', type: 'rating' },
-  { key: 'recommend', label: 'Would you recommend LOTS to other businesses?', type: 'yesno' },
-  { key: 'comments', label: 'What should we improve?', type: 'text' },
-];
+// The SOP gives no survey questions, only the purpose, so the call records the customer's feedback (decided with the
+// user, 23 Oct 2026: follow the SOP; the 5 rating questions the CRM had added were removed).
+export const SURVEY_QUESTIONS = [{ key: 'comments', label: 'Customer feedback (to improve our service)', type: 'text' }];
 
 // Confirmation calls act on the case: confirmed → Closed, not satisfied → back to the store.
 export const CONFIRMATION_OUTCOMES = ['Confirmed resolved', 'Not satisfied', 'Call back', 'Not reachable'];

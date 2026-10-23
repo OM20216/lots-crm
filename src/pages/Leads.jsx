@@ -15,40 +15,18 @@ const LEAD_PITCH = {
   'Confirmation / resolution': 'Confirm the customer is satisfied and the concern is resolved.',
   'Festival & seasonal offers': 'Share the running festival / seasonal offers; invite them to the store or the LOTS app.',
   'Follow-up': 'Give the customer an update, or ask for the missing details. “Info received” moves the case back to Pending.',
-  'Customer survey': 'Ask the survey questions below and note their answers. Any complaint → “Concern raised → case”.',
+  'Customer survey': 'SOP: collect their feedback to improve our service, and note it below. Any complaint → “Concern raised → case”.',
 };
 
-const EMPTY_SURVEY = { overall: 0, store: 0, care: 0, recommend: '', comments: '' };
+const EMPTY_SURVEY = { comments: '' };
 
-function Stars({ value, onChange }) {
-  return (
-    <span className="stars">
-      {[1, 2, 3, 4, 5].map((n) => (
-        <button type="button" key={n} className={n <= value ? 'on' : ''} onClick={() => onChange(n)} aria-label={`${n} of 5`}>
-          ★
-        </button>
-      ))}
-    </span>
-  );
-}
-
-// SOP customer survey: the questions asked on the call
+// SOP customer survey: the customer's feedback
 function SurveyForm({ value, onChange }) {
   return (
     <div className="survey-form">
       {SURVEY_QUESTIONS.map((q) => (
         <div key={q.key} className="survey-q">
           <span className="small">{q.label}</span>
-          {q.type === 'rating' && <Stars value={value[q.key]} onChange={(n) => onChange({ ...value, [q.key]: n })} />}
-          {q.type === 'yesno' && (
-            <span className="row">
-              {['Yes', 'No'].map((v) => (
-                <button type="button" key={v} className={`btn sm ${value[q.key] === v ? 'active' : ''}`} onClick={() => onChange({ ...value, [q.key]: v })}>
-                  {v}
-                </button>
-              ))}
-            </span>
-          )}
           {q.type === 'text' && <textarea rows={2} value={value[q.key]} onChange={(e) => onChange({ ...value, [q.key]: e.target.value })} />}
         </div>
       ))}
@@ -59,26 +37,21 @@ function SurveyForm({ value, onChange }) {
 function SurveySummary() {
   const [s] = useLoad(() => api.get('/leads/survey-summary'));
   if (!s) return null;
-  const fmt = (v) => (v == null ? '—' : `${v}/5`);
   return (
     <section className="card">
-      <h2>Survey results</h2>
+      <h2>Survey feedback</h2>
       {s.count === 0 ? (
         <span className="muted small">No surveys yet. Switch on “Queue a customer survey call” in Automation, or import a survey calling list.</span>
       ) : (
         <>
           <div className="survey-stats">
             <div><strong>{s.count}</strong><span>surveys</span></div>
-            <div><strong>{fmt(s.overall)}</strong><span>overall</span></div>
-            <div><strong>{fmt(s.store)}</strong><span>store</span></div>
-            <div><strong>{fmt(s.care)}</strong><span>customer care</span></div>
-            <div><strong>{s.recommendPct == null ? '—' : s.recommendPct + '%'}</strong><span>would recommend</span></div>
           </div>
           {s.comments.length > 0 && (
             <ul className="tight survey-comments">
               {s.comments.map((c) => (
                 <li key={c.id}>
-                  “{c.text}” <span className="muted small">— {c.name}{c.overall ? ` · ${c.overall}/5` : ''} · {fmtDate(c.at)}</span>
+                  “{c.text}” <span className="muted small">— {c.name} · {fmtDate(c.at)}</span>
                 </li>
               ))}
             </ul>
