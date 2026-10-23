@@ -14,6 +14,7 @@ import { extractRefs, missingInfo } from '../src/requirements.js';
 import { workflowFor } from '../src/workflows.js';
 import { STORE_ROWS } from '../src/storeMatrix.js';
 import { DETAILS_HEADING, queryDetails } from '../src/queryDetails.js';
+import * as aiReader from './aiReader.js';
 
 const { db, save, now, log, on, applyStatus } = core;
 const ATTACH_DIR = path.join(store.DATA_DIR, 'attachments');
@@ -26,6 +27,7 @@ export const DEFAULTS = {
   teamsPreview: true, // while TEAMS_WEBHOOK_URL is set: every email is posted to the Teams channel instead of being sent
   mailTestTo: '', // test mode (like VMM's TEST_MODE): every outgoing email goes to this address instead
   autoCategorise: true,
+  aiReader: true, // AI email reader (server/aiReader.js) instead of the keyword rules — only when ANTHROPIC_API_KEY is in the secrets file
   autoAssign: true,
   autoAck: true,
   autoAnswer: false, // SOP: call the customer before creating the case, so standard enquiries are not answered automatically
@@ -413,10 +415,15 @@ async function onCaseCreated({ c }) {
   }
   if (c.channel === 'Email') {
     if (s.autoCategorise && !c.caseType) {
-      const r = classify(`${c.subject}\n${c.description}`, { isMember: Boolean(c.memberId) });
+      // the AI email reader when it is set up (keyword rules if it isn't, or can't answer)
+      const ai = s.aiReader && aiReader.configured() ? await aiReader.read({ subject: c.subject, body: c.description, stores: db().stores }) : null;
+      const r = ai && ai.caseType ? ai : classify(`${c.subject}\n${c.description}`, { isMember: Boolean(c.memberId) });
       if (r) {
         for (const k of ['caseType', 'category', 'subCategory', 'requestFor', 'sub2']) if (r[k] && !c[k]) c[k] = r[k];
         if (r.store) c.store = r.store; // store named in the mail
+        // numbers the AI reader found in the mail, where the case has none yet
+        for (const k of ['orderRef', 'cardNo', 'phone']) if (r[k] && !c[k]) c[k] = r[k];
+        if (r.summary) log(c, { by: BOT, type: 'note', text: `AI email reader: ${r.summary}` });
         log(c, { by: BOT, type: 'edit', text: `Auto-categorised${r.rule ? ` (${r.rule})` : ''}: ${[c.caseType, c.category, c.subCategory].filter(Boolean).join(' › ') || '—'}${r.store ? ` · store ${r.store}` : ''}` });
         activity(`Categorised ${c.id} as ${r.rule || 'store ' + r.store}`, c.id);
         c.auto = r;

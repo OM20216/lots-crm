@@ -338,9 +338,19 @@ export default function ContactForm() {
       setSaving(false);
       const d = err.data?.phone;
       const hit = d && formNumbers(v).find(([, n]) => n === d);
+      // a card number that belongs to someone else: next to the membership / add-on card field
+      const card = err.data?.card && String(err.data.card).toUpperCase().replace(/[^A-Z0-9]/g, '');
+      const sameCard = (c) => card && String(c || '').toUpperCase().replace(/[^A-Z0-9]/g, '') === card;
+      const addon = card ? v.addons.findIndex((a) => sameCard(a.cardNo)) : -1;
       if (hit) {
         setErrors({ [hit[0]]: err.message });
         jump(hit[0].startsWith('addons') ? 'addon' : 'contact');
+      } else if (card && sameCard(v.cardNo)) {
+        setErrors({ cardNo: err.message });
+        setServerErr(err.message);
+      } else if (addon >= 0) {
+        setErrors({ [`addons.${addon}`]: err.message });
+        jump('addon');
       } else setServerErr(err.message);
     }
   }

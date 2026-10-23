@@ -5,8 +5,9 @@ import 'reactflow/dist/style.css';
 import './LotsFlow.css';
 import { api } from '../api.js';
 import { useMeta } from '../ui.jsx';
+import { STORE_ROWS, STORE_TABS, shownText } from '../storeMatrix.js';
 
-// Escalation workflow of the LOTS HO escalation matrix (src/escalationMatrix.js) as a flow chart:
+// Escalation workflow of the LOTS escalation matrices — HO (src/escalationMatrix.js) or stores (src/storeMatrix.js) — as a flow chart:
 // First Time Resolution → Level 1 → Level 2 → daily reminder, and how a reply closes the loop.
 // Pick a row of the sheet: every box shows that row's SPOCs, copy list and TAT, and the cases there now.
 
@@ -61,6 +62,8 @@ const e = (source, target, label, color, { animated, from = 'b', to = 't' } = {}
 
 const names = (list) => (list || []).map((x) => x.split('@')[0]).join(', ');
 const caseOf = (m) => [m.caseType, m.category, m.sub2].filter(Boolean).join(' › ');
+// the case-master categories that go to a store-matrix row
+const routesOf = (row) => (STORE_ROWS.find((r) => r.key === row.key.split('.')[1])?.routes || []).filter((r) => r.subCategory).map((r) => [r.category, r.subCategory, r.sub2].filter(Boolean).join(' › '));
 
 /** Boxes for one row of the sheet. */
 function buildNodes(row, live) {
@@ -81,11 +84,14 @@ function buildNodes(row, live) {
           ? `The agent escalates the case: the escalation email goes to the SPOC with this list in copy, and the due date is ${st[0].tatText}${st[0].tat.unit === 'hours' ? ' (counted 9 AM – 9 PM, Monday–Saturday)' : ''}.`
           : `Automatic when the ${st[i - 1].label} TAT (${st[i - 1].tatText}) passes, or at once with “Escalate to ${st[i].label} now” on the case page. The email says which TAT was missed; new due date ${st[i].tatText}.`,
     });
+  const routes = row.store ? routesOf(row) : [];
   return [
     n('start', 380, 0, {
       icon: '▶️', label: 'Case escalated', tone: 'start', start: true,
-      detail: caseOf(row.match),
-      how: `Cases of this type (${caseOf(row.match)}) follow the “${row.row}” row of the HO escalation matrix. The agent clicks Escalate on the case page; the CRM picks the row from the case type.`,
+      detail: row.store ? `${row.row}${routes.length ? ` · ${routes.length} case categor${routes.length > 1 ? 'ies' : 'y'}` : ''}` : caseOf(row.match),
+      how: row.store
+        ? `Cases at this store whose category is ${routes.length ? routes.join('; ') : 'not set yet'} follow this row of the store escalation matrix${row.toConfirm ? ` (⚠ to confirm with LOTS: ${row.toConfirm})` : row.note ? ` (${row.note})` : ''}. The agent clicks Escalate on the case page (the store must be recorded); the CRM picks the row from the category and the store.`
+        : `Cases of this type (${caseOf(row.match)}) follow the “${row.row}” row of the HO escalation matrix. The agent clicks Escalate on the case page; the CRM picks the row from the case type.`,
       to: '/cases?status=Escalated',
     }),
     stage(0, 380, 160, '1️⃣', 'violet'),
@@ -154,8 +160,15 @@ const EDGES = [
 
 export default function EscalationFlow() {
   const nav = useNavigate();
-  const { hoMatrix } = useMeta();
-  const rows = hoMatrix?.rows || [];
+  const { hoMatrix, stores } = useMeta();
+  const [matrix, setMatrix] = useState('ho'); // 'ho' | 'store'
+  const [code, setCode] = useState('101');
+  const [tab, setTab] = useState('app');
+  const [storeRows, setStoreRows] = useState([]);
+  useEffect(() => {
+    if (matrix === 'store') api.get(`/store-matrix?store=${code}`).then((d) => setStoreRows(d.rows)).catch(() => setStoreRows([]));
+  }, [matrix, code]);
+  const rows = matrix === 'ho' ? hoMatrix?.rows || [] : storeRows.filter((r) => r.tab === tab && r.stages.length === 3);
   const [key, setKey] = useState('');
   const [cases, setCases] = useState([]);
   const [active, setActive] = useState(null);
@@ -185,7 +198,8 @@ export default function EscalationFlow() {
 
   const nodes = useMemo(() => (row ? buildNodes(row, live) : []), [row, live]);
   const current = active && nodes.find((x) => x.id === active)?.data;
-  if (!row) return <div className="empty">Loading the escalation matrix…</div>;
+  if (!row && matrix === 'ho') return <div className="empty">Loading the escalation matrix…</div>;
+  const pick = (fn) => (v) => (fn(v), setKey(''), setActive(null));
 
   return (
     <div className="lf-page">
@@ -193,89 +207,118 @@ export default function EscalationFlow() {
         <div>
           <h1>Escalation flow</h1>
           <div className="muted small">
-            LOTS HO escalation matrix ({hoMatrix.source}) as a flow, with live counts. Pick a case type; click a box for its people and what the CRM does. <span className="lf-badge auto">auto</span> = done by the CRM.
+            LOTS escalation matrix as a flow, with live counts: the HO matrix ({hoMatrix.source}) or the store matrix (per store and tab). Pick a row; click a box for its people and what the CRM does. <span className="lf-badge auto">auto</span> = done by the CRM.
           </div>
         </div>
-        <select value={row.key} onChange={(ev) => (setKey(ev.target.value), setActive(null))} className="ef-pick">
-          {rows.map((r) => (
-            <option key={r.key} value={r.key}>
-              {r.row}
-            </option>
-          ))}
-        </select>
-      </div>
-      <div className="lf-wrap">
-        <div className="lf-container">
-          <ReactFlow
-            key={row.key}
-            nodes={nodes}
-            edges={EDGES}
-            nodeTypes={nodeTypes}
-            onNodeClick={(_, node) => setActive(node.id)}
-            onPaneClick={() => setActive(null)}
-            nodesDraggable={false}
-            fitView
-            minZoom={0.2}
-            attributionPosition="bottom-left"
-          >
-            <Background />
-            <Controls showInteractive={false} />
-          </ReactFlow>
+        <div className="row wrap ef-pickers">
+          <select value={matrix} onChange={(ev) => pick(setMatrix)(ev.target.value)}>
+            <option value="ho">HO matrix</option>
+            <option value="store">Store matrix</option>
+          </select>
+          {matrix === 'store' && (
+            <>
+              <select value={code} onChange={(ev) => pick(setCode)(ev.target.value)}>
+                {stores.map((st) => (
+                  <option key={st.code} value={st.code}>
+                    {st.code} {st.short}
+                  </option>
+                ))}
+              </select>
+              <select value={tab} onChange={(ev) => pick(setTab)(ev.target.value)}>
+                {STORE_TABS.map((t) => (
+                  <option key={t.tab} value={t.tab}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+            </>
+          )}
+          {row && (
+            <select value={row.key} onChange={(ev) => (setKey(ev.target.value), setActive(null))} className="ef-pick">
+              {rows.map((r) => (
+                <option key={r.key} value={r.key}>
+                  {r.store ? `${shownText(r.sheet[0])}${r.sheet[1] !== r.sheet[0] ? ` – ${shownText(r.sheet[1])}` : ''}` : r.row}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
-        {current && (
-          <aside className="lf-panel">
-            <button className="lf-panel-close" onClick={() => setActive(null)} aria-label="Close">
-              ×
-            </button>
-            <div className="lf-panel-title">
-              {current.icon} {current.label}
-            </div>
-            {current.tat && <div className="lf-panel-tat">TAT: {current.tat}</div>}
-            {current.detail && !current.stage && <p className="lf-panel-detail">{current.detail}</p>}
-            {current.stage && (
-              <>
-                <div className="lf-panel-sub">SPOC (To)</div>
-                <ul className="lf-panel-list">
-                  {current.stage.to.map((x) => (
-                    <li key={x}>{x}</li>
-                  ))}
-                </ul>
-                {current.stage.cc.length > 0 && (
-                  <>
-                    <div className="lf-panel-sub">Escalation (Cc)</div>
-                    <ul className="lf-panel-list">
-                      {current.stage.cc.map((x) => (
-                        <li key={x}>{x}</li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                {current.stage.toConfirm && <div className="hom-flag small">⚠ To confirm with LOTS: {current.stage.toConfirm}</div>}
-                {current.stage.fixed && <div className="hom-flag small">✎ {current.stage.fixed}</div>}
-              </>
-            )}
-            {current.live && current.live.n != null && (
-              <div className={`lf-panel-live ${current.live.alert ? 'alert' : ''}`}>
-                <strong>{current.live.n}</strong> {current.live.label}
-              </div>
-            )}
-            {current.how && (
-              <>
-                <div className="lf-panel-sub">In this CRM {current.auto && <span className="lf-badge auto">auto</span>}</div>
-                <p className="lf-panel-detail">{current.how}</p>
-              </>
-            )}
-            {current.to && (
-              <button className="btn primary block" onClick={() => nav(current.to)}>
-                Open in CRM →
-              </button>
-            )}
-            <button className="btn block ef-edit" onClick={() => nav('/settings')}>
-              Edit the matrix (Stores &amp; settings)
-            </button>
-          </aside>
-        )}
       </div>
+      {!row && <div className="empty">Loading the store matrix…</div>}
+      {row && (
+        <div className="lf-wrap">
+          <div className="lf-container">
+            <ReactFlow
+              key={row.key}
+              nodes={nodes}
+              edges={EDGES}
+              nodeTypes={nodeTypes}
+              onNodeClick={(_, node) => setActive(node.id)}
+              onPaneClick={() => setActive(null)}
+              nodesDraggable={false}
+              fitView
+              minZoom={0.2}
+              attributionPosition="bottom-left"
+            >
+              <Background />
+              <Controls showInteractive={false} />
+            </ReactFlow>
+          </div>
+          {current && (
+            <aside className="lf-panel">
+              <button className="lf-panel-close" onClick={() => setActive(null)} aria-label="Close">
+                ×
+              </button>
+              <div className="lf-panel-title">
+                {current.icon} {current.label}
+              </div>
+              {current.tat && <div className="lf-panel-tat">TAT: {current.tat}</div>}
+              {current.detail && !current.stage && <p className="lf-panel-detail">{current.detail}</p>}
+              {current.stage && (
+                <>
+                  <div className="lf-panel-sub">SPOC (To)</div>
+                  <ul className="lf-panel-list">
+                    {current.stage.to.map((x) => (
+                      <li key={x}>{x}</li>
+                    ))}
+                  </ul>
+                  {current.stage.cc.length > 0 && (
+                    <>
+                      <div className="lf-panel-sub">Escalation (Cc)</div>
+                      <ul className="lf-panel-list">
+                        {current.stage.cc.map((x) => (
+                          <li key={x}>{x}</li>
+                        ))}
+                      </ul>
+                    </>
+                  )}
+                  {current.stage.toConfirm && <div className="hom-flag small">⚠ To confirm with LOTS: {current.stage.toConfirm}</div>}
+                  {current.stage.fixed && <div className="hom-flag small">✎ {current.stage.fixed}</div>}
+                </>
+              )}
+              {current.live && current.live.n != null && (
+                <div className={`lf-panel-live ${current.live.alert ? 'alert' : ''}`}>
+                  <strong>{current.live.n}</strong> {current.live.label}
+                </div>
+              )}
+              {current.how && (
+                <>
+                  <div className="lf-panel-sub">In this CRM {current.auto && <span className="lf-badge auto">auto</span>}</div>
+                  <p className="lf-panel-detail">{current.how}</p>
+                </>
+              )}
+              {current.to && (
+                <button className="btn primary block" onClick={() => nav(current.to)}>
+                  Open in CRM →
+                </button>
+              )}
+              <button className="btn block ef-edit" onClick={() => nav('/settings')}>
+                Edit the matrix (Stores &amp; settings)
+              </button>
+            </aside>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -21,6 +21,7 @@ import Settings from './pages/Settings.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
 import Support from './pages/Support.jsx';
+import Users, { Account } from './pages/Users.jsx';
 const LotsFlow = lazy(() => import('./pages/LotsFlow.jsx'));
 const EscalationFlow = lazy(() => import('./pages/EscalationFlow.jsx'));
 import { SparkTGProvider } from './sparktg.jsx';
@@ -40,7 +41,7 @@ function NavItem({ to, end, icon, label, count, accent, plain }) {
   );
 }
 
-function TopBar({ agent, onSwitch }) {
+function TopBar({ agent, role, signedIn, onSwitch }) {
   const { hasWidget, ready, ssoStatus } = useSparkTG();
   const dialer = !hasWidget ? ['grey', 'Dialer not set up'] : ready && ssoStatus === 'success' ? ['green', 'Dialer ready'] : ready ? ['yellow', 'Dialer: sign in'] : ['grey', 'Dialer loading'];
   return (
@@ -52,12 +53,66 @@ function TopBar({ agent, onSwitch }) {
           <span className={`dot ${dialer[0]}`} /> {dialer[1]}
         </span>
         <span className="topbar-agent">{agent}</span>
-        <span className="role-badge">Agent</span>
+        <span className="role-badge">{role === 'admin' ? 'Admin' : 'Agent'}</span>
+        {signedIn && (
+          <NavLink className="btn sm" to="/account">
+            My password
+          </NavLink>
+        )}
         <button className="btn sm" onClick={onSwitch}>
-          <Icon name="swap" size={14} /> Switch agent
+          <Icon name="swap" size={14} /> {signedIn ? 'Sign out' : 'Switch agent'}
         </button>
       </div>
     </header>
+  );
+}
+
+function PasswordSignIn({ agents, onDone }) {
+  const [name, setName] = useState(currentAgent());
+  const [password, setPassword] = useState('');
+  const [err, setErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function submit(e) {
+    e.preventDefault();
+    setErr('');
+    setBusy(true);
+    try {
+      const r = await api.post('/auth/login', { name, password });
+      onDone(r.user);
+    } catch (e2) {
+      setErr(e2.message);
+      setBusy(false);
+    }
+  }
+  return (
+    <div className="signin">
+      <form className="card signin-card" onSubmit={submit}>
+        <div className="brand big">
+          <span className="logo">LOTS</span> Customer Care CRM
+        </div>
+        <p className="muted">Sign in with your name and password.</p>
+        <label className="field">
+          <span className="field-label">Name</span>
+          <select value={name} onChange={(e) => setName(e.target.value)} required>
+            <option value="">Select…</option>
+            {agents.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="field">
+          <span className="field-label">Password</span>
+          <input type="password" autoComplete="current-password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+        </label>
+        {err && <div className="error small">{err}</div>}
+        <button className="btn primary" disabled={busy || !name || !password}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+        <p className="muted small">Forgot your password? Ask an admin to set a new one (Admin → Users).</p>
+      </form>
+    </div>
   );
 }
 
@@ -97,6 +152,24 @@ function SignIn({ agents, onSignIn }) {
 export default function App() {
   const [meta, setMeta] = useState({ stores: [], agents: [], agentEmails: {} });
   const [agent, setAgent] = useState(currentAgent());
+  // sign-in with passwords (server/auth.js): { required, user: { name, role } | null }
+  const [auth, setAuth] = useState(null);
+  const loadAuth = useCallback(() => api.get('/auth/me').then(setAuth).catch(() => setAuth({ required: false, user: null })), []);
+  useEffect(() => {
+    loadAuth();
+    window.addEventListener('lots-signin', loadAuth);
+    return () => window.removeEventListener('lots-signin', loadAuth);
+  }, [loadAuth]);
+  // signed in: the session's name is the agent
+  useEffect(() => {
+    if (!auth?.required || !auth.user || auth.user.name === agent) return;
+    try {
+      localStorage.setItem('lots-agent', auth.user.name);
+    } catch {
+      /* storage unavailable */
+    }
+    setAgent(auth.user.name);
+  }, [auth, agent]);
   const [stats, setStats] = useState(null);
   const [collapsed, setCollapsed] = useState(() => {
     try {
@@ -147,12 +220,25 @@ export default function App() {
       /* storage unavailable */
     }
     setAgent('');
+    if (auth?.required) api.post('/auth/logout').finally(loadAuth);
   }
 
+  if (!auth) return <div className="empty">Loading…</div>;
+  if (auth.required && !auth.user)
+    return (
+      <PasswordSignIn
+        agents={auth.names || meta.agents}
+        onDone={(user) => {
+          setAuth({ ...auth, user });
+          loadMeta();
+        }}
+      />
+    );
   if (!agent) return <SignIn agents={meta.agents} onSignIn={signIn} />;
+  const isAdmin = !auth.required || auth.user?.role === 'admin';
 
   return (
-    <MetaContext.Provider value={{ ...meta, agent, stats, refreshStats, reloadMeta: loadMeta }}>
+    <MetaContext.Provider value={{ ...meta, agent, auth, isAdmin, reloadAuth: loadAuth, stats, refreshStats, reloadMeta: loadMeta }}>
       <SparkTGProvider widgetUrl={meta.widgetUrl} agentEmail={meta.agentEmails?.[agent] || ''} onCallLogged={refreshStats}>
       <div className={`layout ${collapsed ? 'collapsed' : ''}`}>
         <aside className="sidebar">
@@ -184,7 +270,7 @@ export default function App() {
             <NavItem to="/kb" icon="book" label="Knowledge base" />
 
             <div className="nav-group" />
-            <NavItem to="/admin" icon="settings" label="Admin" />
+            {isAdmin && <NavItem to="/admin" icon="settings" label="Admin" />}
             <NavItem to="/support" icon="help" label="Support tokens" count={stats?.supportTokens} plain />
           </nav>
           <div className="sidebar-foot">
@@ -193,7 +279,7 @@ export default function App() {
           </div>
         </aside>
         <div className="shell">
-        <TopBar agent={agent} onSwitch={signOut} />
+        <TopBar agent={agent} role={auth.required ? auth.user?.role : 'agent'} signedIn={auth.required} onSwitch={signOut} />
         <main className="main">
           <Routes>
             <Route path="/" element={<Dashboard />} />
@@ -233,6 +319,8 @@ export default function App() {
             <Route path="/support" element={<Support />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/admin" element={<Admin />} />
+            <Route path="/users" element={<Users />} />
+            <Route path="/account" element={<Account />} />
           </Routes>
         </main>
         </div>

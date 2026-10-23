@@ -254,6 +254,7 @@ export function StoreMatrixCard() {
   }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
   const rows = (data?.rows || []).filter((r) => r.tab === tab);
   const confirm = rows.find((r) => r.toConfirm)?.toConfirm;
+  const note = rows.find((r) => r.note)?.note;
   return (
     <section className="card">
       <h2>Escalation matrix – stores (per store and kind)</h2>
@@ -279,6 +280,7 @@ export function StoreMatrixCard() {
       </div>
       {err && <div className="error small">{err}</div>}
       {confirm && <div className="notice small hom-flag">⚠ To confirm with LOTS: {confirm}</div>}
+      {note && !confirm && <div className="notice small">ⓘ {note}</div>}
       <div className="table-wrap">
         <table className="table hom-table">
           <Head first="Sheet row (SUB1 / SUB 2)" />

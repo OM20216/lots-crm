@@ -4,6 +4,53 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
+## 23 October 2026
+
+### LOTS confirmed the store matrix rows and routes
+- LOTS confirmed, as they are: the DH 105 rows and GNI Ecommerce rows (made from NSP 101's rows with the store's own mailboxes) and every route the sheet doesn't state directly.
+- The ⚠ “to confirm” flags are gone. Those 74 rows now carry a ⓘ note on where they came from (“confirmed by LOTS, 23 Oct 2026”), and the routes are marked `confirmed` in `src/storeMatrix.js`. `server/storeMatrix.json` was rebuilt from the same workbook; only those flags changed.
+- Still open with LOTS: the HO sheet's 3 filled-in TATs, “Others” = spam only, the “Product Damage” row.
+
+### Unique card numbers
+- A membership card or add-on card number now belongs to one person only, like mobile numbers.
+- Refused when the same card is on another contact (main or add-on card) or entered twice on one contact.
+- The contact form shows the error at the card field; the import skips the clashing row and says why.
+- The live data has no duplicate cards (checked, read-only).
+
+### AI email reader
+- `server/aiReader.js` with the official `@anthropic-ai/sdk`: Claude (`claude-opus-5-5`, low effort, server-side fallback on a refusal) reads each new email.
+- It returns JSON limited to the 228 case-master paths (it can't invent a category), the store, and the order / card / phone numbers written in the mail. A one-line summary goes on the timeline.
+- The email is treated as data; instructions inside it are ignored.
+- On only when `ANTHROPIC_API_KEY` is in the private secrets file and "AI email reader" is on (Automation). With an API error, no key or an unusable answer, the keyword rules are used as before.
+- Tested against a fake Anthropic API: 9 checks (request shape, categorised case, numbers, timeline, API error → rules, invalid answer → rules, switched off → no call).
+
+### The CRM in the background
+- This Windows account has no administrator rights, so instead of a classic Windows service, the CRM runs as a **scheduled task "LOTS CRM"** under the user: it starts at log-on, runs hidden in production mode, and `scripts/run-crm.ps1` restarts it within 10 seconds if it stops.
+- `scripts/crm-service.ps1 install | status | restart | stop | start | uninstall`. Stop and restart wait until there are no pending database writes (new open `/api/health`); restart rebuilds the screens first.
+
+### Escalation flow for the store matrix
+- Admin → Escalation flow: a switch between the HO matrix and the **store matrix** (store, tab and row pickers). The boxes show that row's people and TATs, and the live counts. The start box lists the case categories that go to the row.
+
+### Sign-in with passwords and roles
+- `server/auth.js`, **Admin → Users and sign-in**, **My password** in the top bar.
+- **Off until an admin switches it on**, so the live CRM keeps working as before.
+- Roles: **agent** (daily work) and **admin** (setup pages, matrices, automation, users, backup, answering support tokens, level corrections).
+- **Safety:**
+  - scrypt password hashes;
+  - a signed HttpOnly session cookie (12 h), with the key in the private folder;
+  - 5 wrong passwords → 10 minutes' wait;
+  - a new password ends the other sessions;
+  - the last admin can't be switched off;
+  - the timeline uses the signed-in name;
+  - `CRM_AUTH_OFF=1` in the secrets file is the emergency switch.
+- Health check and SparkTG webhook stay open.
+- **Tested on a test copy:**
+  - 26 API checks (roles, 401/403, wrong passwords, session ends, last-admin guard, on / off);
+  - browser checks (sign-in page, wrong password, agent without Admin, sign out, admin, Users page, flow chart for a store row);
+  - the earlier suites still pass: store matrix 31, email layout and support 18, support email 11, Teams card.
+
+---
+
 ## 22 October 2026
 
 ### Teams card per escalation email (added by the user, checked)

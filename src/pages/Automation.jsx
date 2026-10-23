@@ -53,6 +53,7 @@ function TeamsPreviewCard({ enabled, onToggle }) {
 const SWITCHES = [
   ['autoImport', 'Create cases from new emails', 'Every new mail to the mailbox becomes a Pending case automatically (SOP). Off: mail waits in Email inbox → Mailbox until an agent clicks “Log case”.'],
   ['autoCategorise', 'Categorise new emails', 'Reads subject + body and sets case type, category, sub-category and store (rules from the SOP).'],
+  ['aiReader', 'AI email reader', 'Claude reads each new email instead of the keyword rules: category down to sub-category 2, store, order / card / phone numbers, and a one-line summary on the timeline. Works only when ANTHROPIC_API_KEY is in the private secrets file; otherwise (or if it can’t answer) the keyword rules are used.'],
   ['autoAssign', 'Assign cases & missed calls', 'To the agent on shift with the fewest open items.'],
   ['autoAck', 'Acknowledge every new email', 'Customer gets the case number straight away.'],
   ['autoAnswer', 'Answer standard enquiries (not in the SOP)', 'Off by default: the SOP says to call the customer before creating the case. When on: Job → careers@ reply and close · Supplier → documents reply, Waiting · New membership → documents reply and close.'],

@@ -122,7 +122,7 @@ export const SUPPORT_ARTICLES = [
     answer:
       'Store, membership, app, e-commerce and BDA cases follow LOTS’s store escalation matrix (the workbook with one tab per store: App, Ecommerce, BDA, Store related).\n' +
       'The case’s category → sub-category → sub-category 2 picks the row, and its store the people (membership: the member’s home store). Each row has its own To, Cc and TAT for First Time Resolution, Level 1 and Level 2.\n' +
-      'Stores & settings → Escalation matrix – stores: pick a store and a tab; Edit changes a row at once, Back to the workbook undoes it. DH 105 and GNI’s Ecommerce tab are not in the workbook: they were made from NSP’s rows and are marked ⚠ to confirm with LOTS.\n' +
+      'Stores & settings → Escalation matrix – stores: pick a store and a tab; Edit changes a row at once, Back to the workbook undoes it. DH 105 and GNI’s Ecommerce tab are not in the workbook: they were made from NSP’s rows, as LOTS confirmed (23 Oct 2026).\n' +
       'Cases no matrix covers (General Query, Festive Gifting …) use the store / team rows below it.',
   },
   {

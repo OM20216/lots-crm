@@ -14,6 +14,8 @@ async function request(method, url, body) {
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   const data = await res.json().catch(() => ({}));
+  // sign-in required and the session has ended: the app shows the sign-in page
+  if (res.status === 401 && data.signIn && typeof window !== 'undefined') window.dispatchEvent(new Event('lots-signin'));
   if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status, data });
   return data;
 }

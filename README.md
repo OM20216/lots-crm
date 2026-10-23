@@ -48,7 +48,7 @@ Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch
 | Email: every mail to contactus@cpwi.in becomes a Pending case automatically | ✅ Built. **Connect with "Sign in with Microsoft" on the Automation page** (§9.3) |
 | Automation engine (assign, acknowledge, escalation emails, chase stores, reports) | ✅ Ready. Email-based parts start once the mailbox is connected |
 | Cases follow LOTS's case master: the **"Case catergory" sheet of the escalation workbook** (type of contact → case type → category → sub-category → sub-category 2) | ✅ Built and tested on a test copy (§6.1). **Live CRM not restarted yet** |
-| Store escalation matrix: every store × App / Ecommerce / BDA / Store related, each row with its own To / Cc / TAT, automatic Level 1 → Level 2 | ✅ Built and tested on a test copy (§6.8). DH 105 and GNI Ecommerce to confirm with LOTS. **Live CRM not restarted yet** |
+| Store escalation matrix: every store × App / Ecommerce / BDA / Store related, each row with its own To / Cc / TAT, automatic Level 1 → Level 2 | ✅ Built and tested on a test copy (§6.8). DH 105 / GNI Ecommerce rows and the routes the sheet doesn't state **confirmed by LOTS (23 Oct 2026)**. Live since 23 Oct 2026 |
 | Workflow per case type and escalation: right store / team, TAT, escalation matrix (Level 2 / 3), holidays, re-assign, store-reply reading, promised dates, follow-up flags, report | ✅ Ready. **Store / team contacts and the matrix need filling in** |
 | Email previews in Microsoft Teams (every email the CRM would send, nobody emailed) | ✅ Live — on until the mailbox is connected |
 | Attachments: add files to a case; escalation emails carry them | ✅ Ready |
@@ -81,7 +81,14 @@ npm start            # http://<this-pc-ip>:4000 — every agent opens this in Ch
 - The server listens on all network interfaces. Agents on the same network use the CRM PC's IP address.
 - If port 4000 is taken, set `PORT` in `.env`. The server says so clearly when the port is busy.
 - **Restart the CRM after every change** to code, `.env` or the secrets file (Ctrl + C, then `npm run dev` / `npm start`).
-- The CRM stops when its terminal closes. Running it as a Windows service is an open item (§17).
+- **In the background (recommended for the live CRM)**, without administrator rights, as a scheduled task "LOTS CRM" under the Windows user. It starts when that user logs on, runs hidden in production mode and is restarted within 10 seconds if it stops:
+  ```
+  powershell -ExecutionPolicy Bypass -File scripts\crm-service.ps1 install    # build the screens, create the task, start
+  powershell -ExecutionPolicy Bypass -File scripts\crm-service.ps1 status     # running? since when, pending database writes
+  powershell -ExecutionPolicy Bypass -File scripts\crm-service.ps1 restart    # after an update: build, stop safely, start
+  powershell -ExecutionPolicy Bypass -File scripts\crm-service.ps1 stop | start | uninstall
+  ```
+  "stop" and "restart" wait until no database writes are pending (`/api/health`). The logs go to `crm.log` / `crm-error.log` in the project folder. It needs the user logged on; running before anyone logs on needs an administrator, who can install the same script with a real service tool such as NSSM.
 
 ---
 
@@ -274,7 +281,7 @@ Every change is written to the case **timeline** with the agent's name and the t
 | Resolve within TAT? | Three outcomes, as in the SOP: ROT · Info missing → Waiting · Escalate to store team (EDC = 1 working day) |
 | **Call closing: "anything else?"** | After a call case is saved: **Yes, next concern** opens a new case for the same caller and SparkTG call. **No** shows the closing line. One call can be linked to several cases |
 | Email → case auto-created · Pending | Every mail becomes a Pending case automatically (§9.2) |
-| "AI agent reads the mail" | Rule-based reader: case type, category, sub-category, store named in the mail, contact (by email, mobile or card number), invoice / order number |
+| "AI agent reads the mail" | **AI email reader** (Claude, once an Anthropic API key is in the secrets file) or the rule-based reader: case type, category, sub-category, store named in the mail, contact (by email, mobile or card number), invoice / order number |
 | Information complete? → auto email / auto-escalate | Built, but **off by default**, because the SOP says an agent calls the customer first. Can be switched on (§10.1) |
 | Escalate → Daily follow-up → Resolution → Confirmation call → Closed | Automation (§10) plus the Follow-ups and Outbound leads screens |
 
@@ -365,7 +372,7 @@ The copy lists are in the sheet / on the Settings page. Days are working days.
 - **Not in the HO sheet:** store cases, e-commerce / app, BDA and membership go to the **store escalation matrix** below. General Query, Festive Gifting and New Member keep the store / team escalation.
 - Cases already escalated before 17 Oct 2026 keep their team; only new escalations use the sheet.
 
-**Escalation flow** (Admin → Escalation flow, `/escalation-flow`, also "See as flow chart" on the Settings card): the same rules as a React Flow chart. Pick a sheet row; the boxes show its SPOCs, copy lists and TATs and how many cases are at each stage now; click a box for the full To / Cc list and what the CRM does there.
+**Escalation flow** (Admin → Escalation flow, `/escalation-flow`, also "See as flow chart" on the Settings card): the same rules as a React Flow chart, for the **HO matrix** or the **store matrix** (pick a store, a tab and a row; the start box lists the case categories that go to that row). Pick a row; the boxes show its SPOCs, copy lists and TATs and how many cases are at each stage now; click a box for the full To / Cc list and what the CRM does there.
 
 #### Store escalation matrix (workbook store tabs)
 
@@ -379,9 +386,9 @@ LOTS's workbook **"Escalation Matrix LOTS"** (SharePoint, shared by the user on 
 | Store related | 101 · 102 · 103 · 104 · 106 | 11 | Store related · Membership Related (row "Member complaint") |
 | HO | — | 12 | The HO matrix above (to be compared with V_6) |
 
-**DH 105 has no tabs**, and GNI 106 has no Ecommerce tab. User decision (17 Oct 2026): build them from the same rows with the store's own mailboxes (e.g. `st105.reception`), copied from NSP 101's pattern and marked **⚠ to confirm with LOTS**.
+**DH 105 has no tabs**, and GNI 106 has no Ecommerce tab. User decision (17 Oct 2026): build them from the same rows with the store's own mailboxes (e.g. `st105.reception`), copied from NSP 101's pattern. **Confirmed by LOTS on 23 Oct 2026**; each of these rows carries a note saying where it came from.
 
-**How a case finds its row** (`src/storeMatrix.js`): case category › sub-category › sub-category 2 → the tab row, for the case's **store** (membership: the member's home store). The most specific match wins. Every category of the case master reaches a row. This was checked by a script: 0 left without a row. The routes the sheet doesn't state directly are marked `assumed` (⚠ to confirm):
+**How a case finds its row** (`src/storeMatrix.js`): case category › sub-category › sub-category 2 → the tab row, for the case's **store** (membership: the member's home store). The most specific match wins. Every category of the case master reaches a row. This was checked by a script: 0 left without a row. The routes the sheet doesn't state directly are marked `confirmed` (**confirmed by LOTS, 23 Oct 2026**):
 - a store request → the store-related row of the same kind (the tab has complaints only);
 - "Delivery Related" / "Website Delivery Related" (app / website order) → the *not dispatched* row;
 - BDA "Order Cancelled" → *Order Cancelled without communication*;
@@ -398,7 +405,7 @@ The app tab's **"Product Damage"** row has no case-master category, so no case r
 - Delivery related (store tabs) has a First Time Resolution TAT of **4 hours**, and the quality rows have Level 2 at 2 days.
 
 **How it works (built 22 Oct 2026):**
-- **The people per store** are in `server/storeMatrix.json`: 348 rows (6 stores × 58). `node server/buildStoreMatrix.js "<workbook.xlsx>"` reads them from the workbook, and the store tabs the workbook lacks (DH 105, GNI 106 Ecommerce) are made from NSP 101 with the store's own mailboxes and marked ⚠.
+- **The people per store** are in `server/storeMatrix.json`: 348 rows (6 stores × 58). `node server/buildStoreMatrix.js "<workbook.xlsx>"` reads them from the workbook, and the store tabs the workbook lacks (DH 105, GNI 106 Ecommerce) are made from NSP 101 with the store's own mailboxes (confirmed by LOTS, 23 Oct 2026; shown as a ⓘ note on the card).
 - **Escalate:** a store, membership, app, e-commerce or BDA case goes to its store-matrix row, for its store (membership: the member's home store). The HO matrix still comes first for its own categories. The email goes to the row's First Time Resolution To with its Cc and says "as per the escalation matrix (store)"; the due time is the row's TAT (4 working hours for store delivery).
 - **TAT passes → Level 1 → Level 2**, then a daily reminder: the same engine as the HO matrix (§6.8 above), with each stage's own To, Cc and TAT. Store-matrix rows use the sheet's TAT (the SOP's 7-day refund TAT is not added on top).
 - **No store on the case** (or "Not Specific"): app, e-commerce and BDA cases can't be escalated until the store is recorded.
@@ -596,6 +603,16 @@ Switch **Create cases from new emails** off (Automation → Rules) to have agent
 - On the case page, template emails become **Send now (preview in Teams)**. *Send a test message* and *Post a sample of every email* (acknowledgement, information request, membership, supplier, job, escalation, store follow-up, resolution, escalation level 2, daily store follow-up) show the team everything before going live. The Outbox and case timelines mark these as *Teams preview (not sent)*. The workflow link carries a signature: keep it only in the secrets file.
 
 **Test mode** (like VMM's `TEST_MODE`): **Automation → Timers & recipients → "Test mode: send all emails to"**. While an address is filled in, **every** outgoing email goes only to that address, with **[TEST]** in the subject and a note saying who it would have gone to. The Email inbox shows a banner. Empty = live.
+
+#### AI email reader (optional)
+
+With `ANTHROPIC_API_KEY` in the private secrets file and **Automation → AI email reader** on (the default), Claude (`claude-opus-5-5`, low effort) reads each new email instead of the keyword rules (`server/aiReader.js`).
+- **Category:** it picks the case-master path down to sub-category 2. The answer is limited to the 228 paths of the case master, so it can't invent a category.
+- **Details:** it also picks the store, and copies the order / invoice no., card no. and mobile written in the mail; a one-line summary goes on the timeline.
+- **Safety:** the email is treated as data to classify; instructions written inside it are ignored. A rare refusal is answered by another model (server-side fallback).
+- **Fallback:** an API error, a missing key or an unusable answer means the keyword rules are used, as before.
+- **Privacy:** each new email is sent to the Anthropic API.
+- **Cost:** roughly 1,000–4,000 tokens per email.
 
 ### 9.3 Connecting: Sign in with Microsoft (recommended)
 
@@ -798,6 +815,27 @@ To browse the tables: VS Code extension **"MySQL" by Database Client**, MySQL Wo
 
 ---
 
+### 13.3 Sign-in with passwords and roles
+
+**Off until an admin switches it on** (Admin → **Users and sign-in**). Until then the CRM works as before: the agent picks their name.
+- **Users:** every agent gets a password (8+ characters) and a role. An **Agent** does the daily work. An **Admin** can also:
+  - use the Admin pages, the escalation matrices (edit, Excel upload, live link), automation and the Teams samples;
+  - change stores, teams, holidays, working hours, users and agents;
+  - answer support tokens, correct an escalation level and download the full backup.
+- **Switching on** needs the name and password of an admin, who is then signed in. After that:
+  - everyone signs in with name and password; sessions last 12 hours;
+  - every change is recorded under the signed-in name (the name sent by the browser is ignored);
+  - agents don't see Admin in the menu.
+- **Safety:**
+  - passwords are stored only as scrypt hashes;
+  - the session is an HttpOnly cookie signed with a key in the private folder (`session.key` next to the secrets file);
+  - 5 wrong passwords lock that name for 10 minutes;
+  - a new password ends the other sessions of that user;
+  - the last active admin can't be switched off or lose the role.
+- **Always open:** `/api/health` and SparkTG's call-event webhook.
+- **My password** (top bar) changes your own password. A forgotten password: an admin sets a new one.
+- **Locked out** (every admin password forgotten): put `CRM_AUTH_OFF=1` in the private secrets file and restart.
+
 ## 14. Project structure
 
 ```
@@ -811,6 +849,8 @@ server/
   sparktg.js       SparkTG API client (call record, agents, recordings, field mapping)
   automation.js    Rules, assignment, categorisation, scheduled jobs, outbox, mailbox polling
   mail.js          Microsoft 365: Sign in with Microsoft (device code) or app secret; read, send, reply in thread, attachments
+  auth.js          Sign-in: users, passwords (scrypt), roles, session cookie, who may do what
+  support.js       Support button: help answers, support tokens, emails to the support address
   teams.js         Microsoft Teams: email previews and escalation cards posted to a channel (Power Automate workflow link)
   matrixImport.js  Escalation matrix from LOTS's Excel / CSV: HO sheet and store tabs, preview, apply, undo
   matrixLink.js    Live link to the matrix Excel on OneDrive / SharePoint
@@ -829,6 +869,7 @@ src/
   api.js, ui.jsx   Fetch helper, shared UI helpers
   components/      Dialer (widget, caller panel, Call button), MissedBar, Mailbox, MailboxCard, Classifier, CallsCard, WorkflowCard, EscalationPanel, MemberImport, Icon
   pages/           One file per screen. ContactForm.jsx = contact form; LotsFlow.jsx/.css = workflow chart; Admin.jsx = setup pages
+scripts/           crm-service.ps1 (background service: install / status / restart / stop), run-crm.ps1 (keeps it running)
 lots-workflow.svg  Static process chart of the SOP
 .env.example, secrets.env.example   Setting templates
 ```
@@ -880,6 +921,10 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | GET / POST | `/api/support`, `/api/support/ask`, `/api/support/articles/:id` | Support button: topics / answer a question from the help articles `{ question }` / one article |
 | GET / POST / PATCH / DELETE | `/api/support/tickets`, `/api/support/tickets/:id` | Support tokens: list / create `{ question, context }` / `{ action: reply | message | close, reply }` (reply = the manager, message = the agent) / remove |
 | GET / PUT | `/api/support/settings` | Help desk manager email, post tokens in Teams |
+| GET | `/api/health` | Open: the CRM is up, the database backend and its pending writes (for the background service) |
+| GET / POST | `/api/auth/me`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/password` | Sign-in: who is signed in, sign in `{ name, password }`, sign out, change your password `{ current, password }` |
+| PUT | `/api/auth/settings` | Switch sign-in on `{ required: true, name, password }` (an admin) or off |
+| GET / PUT | `/api/users`, `/api/users/:name` | Users with role and whether a password is set / set `{ role, password, active }` |
 | GET | `/api/flow`, `/api/stats`, `/api/export` | Workflow live counts / dashboard / full backup |
 
 ---
@@ -916,7 +961,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 ## 17. Known limitations and open items
 
 **To go live**
-- [ ] Restart the CRM after updates; check the terminal says `Data: MySQL database "lots"`.
+- [x] Restart the CRM after updates: `scriptscrm-service.ps1 restart` (§2); `status` shows MySQL and the pending writes. Live on the latest version since 23 Oct 2026.
 - [x] **GitHub repo `OM20216/lots-crm` made private.** ✅ Done
 - [ ] **Connect the mailbox:** Automation → Sign in with Microsoft (§9.3).
 - [ ] Enter every agent's **SparkTG login email** and **shift**; then one live incoming and outgoing test call.
@@ -933,9 +978,8 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [x] **HO escalation matrix** (April 2026 V_6) applied, 17 Oct 2026 (§6.8).
 - [ ] **Confirm with LOTS:** the 3 TATs missing in the sheet (Legal / Admin / Marketing Level 2), the 3 corrected addresses, and that each stage's TAT counts from when the case reaches it.
 - [x] The **store escalation matrix**: received 17 Oct 2026 (workbook with store tabs). Built 22 Oct 2026 (§6.8).
+- [x] **Confirmed by LOTS (23 Oct 2026):** the DH 105 rows and GNI Ecommerce rows (made from NSP's pattern), and the routes the sheet doesn't state directly (§6.8).
 - [ ] **Confirm with LOTS:**
-  - the DH 105 rows and GNI Ecommerce rows (not in the workbook; made from NSP's pattern);
-  - the `assumed` routes (§6.8);
   - "Others" = spam only (B2C customers);
   - the "Product Damage" row, which has no case category.
 - [ ] **Calling lists** for outbound leads, and current **offers / schemes** for festival calls.
@@ -943,13 +987,13 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [ ] LOTS's Vtiger lists for **Contact Type, Source of Information and cities**.
 
 **Not built yet**
-- [ ] The **Escalation flow** chart shows the HO matrix rows only (the store matrix is on Stores & settings).
-- [ ] **Run the CRM as a Windows service** (starts with the PC, runs with VS Code closed).
-- [ ] **Logins** with passwords and roles, before the CRM is reachable outside the office network.
+- [x] **Escalation flow** chart for the store matrix (23 Oct 2026).
+- [x] **Run the CRM in the background** (23 Oct 2026, §2): a scheduled task starts it at log-on and restarts it if it stops; administrator rights are needed only to run it before anyone logs on.
+- [x] **Logins** with passwords and roles (23 Oct 2026, §13.3). To do on site: give every agent a password, make the team leader Admin, then switch sign-in on.
 - [ ] **OMS link** for orders on call: needs OMS access.
 - [ ] Calls that reach no agent's dialer need SparkTG's call-event webhook.
-- [ ] Unique **card numbers** (numbers are unique; cards not yet).
-- [ ] AI email reader instead of keyword rules (needs an Anthropic API key).
+- [x] Unique **card numbers** (23 Oct 2026): a membership or add-on card number belongs to one person only — refused on the contact form, the API and the import (the clashing row is skipped), like mobile numbers.
+- [x] **AI email reader** (23 Oct 2026, §9.2): built; to use it, put `ANTHROPIC_API_KEY` in the private secrets file and restart. Without a key the keyword rules are used.
 
 **Not possible (decided 16 Oct 2026):**
 - **SMS** (the SOP's one-way channel): no SMS provider. Customers get emails (and calls) instead.
@@ -1020,3 +1064,9 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 46 | **Teams card per escalation email** (built by the user, checked and fixed): one card for every escalation email (First Time Resolution, Level 1 / 2, overdue) once emails really go out, with the case, To / Cc / subject and the full email; it now says **sent** or **NOT sent — reason** (before, an unsent email showed as sent). Tested with no mailbox and a fake mailbox |
 | 47 | **Emails to stores and teams in the layout of LOTS's Vtiger mails**: Hi Team / Greeting for the day, Reminder#n, and "The Details of the Query" with every field of the sample (contact, segments, case master fields, store, invoice details, complaint, the customer's email, attachments) as a table in the HTML email and the Teams card; new case fields purchase amount and amount to be refunded; date of purchase for every case. 18 checks |
 | 48 | **Support button** (built by the user, checked and finished): 38 help articles (18 rewritten to match the CRM), support tokens for the help desk manager, two-way chat (the agent can write back, answers show as a badge when the panel is closed), Support tokens page with the conversation and auto-refresh, token status badges. 11 browser checks |
+| 49 | **Background service** (scripts/crm-service.ps1, run-crm.ps1): scheduled task at log-on, hidden, production mode, restarted if it stops; install / status / restart / stop / start / uninstall; stops only with no pending database writes (`/api/health`) |
+| 50 | **Escalation flow for the store matrix**: HO / store switch, store, tab and row pickers, the case categories of the row, live counts |
+| 51 | **Sign-in with passwords and roles** (server/auth.js, Admin → Users and sign-in, My password): off until an admin switches it on; agent / admin; scrypt hashes, signed HttpOnly session cookie, 12 h; 5 wrong tries → 10 min; new password ends other sessions; last admin protected; CRM_AUTH_OFF emergency switch. 26 API checks + 9 browser checks |
+| 52 | **Unique card numbers**: a membership or add-on card number belongs to one person only (contact form, API, import), like mobile numbers |
+| 53 | **AI email reader** (server/aiReader.js, @anthropic-ai/sdk): Claude picks the case-master path, store and numbers from each new email; answer limited to the case master; keyword rules as fallback; on when ANTHROPIC_API_KEY is in the secrets file. 9 checks against a fake API |
+| 54 | LOTS confirmed the DH 105 / GNI Ecommerce store-matrix rows and the routes the sheet doesn't state; ⚠ flags replaced by a provenance note |
