@@ -1,7 +1,7 @@
 // Reads LOTS's escalation workbook (store tabs) into server/storeMatrix.json — the store escalation matrix as LOTS sent it.
 //   node server/buildStoreMatrix.js "<workbook.xlsx>"
 // Stores / tabs missing from the workbook (DH 105, GNI 106 Ecommerce) are made from NSP 101's row with the store's own
-// mailboxes (st101.x → st105.x), marked "to confirm" (decided with the user, 17 Oct 2026).
+// mailboxes (st101.x → st105.x) (decided with the user, 17 Oct 2026; confirmed by LOTS, 23 Oct 2026).
 // Later changes come in through Stores & settings (edit, upload, live link) and are saved over this file in the database.
 import fs from 'node:fs';
 import path from 'node:path';
@@ -56,10 +56,10 @@ for (const code of Object.keys(STORES))
       if (!base) continue;
       (stores[code] ||= {})[k] = {
         stages: base.stages.map((s) => s && { to: swap(s.to, code), cc: swap(s.cc, code), tat: s.tat }), // without the pattern store's notes
-        toConfirm: `${STORES[code]} ${code} has no ${t.label} tab in the workbook: made from ${STORES[PATTERN]} ${PATTERN}'s row with ${STORES[code]}'s own st${code} mailboxes`,
+        note: `${STORES[code]} ${code} has no ${t.label} tab in the workbook: made from ${STORES[PATTERN]} ${PATTERN}'s row with ${STORES[code]}'s own st${code} mailboxes (confirmed by LOTS, 23 Oct 2026)`,
       };
     }
-    notes.push(`${STORES[code]} ${code} – ${t.label}: not in the workbook, made from ${STORES[PATTERN]} ${PATTERN} (to confirm)`);
+    notes.push(`${STORES[code]} ${code} – ${t.label}: not in the workbook, made from ${STORES[PATTERN]} ${PATTERN} (confirmed by LOTS)`);
   }
 
 const data = { source: path.basename(file), readAt: new Date().toISOString(), stores };

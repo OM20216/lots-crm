@@ -34,6 +34,7 @@ function emptyDb() {
     picklists: {}, // values added from the Picklists screen: { field: [{ value, by, at }] }
     dependencies: [], // pairs added from the Dependencies screen: [{ mainField, mainValue, subField, subValue, by, at }]
     supportTickets: [], // support tokens (questions for the help desk manager): [{ id, question, agent, status, replies }]
+    users: {}, // sign-in (server/auth.js): { [agent name]: { role, hash, active, setAt, setBy } }
     stores: STORES,
     members: [],
     cases: [],

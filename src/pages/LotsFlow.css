@@ -164,3 +164,5 @@
 .lf-handle.react-flow__handle-right { right: -5px; }
 .ef-pick { min-width: 260px; }
 .ef-edit { margin-top: 8px; }
+.ef-pickers { gap: 8px; align-items: center; }
+.ef-pickers select { width: auto; max-width: 420px; }

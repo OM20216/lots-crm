@@ -149,6 +149,26 @@ export function contactPhones(m) {
 }
 
 /** First number of `record` already used — by another contact, or twice on this one. null = all unique. */
+// Membership cards: the main card and the add-on cards; one card number belongs to one person only (as phone numbers).
+export const cardKey = (v) => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+export function contactCards(m) {
+  return [['Membership card', m.cardNo], ...(m.addOnCards || []).map((a) => [`Add-on card ${a.name || ''}`.trim(), a.cardNo])].map(([label, c]) => ({ label, key: cardKey(c), shown: String(c || '').trim() })).filter((x) => x.key.length >= 4);
+}
+/** A card number of this contact that is entered twice on it, or belongs to another contact; null when all are unique. */
+export function cardConflict(record, excludeId) {
+  const seen = new Map();
+  for (const x of contactCards(record)) {
+    if (seen.has(x.key)) return { card: x.shown, label: x.label, message: `Card ${x.shown} is entered twice on this contact (${seen.get(x.key)} and ${x.label}).` };
+    seen.set(x.key, x.label);
+  }
+  for (const m of db().members) {
+    if (m.id === excludeId) continue;
+    const hit = contactCards(m).find((o) => seen.has(o.key));
+    if (hit) return { card: hit.shown, label: seen.get(hit.key), memberId: m.id, message: `Card ${hit.shown} already belongs to ${m.businessName || m.ownerName} (${m.id})${hit.label === 'Membership card' ? '' : ' as ' + hit.label.charAt(0).toLowerCase() + hit.label.slice(1)}. One card number can belong to one person only.` };
+  }
+  return null;
+}
+
 export function phoneConflict(record, excludeId) {
   const mine = contactPhones(record);
   const seen = new Map();
@@ -256,7 +276,7 @@ export function hoStage(row, i) {
 }
 
 // ---------- store escalation matrix (workbook store tabs; src/storeMatrix.js) ----------
-/** One store's row: { key: 's101.app-tech', store, tab, row, sheet, stages, toConfirm, edited… }, or null. */
+/** One store's row: { key: 's101.app-tech', store, tab, row, sheet, stages, note, toConfirm, edited… }, or null. */
 export function storeRow(key) {
   const p = parseStoreRowKey(key);
   if (!p) return null;
@@ -274,6 +294,7 @@ export function storeRow(key) {
     sheet: def.sheet,
     stages: saved?.stages || base?.stages || [null, null, null],
     toConfirm: saved ? '' : base?.toConfirm || '',
+    note: base?.note || '', // where a row came from (e.g. DH 105, made from NSP's row; confirmed by LOTS)
     edited: Boolean(saved),
     updatedAt: saved?.updatedAt,
     updatedBy: saved?.updatedBy,

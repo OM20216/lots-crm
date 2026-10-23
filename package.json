@@ -9,6 +9,7 @@
     "start": "node server/index.js --prod"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^1.1.0",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "mysql2": "^3.24.5",

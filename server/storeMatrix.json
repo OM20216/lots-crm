@@ -1,6 +1,6 @@
 {
  "source": "matrix.xlsx",
- "readAt": "2026-10-22T07:46:26.446Z",
+ "readAt": "2026-10-23T06:53:31.178Z",
  "stores": {
   "101": {
    "app-tech": {
@@ -15185,7 +15185,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-content": {
     "stages": [
@@ -15236,7 +15236,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-account": {
     "stages": [
@@ -15290,7 +15290,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-account-req": {
     "stages": [
@@ -15342,7 +15342,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-payment": {
     "stages": [
@@ -15407,7 +15407,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-pricing": {
     "stages": [
@@ -15471,7 +15471,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-pricing-req": {
     "stages": [
@@ -15535,7 +15535,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-product": {
     "stages": [
@@ -15601,7 +15601,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-offers": {
     "stages": [
@@ -15664,7 +15664,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-order": {
     "stages": [
@@ -15736,7 +15736,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-undispatched": {
     "stages": [
@@ -15808,7 +15808,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-dispatched": {
     "stages": [
@@ -15874,7 +15874,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-cancel": {
     "stages": [
@@ -15940,7 +15940,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-invoice": {
     "stages": [
@@ -16005,7 +16005,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-other": {
     "stages": [
@@ -16071,7 +16071,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-quality": {
     "stages": [
@@ -16151,7 +16151,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "app-damage": {
     "stages": [
@@ -16223,7 +16223,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Lots-App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no App tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-tech": {
     "stages": [
@@ -16274,7 +16274,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-content": {
     "stages": [
@@ -16325,7 +16325,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-account": {
     "stages": [
@@ -16382,7 +16382,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-account-req": {
     "stages": [
@@ -16437,7 +16437,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-payment": {
     "stages": [
@@ -16505,7 +16505,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-pricing": {
     "stages": [
@@ -16571,7 +16571,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-pricing-req": {
     "stages": [
@@ -16637,7 +16637,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-product": {
     "stages": [
@@ -16706,7 +16706,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-offers": {
     "stages": [
@@ -16772,7 +16772,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-order": {
     "stages": [
@@ -16847,7 +16847,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-undispatched": {
     "stages": [
@@ -16922,7 +16922,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-dispatched": {
     "stages": [
@@ -16991,7 +16991,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-cancel": {
     "stages": [
@@ -17060,7 +17060,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-invoice": {
     "stages": [
@@ -17128,7 +17128,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-other": {
     "stages": [
@@ -17197,7 +17197,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-quality": {
     "stages": [
@@ -17280,7 +17280,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-req-cancel": {
     "stages": [
@@ -17353,7 +17353,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-req-status": {
     "stages": [
@@ -17424,7 +17424,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-incomplete": {
     "stages": [
@@ -17493,7 +17493,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-cancelled": {
     "stages": [
@@ -17566,7 +17566,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-complaint": {
     "stages": [
@@ -17639,7 +17639,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-undispatched": {
     "stages": [
@@ -17711,7 +17711,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-dispatched": {
     "stages": [
@@ -17783,7 +17783,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-return": {
     "stages": [
@@ -17850,7 +17850,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-invoice": {
     "stages": [
@@ -17917,7 +17917,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-other-req": {
     "stages": [
@@ -17990,7 +17990,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-others": {
     "stages": [
@@ -18063,7 +18063,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-pricing": {
     "stages": [
@@ -18134,7 +18134,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-behaviour": {
     "stages": [
@@ -18198,7 +18198,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "bda-quality": {
     "stages": [
@@ -18278,7 +18278,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no BDA tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-behaviour": {
     "stages": [
@@ -18339,7 +18339,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-operational": {
     "stages": [
@@ -18394,7 +18394,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-payment": {
     "stages": [
@@ -18452,7 +18452,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-pricing": {
     "stages": [
@@ -18517,7 +18517,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-delivery": {
     "stages": [
@@ -18586,7 +18586,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-quality": {
     "stages": [
@@ -18675,7 +18675,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-return": {
     "stages": [
@@ -18733,7 +18733,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-stock": {
     "stages": [
@@ -18801,7 +18801,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-offer": {
     "stages": [
@@ -18862,7 +18862,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-others": {
     "stages": [
@@ -18920,7 +18920,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "store-member": {
     "stages": [
@@ -18981,7 +18981,7 @@
       }
      }
     ],
-    "toConfirm": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes"
+    "note": "DH 105 has no Store related tab in the workbook: made from NSP 101's row with DH's own st105 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    }
   },
   "106": {
@@ -21789,7 +21789,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-content": {
     "stages": [
@@ -21840,7 +21840,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-account": {
     "stages": [
@@ -21897,7 +21897,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-account-req": {
     "stages": [
@@ -21952,7 +21952,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-payment": {
     "stages": [
@@ -22020,7 +22020,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-pricing": {
     "stages": [
@@ -22086,7 +22086,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-pricing-req": {
     "stages": [
@@ -22152,7 +22152,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-product": {
     "stages": [
@@ -22221,7 +22221,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-offers": {
     "stages": [
@@ -22287,7 +22287,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-order": {
     "stages": [
@@ -22362,7 +22362,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-undispatched": {
     "stages": [
@@ -22437,7 +22437,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-dispatched": {
     "stages": [
@@ -22506,7 +22506,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-cancel": {
     "stages": [
@@ -22575,7 +22575,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-invoice": {
     "stages": [
@@ -22643,7 +22643,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-other": {
     "stages": [
@@ -22712,7 +22712,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    },
    "web-quality": {
     "stages": [
@@ -22795,7 +22795,7 @@
       }
      }
     ],
-    "toConfirm": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes"
+    "note": "GNI 106 has no Ecommerce (website) tab in the workbook: made from NSP 101's row with GNI's own st106 mailboxes (confirmed by LOTS, 23 Oct 2026)"
    }
   }
  }

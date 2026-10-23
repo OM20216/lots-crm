@@ -57,15 +57,27 @@ const { normalizeCallerType, normalizeCaseNames } = await import('../src/taxonom
 }
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PROD = process.argv.includes('--prod');
+const STARTED_AT = new Date().toISOString();
 const PORT = Number(process.env.PORT) || 4000;
 
 const app = express();
 app.use(express.json({ limit: '5mb' }));
 
 const api = express.Router();
+// sign-in with passwords and roles (server/auth.js): off until an admin switches it on
+const auth = await import('./auth.js');
+api.use(auth.guard);
+auth.routes(api);
 const agentOf = (req) => req.get('x-agent') || 'Unknown';
 const wrap = (fn) => (req, res, next) => Promise.resolve(fn(req, res, next)).catch(next);
 const summary = ({ id, createdAt, status, caseType, category, subCategory }) => ({ id, createdAt, status, caseType, category, subCategory });
+
+// Health check for the background service (scripts/crm-service.ps1): up, and no database writes pending.
+// Open without sign-in; it shows nothing about the data.
+api.get('/health', (req, res) => {
+  const d = store.status();
+  res.json({ ok: true, backend: d.backend, pending: d.pending || 0, lastError: d.lastError ? true : false, startedAt: STARTED_AT });
+});
 
 api.get('/meta', (req, res) => {
   res.json({
@@ -463,7 +475,7 @@ api.post(
 const storeMatrixView = (code) => ({
   source: core.storeMatrixSource(),
   tabs: STORE_TABS.map((t) => ({ tab: t.tab, label: t.label })),
-  rows: core.storeRows(code).map((r) => ({ key: r.key, store: r.store, tab: r.tab, row: r.row, sheet: r.sheet, toConfirm: r.toConfirm, edited: r.edited, updatedAt: r.updatedAt, updatedBy: r.updatedBy, stages: [0, 1, 2].map((i) => core.hoStage(r, i)).filter(Boolean) })),
+  rows: core.storeRows(code).map((r) => ({ key: r.key, store: r.store, tab: r.tab, row: r.row, sheet: r.sheet, toConfirm: r.toConfirm, note: r.note, edited: r.edited, updatedAt: r.updatedAt, updatedBy: r.updatedBy, stages: [0, 1, 2].map((i) => core.hoStage(r, i)).filter(Boolean) })),
 });
 api.get('/store-matrix', (req, res) => res.json(storeMatrixView(String(req.query.store || ''))));
 
@@ -845,6 +857,9 @@ const checkAddOns = (body) => {
 const checkUniquePhones = (record, excludeId) => {
   const c = core.phoneConflict(record, excludeId);
   if (c) throw Object.assign(core.fail(c.message, 409), { data: { field: 'phone', phone: c.phone, memberId: c.memberId || null } });
+  // card numbers are unique too (main card and add-on cards)
+  const k = core.cardConflict(record, excludeId);
+  if (k) throw Object.assign(core.fail(k.message, 409), { data: { field: 'card', card: k.card, memberId: k.memberId || null } });
 };
 
 api.post('/members', (req, res) => {
@@ -866,7 +881,8 @@ api.post('/members/import', (req, res) => {
     if (!r.phone && !r.cardNo) continue;
     const existing = db().members.find((m) => (r.cardNo && m.cardNo && m.cardNo.toLowerCase() === String(r.cardNo).toLowerCase()) || (r.phone && phoneKey(m.phone) === phoneKey(r.phone)));
     const clean = Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined && v !== ''));
-    const conflict = core.phoneConflict(existing ? { ...existing, ...clean } : clean, existing?.id);
+    const merged = existing ? { ...existing, ...clean } : clean;
+    const conflict = core.phoneConflict(merged, existing?.id) || core.cardConflict(merged, existing?.id);
     if (conflict) {
       skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: conflict.message });
       continue;

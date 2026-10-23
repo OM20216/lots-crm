@@ -11,6 +11,7 @@ const PAGES = [
   ['/picklists', 'check', 'Picklists', 'Values of every dropdown'],
   ['/dependencies', 'swap', 'Dependencies', 'Which values go together (case type → category → …)'],
   ['/support', 'help', 'Support tokens', 'Questions the agents sent to the help desk manager'],
+  ['/users', 'user', 'Users and sign-in', 'Passwords, roles (agent / admin) and the switch that makes sign-in required'],
 ];
 
 export default function Admin() {
