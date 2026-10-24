@@ -222,10 +222,32 @@ function unwrap(v) {
   return v;
 }
 
+// bumped whenever a contact changes; the contact search index then re-reads only the changed contacts
+let membersVersion = 0;
+const changedMembers = new Set();
+export const membersChanged = () => membersVersion;
+export function takeChangedMembers() {
+  const ids = [...changedMembers];
+  changedMembers.clear();
+  return ids;
+}
+const memberChanged = (rec) => {
+  membersVersion++;
+  if (rec.id) changedMembers.add(rec.id);
+};
+
 function markDirty(root) {
   if (typeof root === 'string') dirtyKv.add(root);
-  else dirtyRecords.add(root);
+  else {
+    dirtyRecords.add(root);
+    if (collectionOf.get(root) === 'members') memberChanged(root);
+  }
   scheduleFlush();
+}
+
+/** A new record that is only changed through the CRM from now on (bulk imports): no 10-minute watch copy is kept. */
+export function unwatch(rec) {
+  watched.delete(unwrap(rec));
 }
 
 function watchRaw(root) {
@@ -326,6 +348,8 @@ function poolConfig() {
     timezone: 'Z',
     dateStrings: true,
     multipleStatements: false,
+    // the database is on a remote server: compressed, loading ~3 lakh contacts at start-up takes ~80 s instead of ~6 min
+    compress: true,
   };
 }
 
@@ -402,8 +426,10 @@ export async function flush() {
     const now = Date.now();
     for (const [rec, w] of watched) {
       const json = JSON.stringify(rec);
-      if (w.json !== null && w.json !== json) dirtyRecords.add(rec);
-      if (w.json === null) dirtyRecords.add(rec);
+      if (w.json === null || w.json !== json) {
+        dirtyRecords.add(rec);
+        if (w.json !== null && collectionOf.get(rec) === 'members') memberChanged(rec);
+      }
       w.json = json;
       if (w.until < now) watched.delete(rec);
     }

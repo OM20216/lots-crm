@@ -667,3 +667,9 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .sup-admin-reply { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; background: #fff; }
 .sup-admin-reply.agent { background: #fff7ed; border-color: #fed7aa; }
 
+
+/* Contacts → Import: Vtiger import progress */
+.vt-import { border: 1px solid var(--line, #e5e7eb); border-radius: 10px; padding: 12px 14px; margin: 8px 0 16px; display: grid; gap: 8px; }
+.vt-bar { height: 10px; border-radius: 6px; background: #eef0f3; overflow: hidden; }
+.vt-bar > div { height: 100%; background: var(--red, #d71920); transition: width 0.4s; }
+.vt-or { font-size: 14px; margin: 4px 0 6px; }
