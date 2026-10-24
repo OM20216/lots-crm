@@ -673,3 +673,11 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .vt-bar { height: 10px; border-radius: 6px; background: #eef0f3; overflow: hidden; }
 .vt-bar > div { height: 100%; background: var(--red, #d71920); transition: width 0.4s; }
 .vt-or { font-size: 14px; margin: 4px 0 6px; }
+
+/* Call logs: quick date ranges, recording player + download */
+.seg { display: inline-flex; border: 1px solid #d1d5db; border-radius: 8px; overflow: hidden; flex: 0 0 auto !important; min-width: 0 !important; }
+.seg button { border: none; background: #fff; padding: 8px 12px; font-size: 13px; cursor: pointer; border-right: 1px solid #e5e7eb; }
+.seg button:last-child { border-right: none; }
+.seg button.on { background: var(--red, #d71920); color: #fff; }
+.rec { display: flex; flex-direction: column; gap: 2px; }
+.rec audio { height: 32px; max-width: 240px; }

@@ -257,6 +257,7 @@ export default function App() {
             <NavItem to="/" end icon="dashboard" label="Dashboard" />
             <NavItem to="/new" icon="cases" label="Log new case" accent />
             <NavItem to="/emails" icon="mail" label="Inbox" count={stats?.pendingEmails} />
+            <NavItem to="/calls" icon="incoming" label="Call logs" />
             <NavItem to="/contacts" icon="members" label="Contacts" />
             <NavItem to="/cases" icon="search" label="Cases" />
             <NavItem to="/reports" icon="book" label="Report" />

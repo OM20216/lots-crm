@@ -192,19 +192,40 @@ export function linkCaseToCall(c, txnId) {
   return true;
 }
 
-export function listCalls({ date, agent, direction, outcome } = {}) {
-  let list = db().calls;
-  if (date) list = list.filter((r) => new Date(r.startedAt).toLocaleDateString('en-CA') === date);
+// Call logs: the whole history, or a date range (from / to, local dates), one day (date), a search (number, name, agent, case)
+const dayOf = (r) => new Date(r.startedAt).toLocaleDateString('en-CA');
+function inRange(list, { date, from, to } = {}) {
+  if (date) return list.filter((r) => dayOf(r) === date);
+  if (from) list = list.filter((r) => dayOf(r) >= from);
+  if (to) list = list.filter((r) => dayOf(r) <= to);
+  return list;
+}
+export function listCalls({ date, from, to, q, agent, direction, outcome, recording, offset = 0, limit = 200 } = {}) {
+  let list = inRange(db().calls, { date, from, to });
+  if (q) {
+    const s = String(q).trim().toLowerCase();
+    const digits = s.replace(/\D/g, '');
+    list = list.filter((r) =>
+      [r.phone, r.businessName, r.callerName, r.agent, r.id, r.caseId, ...(r.caseIds || [])].some((v) => v && (String(v).toLowerCase().includes(s) || (digits.length >= 4 && String(v).replace(/\D/g, '').includes(digits))))
+    );
+  }
   if (agent) list = list.filter((r) => r.agent === agent);
   if (direction) list = list.filter((r) => r.direction === direction);
   if (outcome === 'connected') list = list.filter((r) => r.connected === true);
   if (outcome === 'not-connected') list = list.filter((r) => r.connected === false);
   if (outcome === 'no-case') list = list.filter((r) => !r.caseId && r.connected !== false);
-  return [...list].reverse().slice(0, 500).map(({ raw, ...r }) => r);
+  if (recording === 'yes') list = list.filter((r) => r.info?.recordingUrl);
+  const start = Math.max(0, Number(offset) || 0);
+  const n = Math.min(500, Math.max(1, Number(limit) || 200));
+  const page = [...list]
+    .sort((a, b) => String(b.startedAt || '').localeCompare(String(a.startedAt || ''))) // newest first
+    .slice(start, start + n)
+    .map(({ raw, ...r }) => r);
+  return { calls: page, total: list.length, offset: start, more: start + n < list.length };
 }
 
-export function callStats(date) {
-  const list = db().calls.filter((r) => !date || new Date(r.startedAt).toLocaleDateString('en-CA') === date);
+export function callStats(range = {}) {
+  const list = inRange(db().calls, range);
   const talk = (arr) => {
     const d = arr.map((r) => Number(r.info?.durationSec)).filter((n) => Number.isFinite(n) && n > 0);
     return d.length ? Math.round(d.reduce((a, b) => a + b, 0) / d.length) : 0;
