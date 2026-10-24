@@ -30,6 +30,7 @@ const auto = await import('./automation.js');
 const calls = await import('./calls.js');
 const matrixImport = await import('./matrixImport.js');
 const matrixLink = await import('./matrixLink.js');
+const vtiger = await import('./vtiger.js');
 const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
 const { workflowFor } = await import('../src/workflows.js');
 const { CRISIS_CONTACTS, HO_MATRIX, MATRIX_SOURCE, STAGES, WORK_HOURS } = await import('../src/escalationMatrix.js');
@@ -836,23 +837,15 @@ api.get('/lookup', (req, res) => {
 
   // One search box (Identify caller): mobile, card no., membership ID, name, business name or email —
   // of the contact or of its add-on card holders.
+  // (the contact index: lakhs of contacts are not read one by one)
   const hit = (v) => v && String(v).toLowerCase().includes(s);
-  const fields = (m) => [m.id, m.phone, m.altPhone, ...(m.otherPhones || []), m.cardNo, m.email, m.businessName, m.ownerName, ...(m.addOnCards || []).flatMap((a) => [a.name, a.phone, a.cardNo])];
-  const members = db().members.filter((m) => fields(m).some(hit)).slice(0, 10);
+  const members = core.searchMembers(s, 10);
   const cases = db().cases.filter((c) => [c.phone, c.email, c.cardNo, c.name, c.businessName].some(hit)).slice(-10).reverse().map(summary);
   // an exact card no., membership ID or email identifies the caller (as a full mobile does)
-  const same = (v) => v && String(v).trim().toLowerCase() === s;
-  let match = null;
-  for (const m of db().members) {
-    if (same(m.cardNo)) match = { member: m, via: 'card' };
-    else if (same(m.id)) match = { member: m, via: 'id' };
-    else if (same(m.email)) match = { member: m, via: 'email' };
-    else {
-      const addOn = (m.addOnCards || []).find((a) => same(a.cardNo));
-      if (addOn) match = { member: m, via: 'add-on', addOn };
-    }
-    if (match) break;
-  }
+  const ix = core.memberIndex();
+  const byId = ix.id.get(s);
+  const byEmail = ix.email.get(s);
+  const match = ix.card.get(core.cardKey(s)) || (byId && { member: byId, via: 'id' }) || (byEmail && { member: byEmail, via: 'email' }) || null;
   res.json({ members: match && !members.includes(match.member) ? [match.member, ...members] : members, cases, match });
 });
 
@@ -860,8 +853,8 @@ api.get('/lookup', (req, res) => {
 api.get('/members', (req, res) => {
   const s = String(req.query.q || '').toLowerCase();
   let list = db().members;
-  if (s) list = list.filter((m) => [m.phone, m.altPhone, ...(m.otherPhones || []), m.cardNo, m.email, m.businessName, m.ownerName, m.gstin, m.contact?.contactType].some((v) => v && String(v).toLowerCase().includes(s)));
-  res.json([...list].reverse().slice(0, 500));
+  if (s) return res.json(core.searchMembers(s, 500)); // the contact index (lakhs of contacts)
+  res.json(list.slice(-500).reverse());
 });
 
 const MAX_ADDON_CARDS = 4; // process owner decision, 30 Sep 2026
@@ -886,32 +879,92 @@ api.post('/members', (req, res) => {
   res.status(201).json(m);
 });
 
-// Bulk import from the member master (CSV parsed in the browser). Existing members matched by card no. or mobile are updated.
-api.post('/members/import', (req, res) => {
-  const rows = Array.isArray(req.body) ? req.body : [];
+// Bulk import from the member master or Vtiger (Contacts → Import CSV in parts, or the server's Vtiger import).
+// Existing contacts (same Vtiger contact, card no. or mobile) are updated. Every number and card is checked against the
+// contact index, not by reading all contacts per row. Same rules as one contact: one mobile / card belongs to one person.
+function importMembers(rows) {
   let added = 0;
   let updated = 0;
+  let noNumber = 0;
   const skipped = [];
+  const ix = core.memberIndex();
+  const conflictOf = (merged, existing) => {
+    const seen = new Set();
+    for (const x of core.contactPhones(merged)) {
+      if (seen.has(x.key)) return `${x.key} is entered twice on this contact.`;
+      seen.add(x.key);
+      const owner = ix.phone.get(x.key)?.member;
+      if (owner && owner !== existing) return `${x.key} already belongs to ${owner.businessName || owner.ownerName} (${owner.id}).`;
+    }
+    seen.clear();
+    for (const x of core.contactCards(merged)) {
+      if (seen.has(x.key)) return `Card ${x.shown} is entered twice on this contact.`;
+      seen.add(x.key);
+      const owner = ix.card.get(x.key)?.member;
+      if (owner && owner !== existing) return `Card ${x.shown} already belongs to ${owner.businessName || owner.ownerName} (${owner.id}).`;
+    }
+    return null;
+  };
   for (const r of rows) {
-    if (!r.phone && !r.cardNo) continue;
-    const existing = db().members.find((m) => (r.cardNo && m.cardNo && m.cardNo.toLowerCase() === String(r.cardNo).toLowerCase()) || (r.phone && phoneKey(m.phone) === phoneKey(r.phone)));
-    const clean = Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined && v !== ''));
+    const key = phoneKey(r.phone);
+    if (key.length !== 10 && !core.cardKey(r.cardNo)) {
+      noNumber++;
+      continue;
+    }
+    const byPhone = ix.phone.get(key);
+    const existing =
+      (r.vtigerId && ix.vtiger.get(r.vtigerId)) ||
+      (core.cardKey(r.cardNo) && ix.card.get(core.cardKey(r.cardNo))?.via === 'card' && ix.card.get(core.cardKey(r.cardNo)).member) ||
+      (byPhone?.via === 'owner' && phoneKey(byPhone.member.phone) === key && byPhone.member) ||
+      null;
+    // two different Vtiger contacts with the same mobile / card are not merged into one: the second is listed as skipped
+    if (r.vtigerId && existing?.vtigerId && existing.vtigerId !== r.vtigerId) {
+      skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: `Same mobile or card as Vtiger contact ${existing.vtigerId} (${existing.id}), already imported; duplicates in Vtiger are not merged.` });
+      continue;
+    }
+    const clean = Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)));
     const merged = existing ? { ...existing, ...clean } : clean;
-    const conflict = core.phoneConflict(merged, existing?.id) || core.cardConflict(merged, existing?.id);
+    const conflict = conflictOf(merged, existing);
     if (conflict) {
-      skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: conflict.message });
+      skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: conflict });
       continue;
     }
     if (existing) {
       Object.assign(existing, clean, { id: existing.id });
+      core.reindexMember(existing);
       updated++;
     } else {
       db().members.push({ id: store.nextId('member', 'M-', 5), createdAt: now(), status: 'Active', addOnCards: [], ...clean });
+      const m = db().members[db().members.length - 1]; // the tracked copy, so a later row of this batch updating it is saved
+      store.unwatch(m); // lakhs of new contacts: no 10-minute safety copy of each (it filled the memory)
+      core.reindexMember(m);
       added++;
     }
   }
   save();
-  res.json({ added, updated, skipped: skipped.length, skippedRows: skipped.slice(0, 50), total: db().members.length });
+  return { added, updated, noNumber, skipped: skipped.length, skippedRows: skipped.slice(0, 50), total: db().members.length };
+}
+api.post('/members/import', (req, res) => res.json(importMembers(Array.isArray(req.body) ? req.body : [])));
+
+// ----- Vtiger contacts import (server job; the access key stays in the private secrets file) -----
+const vtigerJob = {
+  // a job cut off by a restart shows as stopped, so it can be continued
+  getState: () => {
+    const s = db().settings.vtigerImport || null;
+    return s && s.status === 'running' && !vtiger.isRunning() ? { ...s, status: 'stopped' } : s;
+  },
+  setState: (s) => {
+    db().settings.vtigerImport = s;
+    save();
+  },
+  importMembers,
+  stores: () => db().stores,
+};
+api.get('/vtiger', (req, res) => res.json({ configured: vtiger.configured(), running: vtiger.isRunning(), job: vtigerJob.getState() }));
+api.post('/vtiger/import', async (req, res) => res.json({ job: await vtiger.start(vtigerJob, agentOf(req), { fresh: Boolean(req.body?.fresh) }) }));
+api.post('/vtiger/import/stop', (req, res) => {
+  vtiger.stop();
+  res.json({ ok: true });
 });
 
 api.get('/members/:id', (req, res) => {
@@ -1323,6 +1376,7 @@ app.listen(PORT, '0.0.0.0', (err) => {
   auto.start();
   setInterval(() => calls.sweepLiveCalls().catch(() => {}), 60000);
   setTimeout(() => calls.sweepLiveCalls().catch(() => {}), 10000);
+  setTimeout(() => core.memberIndex(), 2000); // the contact index is ready before the first caller is searched
   console.log(`LOTS CRM running on http://localhost:${PORT} ${PROD ? '(production)' : '(dev)'}`);
   const dbs = store.status();
   console.log(`Data: ${dbs.backend === 'mysql' ? `MySQL database "${dbs.database}"` : dbs.file}`);

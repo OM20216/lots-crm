@@ -84,8 +84,17 @@ export async function close() {
 
 const pause = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 
+// changes to contacts: MySQL tracks them per record; the file store (test copies) counts every save
+let fileSaves = 0;
+export const membersVersion = () => (useMysql ? mysqlStore.membersChanged() : fileSaves);
+/** IDs of the contacts changed since the last call; null = not known (file store: rebuild the index). */
+export const changedMembers = () => (useMysql ? mysqlStore.takeChangedMembers() : null);
+/** Bulk imports: the new record is saved as usual, without the safety copy kept for records changed outside the CRM. */
+export const unwatch = (rec) => useMysql && mysqlStore.unwatch(rec);
+
 export function save() {
   if (useMysql) return mysqlStore.flush(); // changes are tracked; this just writes them now
+  fileSaves++;
   const tmp = DB_FILE + '.tmp';
   fs.writeFileSync(tmp, JSON.stringify(db, null, 2));
   // Windows antivirus / indexer can hold db.json for a moment (EPERM/EBUSY) — retry, then copy over it.

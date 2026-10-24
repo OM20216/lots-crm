@@ -713,6 +713,31 @@ A mobile (registered, alternate, extra, or an add-on member's) can belong to **o
 
 **Contacts → Import CSV** reads the member master and recognises common headers (Mobile, Card No, Business Name, Owner, Email, GSTIN, Store, Address, Status…). Store names become store codes. Existing contacts are matched by card number or mobile and **updated**, not duplicated.
 
+**Vtiger Contacts export** (recognised by its Contact Id / First Name / Last Name columns): every Vtiger field comes in, because the CRM's contact form has the same fields under the same names.
+
+- Mobiles such as `+919876543210` become 10 digits. Rows with no real mobile or card no. (Vtiger's `?????`) are left out and counted.
+- An updated mobile / email ("Mobile Number Updation") becomes the main one; the old one is kept as the next number.
+- The add-on member columns become an add-on card holder. Segment1 / Segment2 fill the customer group / type when Segment3 / Segment4 are empty.
+- Contacts are matched by **Vtiger Contact Id**, card no. or mobile, so importing the same file again updates them.
+- Only filled-in fields are stored; the form shows the blanks again when a contact is opened.
+
+**Lakhs of contacts** (LOTS has about 3 lakh in Vtiger): the file is sent in parts of 2,000 with a progress bar, and the server checks numbers and cards against an index, not contact by contact. If an import stops, run the same file again; saved contacts are updated, not doubled.
+
+**Import from Vtiger (directly):** Contacts → Import CSV → **Import all contacts from Vtiger**.
+- **Setup:** the CRM reads Vtiger's contacts through its webservice, with three settings in the private secrets file: `VTIGER_URL`, `VTIGER_USERNAME` and `VTIGER_ACCESS_KEY` (Vtiger → My Preferences → Access Key). They are never shown, logged or sent to the browser. Starting / stopping the import is admin-only.
+- **How it runs:** it is a job on the CRM server, so the page can be closed. It reads 200 contacts per request, in Vtiger record order, onward from the last one read (fast even deep in the list). Contacts are saved every 2,000, with the same checks as the CSV import.
+- **Speed:** about 6,000–7,000 contacts a minute, so about an hour for 3.35 lakh.
+- **Stop / Continue:** Continue goes on from the last saved contact; a restart of the CRM shows the job as stopped. **Import again from the start** re-reads everything; contacts already imported (same Vtiger Contact Id) are updated.
+- **Server set-up for lakhs of contacts:**
+  - the service starts Node with a 4 GB memory limit (`scripts/run-crm.ps1`); about 1.6 GB is used with 2.95 lakh contacts;
+  - the MySQL connection is compressed, so start-up (loading every contact) takes about a minute.
+- **Duplicates in Vtiger:** a second Vtiger contact with the same mobile or card as one already imported is **skipped and listed**, not merged. Contacts without a mobile or card no. are counted and left out. Vtiger's internal user ids (Assigned To, Created By, Modified By) are not taken.
+
+**Contact index:** caller search (Identify caller, Contacts search, email and call matching) uses an in-memory index of mobiles, card nos., membership IDs, emails and one text line per contact.
+- It is built when the CRM starts (3–5 s for 3 lakh contacts).
+- On MySQL, only the contacts that changed are re-indexed.
+- Tested with 3 lakh contacts: a search takes about 0.03 s (was 0.4–0.8 s), and the server uses about 350 MB of memory.
+
 ---
 
 ## 12. Knowledge base, scripts and templates
@@ -1074,4 +1099,6 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 53 | **AI email reader** (server/aiReader.js, @anthropic-ai/sdk): Claude picks the case-master path, store and numbers from each new email; answer limited to the case master; keyword rules as fallback; on when ANTHROPIC_API_KEY is in the secrets file. 9 checks against a fake API |
 | 54 | LOTS confirmed the DH 105 / GNI Ecommerce store-matrix rows and the routes the sheet doesn't state; ⚠ flags replaced by a provenance note |
 | 55 | **Log new case, as on LOTS's Vtiger form:** call details under ① (Type of call Abandoned / Inbound / Outbound linked to the channel, Called number with "Same as contact's mobile", Call transaction ID); member card Edit / + Add Another Contact / Change; Channel dropdown (Call / Email) instead of the channel cards; Admin at the bottom of the menu |
+| 58 | **Import all contacts straight from Vtiger** (webservice + access key in the private secrets file): server job, 200 per request, saved every 2,000, Stop / Continue, duplicates in Vtiger skipped and listed; about an hour for 3.35 lakh |
+| 57 | **Vtiger contacts import for lakhs of contacts:** Vtiger Contacts CSV recognised (all fields, +91 mobiles, add-on member, updated mobile), sent in parts of 2,000 with progress, server checks against an index; contact index for caller search (0.03 s with 3 lakh contacts) |
 | 56 | **One search box** in Identify caller (user's request): mobile, card no., membership ID, name, business name or email, of the contact or its add-on card holders; Mobile and Card no. moved to ② Who is it? |

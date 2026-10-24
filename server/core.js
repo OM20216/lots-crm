@@ -125,15 +125,84 @@ export function findCase(id) {
   return db().cases.find((c) => c.id === id);
 }
 
+// Contact index (lakhs of contacts from Vtiger): mobile, card no., membership ID and email are looked up directly, and
+// one lower-case text line per contact serves the partial search. Rebuilt only after a contact changes.
+let index = null;
+const low = (v) => String(v || '').trim().toLowerCase();
+// what one contact puts in the index (kept per contact, so an edited contact's old entries can be taken out)
+function indexEntries(m) {
+  const phones = [...[m.phone, m.altPhone, ...(m.otherPhones || [])].map((p) => [phoneKey(p), { member: m, via: 'owner' }]), ...(m.addOnCards || []).map((a) => [phoneKey(a.phone), { member: m, via: 'add-on', addOn: a }])].filter(([k]) => k.length === 10);
+  const cards = [[cardKey(m.cardNo), { member: m, via: 'card' }], ...(m.addOnCards || []).map((a) => [cardKey(a.cardNo), { member: m, via: 'add-on', addOn: a }])].filter(([k]) => k);
+  const emails = [m.email, ...(m.otherEmails || [])].map(low).filter(Boolean);
+  const words = [m.id, m.phone, m.altPhone, ...(m.otherPhones || []), m.cardNo, m.email, ...(m.otherEmails || []), m.businessName, m.ownerName, m.gstin, m.contact?.contactType, ...(m.addOnCards || []).flatMap((a) => [a.name, a.phone, a.cardNo])];
+  return { phones, cards, emails, line: words.filter(Boolean).join('\u0001').toLowerCase() };
+}
+function addToIndex(ix, m, pos) {
+  const e = indexEntries(m);
+  const put = (map, k, v) => !map.has(k) && map.set(k, v);
+  for (const [k, v] of e.phones) put(ix.phone, k, v);
+  for (const [k, v] of e.cards) put(ix.card, k, v);
+  for (const k of e.emails) put(ix.email, k, m);
+  put(ix.id, low(m.id), m);
+  if (m.vtigerId) put(ix.vtiger, m.vtigerId, m);
+  if (pos === undefined) pos = ix.text.push(null) - 1;
+  ix.text[pos] = [m, e.line];
+  ix.of.set(m.id, { m, pos, vtigerId: m.vtigerId, ...e });
+}
+function removeFromIndex(ix, old) {
+  const drop = (map, k) => (map.get(k) === old.m || map.get(k)?.member === old.m) && map.delete(k);
+  for (const [k] of old.phones) drop(ix.phone, k);
+  for (const [k] of old.cards) drop(ix.card, k);
+  for (const k of old.emails) drop(ix.email, k);
+  drop(ix.id, low(old.m.id));
+  if (old.vtigerId) drop(ix.vtiger, old.vtigerId);
+}
+export function memberIndex() {
+  const version = store.membersVersion();
+  if (index?.version === version) return index;
+  const changed = store.changedMembers();
+  if (index && changed && changed.length <= 5000) {
+    // only the contacts changed since last time (MySQL tracks them): take their old entries out, put the new ones in
+    const members = db().members;
+    for (const id of changed) {
+      const old = index.of.get(id);
+      if (old) {
+        removeFromIndex(index, old);
+        addToIndex(index, old.m, old.pos);
+      } else {
+        for (let i = members.length - 1; i >= 0; i--)
+          if (members[i].id === id) {
+            addToIndex(index, members[i]);
+            break;
+          }
+      }
+    }
+    index.version = version;
+    return index;
+  }
+  index = { version, phone: new Map(), card: new Map(), id: new Map(), email: new Map(), vtiger: new Map(), text: [], of: new Map() };
+  for (const m of db().members) addToIndex(index, m);
+  return index;
+}
+/** Put one added / changed contact into the index now (an import checks each row against the rows before it). */
+export function reindexMember(m) {
+  const ix = memberIndex();
+  const old = ix.of.get(m.id);
+  if (old) removeFromIndex(ix, old);
+  addToIndex(ix, m, old?.pos);
+}
+/** Contacts whose mobile, card no., ID, name, business, email, GSTIN or add-on holder contains `q` (lower-case). */
+export function searchMembers(q, limit) {
+  const out = [];
+  const { text } = memberIndex();
+  for (let i = text.length - 1; i >= 0 && out.length < limit; i--) if (text[i][1].includes(q)) out.push(text[i][0]); // newest first
+  return out;
+}
+
 export function findMemberByPhone(phone) {
   const key = phoneKey(phone);
   if (key.length !== 10) return null;
-  for (const m of db().members) {
-    if (phoneKey(m.phone) === key || phoneKey(m.altPhone) === key || (m.otherPhones || []).some((p) => phoneKey(p) === key)) return { member: m, via: 'owner' };
-    const addOn = (m.addOnCards || []).find((a) => phoneKey(a.phone) === key);
-    if (addOn) return { member: m, via: 'add-on', addOn };
-  }
-  return null;
+  return memberIndex().phone.get(key) || null;
 }
 
 // Every mobile on a contact (registered, alternate, extra, add-on members') must belong to that contact only,
@@ -161,7 +230,7 @@ export function cardConflict(record, excludeId) {
     if (seen.has(x.key)) return { card: x.shown, label: x.label, message: `Card ${x.shown} is entered twice on this contact (${seen.get(x.key)} and ${x.label}).` };
     seen.set(x.key, x.label);
   }
-  for (const m of db().members) {
+  for (const m of new Set([...seen.keys()].map((k) => memberIndex().card.get(k)?.member).filter(Boolean))) {
     if (m.id === excludeId) continue;
     const hit = contactCards(m).find((o) => seen.has(o.key));
     if (hit) return { card: hit.shown, label: seen.get(hit.key), memberId: m.id, message: `Card ${hit.shown} already belongs to ${m.businessName || m.ownerName} (${m.id})${hit.label === 'Membership card' ? '' : ' as ' + hit.label.charAt(0).toLowerCase() + hit.label.slice(1)}. One card number can belong to one person only.` };
@@ -176,7 +245,8 @@ export function phoneConflict(record, excludeId) {
     if (seen.has(x.key)) return { phone: x.key, label: x.label, message: `${x.key} is entered twice on this contact (${seen.get(x.key)} and ${x.label}).` };
     seen.set(x.key, x.label);
   }
-  for (const m of db().members) {
+  // only the contacts that hold one of these numbers (from the index), not every contact
+  for (const m of new Set([...seen.keys()].map((k) => memberIndex().phone.get(k)?.member).filter(Boolean))) {
     if (m.id === excludeId) continue;
     const hit = contactPhones(m).find((o) => seen.has(o.key));
     if (hit) {
@@ -192,8 +262,8 @@ export function phoneConflict(record, excludeId) {
 }
 
 export function findMemberByEmail(email) {
-  const e = String(email || '').toLowerCase();
-  return (e && db().members.find((m) => (m.email && m.email.toLowerCase() === e) || (m.otherEmails || []).some((x) => String(x).toLowerCase() === e))) || null;
+  const e = String(email || '').trim().toLowerCase();
+  return (e && memberIndex().email.get(e)) || null;
 }
 
 export function log(c, entry) {
@@ -695,7 +765,7 @@ export function intakeEmail({ fromEmail = '', fromName = '', subject = '', body 
   const member =
     findMemberByEmail(fromEmail) ||
     findMemberByPhone(phoneInBody)?.member ||
-    (refs.cardNo && db().members.find((m) => m.cardNo && m.cardNo.toLowerCase() === refs.cardNo.toLowerCase())) ||
+    (refs.cardNo && memberIndex().card.get(cardKey(refs.cardNo))?.member) ||
     null;
   const c = newCase(
     {

@@ -4,6 +4,64 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
+## 24 October 2026
+
+### Contacts imported straight from Vtiger (3,35,061 contacts)
+- **Credentials:** the user put the Vtiger URL, username and access key in a Notepad file. I copied them into the private secrets file (`~/.lots-crm/secrets.env`) without showing them.
+  - At first the access-key line held the login email; the user then put in the real 16-character key.
+  - The Notepad copy in Documents should be deleted.
+- **Vtiger's limits and speed:** login checked. Vtiger has 3,35,061 contacts and 110 fields, with the same labels as the CSV columns.
+  - It returns at most 200 records per query.
+  - Paging by position gets slow deep in the list (about 5 s per page); reading onward from the last record id stays at about 0.6 s.
+- **Server job** (`server/vtiger.js`):
+  - it logs in, reads 200 at a time onward from the last record, and converts each with the same code as the CSV import (now shared: `src/contactFields.js`, `src/vtigerContacts.js`);
+  - it saves every 2,000 through the same import function, and only then moves its "continue from here" point;
+  - Stop / Continue / Import again from the start; its state survives a restart; start / stop are admin-only.
+- **Duplicates in Vtiger:** a test showed 57 of the first 4,200 Vtiger contacts share a mobile with an earlier one; they would have overwritten it. Now a second Vtiger contact with a taken mobile or card is skipped and listed, not merged.
+- **Import function:** it now uses the contact index, including a Vtiger Contact Id lookup, instead of building its own index per batch.
+- **Panel:** Contacts → Import CSV shows **Import from Vtiger**, with a progress bar, counts, the skipped contacts and Stop / Continue.
+- **Tested on the test copy against the real Vtiger (read-only):**
+  - 4,200 contacts read in 37 s, stopped, continued to 8,400;
+  - every contact counted once, and nothing read was lost at a stop;
+  - an imported contact is found by its mobile and keeps its Vtiger fields.
+  - The test data was deleted afterwards.
+- **Started on the live CRM** at the user's request ("now import the contact").
+- **Result (14:21, about an hour):** 3,35,065 Vtiger contacts read.
+  - **2,94,533 added**; 10 were already in the CRM and are now linked;
+  - 19,382 skipped as duplicates in Vtiger (mobile or card already held by an earlier contact);
+  - 21,140 left out (no mobile or card no.).
+  - Searches stay instant: by mobile 0.004 s, by name 0.006 s.
+- **Memory during the import:** at 60,000 contacts the CRM used 1.4 GB, against Node's 2.2 GB limit on this PC.
+  - The cause: a 10-minute safety copy of every new record (for changes made outside the CRM's tracking).
+  - Imported contacts no longer get it, so memory was 0.6–0.7 GB at 1 lakh contacts and 1.6 GB at the end.
+  - The import was stopped, the CRM restarted and the import continued from the same contact, with nothing lost or doubled.
+- **Memory limit raised to 4 GB** (`scripts/run-crm.ps1`); the PC has 12 GB. The CRM uses about 1.6 GB with 2.95 lakh contacts.
+- **Start-up from 8 minutes to 60 seconds:** the MySQL database is on a remote server, and the 2.95 lakh contact records are 508 MB. With MySQL protocol compression on (`compress: true`) they load in about 80 s instead of about 6 minutes.
+- **Excel list of the Vtiger contacts not in the CRM** (duplicates with who holds the number, and those without a number): `DownloadsVtiger contacts not imported - 24-10-2026.xlsx`.
+
+### Vtiger contacts import, ready for 3 lakh contacts
+The user exported Contacts from Vtiger (`Contacts_24-10-2026_1158.csv`). That file holds 100 contacts: Vtiger would not export all 3 lakh at once. The importer, the server and the caller search were changed so that lakhs of contacts work.
+- **Vtiger CSV recognised:**
+  - all its fields go into the contact form, which already has Vtiger's field names;
+  - `+91` mobiles become 10 digits;
+  - `?????` placeholders (24 "New Customer Lead" rows with no number) are left out and counted;
+  - the add-on member becomes an add-on card holder;
+  - an updated mobile / email becomes the main one, and the old one is kept;
+  - the Vtiger Contact Id is kept, so a re-import updates instead of doubling;
+  - only filled fields are stored (11 instead of 68 per contact).
+- **Batches:** the browser sends 2,000 contacts at a time with a progress bar. If the import stops, running the same file again continues it.
+- **Server import:** it no longer compares every row with every contact (that would have taken hours for 3 lakh). Numbers and cards are checked against an index; the rules are unchanged (one mobile / card, one person).
+- **Contact index for the caller search** (mobile, card, ID, email, name):
+  - it is built at start-up, and only changed contacts are re-indexed on MySQL;
+  - tested with 3 lakh contacts: 0.03 s per search (was 0.4–0.8 s), 1,000 mobile look-ups in 2 ms, about 350 MB of memory;
+  - the duplicate-number check on saving a contact takes 0.006 s.
+- **Tested on test copies:**
+  - the real file imports 76 contacts and leaves out 24, and importing it again updates the 76;
+  - an imported contact opens in the form;
+  - the index after edits, new contacts and add-ons passes 12 checks;
+  - the search box (14) and call details (11) browser checks pass.
+- **Not yet done:** the remaining 2,99,900 contacts. They can be exported from Vtiger in parts (filters on Created Time) and imported one after another, or read through the Vtiger API with an access key.
+
 ## 23 October 2026
 
 ### Log new case: call details and contact buttons (as on LOTS's Vtiger case form)

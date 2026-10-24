@@ -13,7 +13,8 @@ while ($true) {
   $stamp = Get-Date -Format 'yyyy-MM-dd HH:mm:ss'
   Add-Content -Path (Join-Path $root 'crm.log') -Value "[$stamp] service: starting the CRM"
   # cmd keeps the logs in plain text (PowerShell 5 would write them as UTF-16)
-  & cmd.exe /c "node server\index.js --prod >> crm.log 2>> crm-error.log"
+  # 4 GB for Node (default 2.2 GB on this PC): about 3 lakh contacts from Vtiger are held in memory for caller search
+  & cmd.exe /c "node --max-old-space-size=4096 server\index.js --prod >> crm.log 2>> crm-error.log"
   $code = $LASTEXITCODE
   if (Test-Path $stopFlag) {
     Remove-Item $stopFlag -ErrorAction SilentlyContinue
