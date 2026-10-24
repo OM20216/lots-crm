@@ -974,13 +974,38 @@ api.post('/vtiger/import/stop', (req, res) => {
 });
 
 api.get('/members/:id', (req, res) => {
-  const m = db().members.find((x) => x.id === req.params.id);
+  const m = core.memberById(req.params.id);
   if (!m) return res.status(404).json({ error: 'Contact not found' });
   res.json(m);
 });
 
+// Communication history of one contact (Contacts → detail panel): calls with recordings, missed calls, cases, emails sent.
+// Matched by the contact itself and by every mobile / email on it (owner, alternate, other, add-on holders).
+api.get('/members/:id/history', (req, res) => {
+  const m = core.memberById(req.params.id);
+  if (!m) return res.status(404).json({ error: 'Contact not found' });
+  const phones = new Set(core.contactPhones(m).map((x) => x.key));
+  const emails = new Set([m.email, ...(m.otherEmails || [])].filter(Boolean).map((e) => String(e).trim().toLowerCase()));
+  const mine = (p) => phones.has(phoneKey(p));
+  const cases = db().cases.filter((c) => c.memberId === m.id || mine(c.phone) || (c.email && emails.has(String(c.email).toLowerCase())));
+  const caseIds = new Set(cases.map((c) => c.id));
+  const items = [
+    ...cases.map((c) => ({ kind: 'case', at: c.createdAt, id: c.id, channel: c.channel, status: c.status, title: [c.caseType, c.category, c.subCategory].filter(Boolean).join(' › '), agent: c.assignedTo || c.createdBy || '' })),
+    ...db()
+      .calls.filter((r) => mine(r.phone))
+      .map((r) => ({ kind: 'call', at: r.startedAt, id: r.id, direction: r.direction, connected: r.connected, agent: r.agent || '', durationSec: r.info?.durationSec ?? null, recording: Boolean(r.info?.recordingUrl), caseId: r.caseId || null, phone: r.phone })),
+    ...db()
+      .missedCalls.filter((x) => mine(x.phone))
+      .map((x) => ({ kind: 'missed', at: x.at, id: x.id, status: x.status, agent: x.assignedTo || '', caseId: x.caseId || null, phone: x.phone })),
+    ...db()
+      .outbox.filter((o) => caseIds.has(o.caseId) || String(o.to || '').toLowerCase().split(/[,;\s]+/).some((t) => emails.has(t)))
+      .map((o) => ({ kind: 'email', at: o.at, id: o.id, to: o.to, subject: o.subject, status: o.status, caseId: o.caseId || null })),
+  ].sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')));
+  res.json({ items: items.slice(0, 200), counts: { cases: cases.length, open: cases.filter((c) => c.status !== 'Closed').length, calls: items.filter((i) => i.kind === 'call').length } });
+});
+
 api.patch('/members/:id', (req, res) => {
-  const m = db().members.find((x) => x.id === req.params.id);
+  const m = core.memberById(req.params.id);
   if (!m) return res.status(404).json({ error: 'Member not found' });
   checkAddOns(req.body);
   checkUniquePhones({ ...m, ...req.body }, m.id);

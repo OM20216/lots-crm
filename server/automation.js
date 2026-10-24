@@ -564,7 +564,7 @@ async function onRerouted({ c, note }) {
 
 /** "The Details of the Query" for a case (src/queryDetails.js), with the contact, store and the customer's email. */
 export function detailsFor(c, level = core.levelName(c)) {
-  const member = c.memberId ? db().members.find((m) => m.id === c.memberId) : null;
+  const member = core.memberById(c.memberId);
   const store = db().stores.find((x) => x.code === c.store);
   const mailIn = [...(c.timeline || [])].reverse().find((t) => t.type === 'email-in' && !core.storeForSender(t.from));
   return queryDetails(c, { level, member, store, emailContent: mailIn ? core.replyText(mailIn.text).slice(0, 3000) : '' });

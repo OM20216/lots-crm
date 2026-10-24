@@ -184,6 +184,9 @@ export function memberIndex() {
   for (const m of db().members) addToIndex(index, m);
   return index;
 }
+/** One contact by its ID (M-00123), from the index: lakhs of contacts are not read one by one. */
+export const memberById = (id) => (id ? memberIndex().id.get(String(id).trim().toLowerCase()) || null : null);
+
 /** Put one added / changed contact into the index now (an import checks each row against the rows before it). */
 export function reindexMember(m) {
   const ix = memberIndex();
@@ -383,7 +386,7 @@ export const storeRows = (code) => db().stores.filter((s) => !code || s.code ===
 export function storeRowFor(c) {
   const route = storeRouteFor(c);
   if (!route) return null;
-  const home = workflowFor(c)?.owner === 'homeStore' ? db().members.find((m) => m.id === c.memberId)?.homeStore : '';
+  const home = workflowFor(c)?.owner === 'homeStore' ? memberById(c.memberId)?.homeStore : '';
   const code = home || c.store;
   if (!code || code === 'NS') return null;
   const row = storeRow(storeRowKey(code, route.row.key));

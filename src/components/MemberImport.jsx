@@ -96,7 +96,7 @@ function VtigerImport({ onDone }) {
     );
   const read = (job?.read || 0) + (job?.reading || 0);
   const pct = job?.total ? Math.min(100, Math.round((read / job.total) * 100)) : 0;
-  const canContinue = job && ['stopped', 'error'].includes(job.status) && job.lastId;
+  const canContinue = job && ['stopped', 'error', 'done'].includes(job.status) && job.lastId;
   return (
     <div className="vt-import">
       <div className="row between">
@@ -138,7 +138,7 @@ function VtigerImport({ onDone }) {
           <>
             {canContinue && (
               <button className="btn primary" onClick={() => act('/vtiger/import')}>
-                Continue from {n(job.read)}
+                {job.status === 'done' ? 'Get new contacts from Vtiger' : `Continue from ${n(job.read)}`}
               </button>
             )}
             <button

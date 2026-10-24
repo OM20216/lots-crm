@@ -6,6 +6,26 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 24 October 2026
 
+### Contacts: list of cards + contact details on the right (user's screenshot from another CRM)
+- **Left:** contact cards with the initials, name, mobile, contact-type pill and business, plus round Call (SparkTG dialer), Email and WhatsApp buttons.
+- **Right:** the tapped contact opens there; it is kept in the address (`?c=M-00123`).
+  - Header with Edit (the contact form as before), and Call / Email / WhatsApp / Log case buttons.
+  - The LOTS fields: mobiles, email, business, card no., contact ID and Vtiger id, contact type, status, Segment1 / 2, registered store, GSTIN, licence, source, joining date, assigned to, address, add-on members.
+- **Communication history:** calls (incoming / outgoing, talk time, recording to play), missed calls, cases and emails the CRM sent about them, newest first.
+  - Matched by the contact and every mobile / email on it, including add-on holders.
+  - New endpoint: `GET /api/members/:id/history`.
+- **My additions, not in the SOP:**
+  - WhatsApp is a wa.me link (WhatsApp Web / app), not an integration;
+  - Email is a mailto link until the mailbox is connected;
+  - SMS is left out (not possible, decided 16 Oct).
+- **Speed:** a contact by ID used to be found by reading all 2.95 lakh contacts (0.5–0.85 s); it now comes from the contact index (0.004 s). This applies to the contact page, edits, the history and automation.
+- Tested: 10 browser checks on a test copy (cards, tap to open, history with recording, empty history, buttons, Edit, phone width); live lookups checked.
+
+### Excel list of the Vtiger contacts not in the CRM
+- `DownloadsVtiger contacts not imported - 24-10-2026.xlsx`, made by reading Vtiger again (52 min, read-only) and comparing it with the CRM.
+- **Duplicates** (19,382): each with the CRM contact (and Vtiger contact) that already holds the number. 3 have no holder; most likely they were added in Vtiger after the import (Vtiger went from 3,35,064 to 3,35,067). Contacts → Import → "Get new contacts from Vtiger" (new button: after a finished import it reads only the contacts added in Vtiger since) brings them in.
+- **No mobile or card** (21,136): as in Vtiger.
+
 ### "Abandoned Call" renamed "Disconnected Call" (user's request)
 - Log new case → Type of call is now **Disconnected Call** / Inbound / Outbound (LOTS's Vtiger form says Abandoned Call). A missed-call callback is saved as Disconnected Call. No saved case had the old name. The SOP flow chart's "Missed / Abandoned Call" step is unchanged.
 
