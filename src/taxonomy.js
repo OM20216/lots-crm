@@ -34,9 +34,9 @@ export const SUPPLIER_TYPES = ['Suppliers - Fresh', 'Suppliers - FMCG - Food', '
 export const RESOLUTION_TYPES = ['Answer Received', 'Clarity required from LOTS', 'Escalated and Auto Closed', 'Escalated to LOTS', 'Information Provided'];
 
 // Type of call, as on LOTS's Vtiger case form (user, 23 Oct 2026); it goes with the channel: Inbound call → Inbound,
-// Outbound call → Outbound, Missed call callback → Abandoned Call.
-export const CALL_TYPES = ['Abandoned Call', 'Inbound', 'Outbound'];
-export const CALL_TYPE_OF_CHANNEL = { 'Inbound call': 'Inbound', 'Outbound call': 'Outbound', 'Missed call callback': 'Abandoned Call' };
+// Outbound call → Outbound, Missed call callback → Disconnected Call (LOTS's Vtiger says Abandoned Call; renamed by the user).
+export const CALL_TYPES = ['Disconnected Call', 'Inbound', 'Outbound'];
+export const CALL_TYPE_OF_CHANNEL = { 'Inbound call': 'Inbound', 'Outbound call': 'Outbound', 'Missed call callback': 'Disconnected Call' };
 
 // ---------- the case master ----------
 // LOTS's "Case catergory" sheet in the escalation workbook (Escalation Matrix LOTS, store tabs; adopted 17 Oct 2026,

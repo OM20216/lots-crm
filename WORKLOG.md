@@ -6,6 +6,9 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 24 October 2026
 
+### "Abandoned Call" renamed "Disconnected Call" (user's request)
+- Log new case → Type of call is now **Disconnected Call** / Inbound / Outbound (LOTS's Vtiger form says Abandoned Call). A missed-call callback is saved as Disconnected Call. No saved case had the old name. The SOP flow chart's "Missed / Abandoned Call" step is unchanged.
+
 ### Call logs (user: "rename it as call logs ... all the history of calls with recorded call")
 - **Menu:** the Calls button is back in the left menu (it had dropped out when the menu was shortened), renamed **Call logs**; the page title is Call logs.
 - **Whole history:** the page shows all calls by default (it showed one day). It has quick ranges (Today / Last 7 days / Last 30 days / All), From / To dates and a search by number, name, agent or case no.

@@ -277,7 +277,7 @@ export function newCase(body, by) {
     createdAt: now(),
     updatedAt: now(),
     channel: body.channel || 'Inbound call',
-    callType: body.callType || CALL_TYPE_OF_CHANNEL[body.channel || 'Inbound call'] || '', // Abandoned Call / Inbound / Outbound (calls only)
+    callType: body.callType || CALL_TYPE_OF_CHANNEL[body.channel || 'Inbound call'] || '', // Disconnected Call / Inbound / Outbound (calls only)
     calledNumber: body.calledNumber || '', // the number on the call
     callerType: normalizeCallerType(body.callerType) || 'Registered With Lots',
     memberId: body.memberId || null,
