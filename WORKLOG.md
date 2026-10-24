@@ -6,6 +6,15 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 24 October 2026
 
+### Call logs (user: "rename it as call logs ... all the history of calls with recorded call")
+- **Menu:** the Calls button is back in the left menu (it had dropped out when the menu was shortened), renamed **Call logs**; the page title is Call logs.
+- **Whole history:** the page shows all calls by default (it showed one day). It has quick ranges (Today / Last 7 days / Last 30 days / All), From / To dates and a search by number, name, agent or case no.
+- **Filters and list:** a "With recording" filter, 200 calls at a time with **Load more**, newest first, the date on every row, and the tiles / by-agent counts for the chosen range.
+- **Recordings:** each one plays in the list and has **Download** ("call <number> <date>.mp3"), streamed through the server so the SparkTG login stays private.
+- **What the history contains:** every call taken or made through the CRM dialer or reported by SparkTG's call event (8 so far; agents have not used the dialer yet).
+- **SparkTG's API cannot list older calls:** `agent-recent-calls` needs a call id and returns only that call; without one it answers HTTP 400, also with date or page parameters. Calls from before the CRM need SparkTG's call report (export, or a report API from SparkTG).
+- Tested with 260 made-up calls on a test copy (7 browser checks).
+
 ### Contacts imported straight from Vtiger (3,35,061 contacts)
 - **Credentials:** the user put the Vtiger URL, username and access key in a Notepad file. I copied them into the private secrets file (`~/.lots-crm/secrets.env`) without showing them.
   - At first the access-key line held the login email; the user then put in the real 16-character key.

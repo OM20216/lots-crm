@@ -785,7 +785,7 @@ api.get('/calls', (req, res) => {
 });
 
 api.get('/calls/stats', (req, res) => {
-  res.json(calls.callStats(req.query.date));
+  res.json(calls.callStats({ date: req.query.date, from: req.query.from, to: req.query.to }));
 });
 
 api.get('/calls/:id', (req, res) => {
@@ -797,11 +797,17 @@ api.get('/calls/:id', (req, res) => {
 api.get(
   '/calls/:id/recording',
   wrap(async (req, res) => {
-    const url = db().calls.find((x) => x.id === req.params.id)?.info?.recordingUrl;
+    const call = db().calls.find((x) => x.id === req.params.id);
+    const url = call?.info?.recordingUrl;
     if (!url || !/^https?:\/\//.test(url)) return res.status(404).json({ error: 'No recording for this call' });
     const r = await sparktg.fetchRecording(url);
     res.setHeader('Content-Type', r.headers.get('content-type') || 'audio/mpeg');
     if (r.headers.get('content-length')) res.setHeader('Content-Length', r.headers.get('content-length'));
+    // Call logs → Download: saved as "call <number> <date>.mp3"
+    if (req.query.download) {
+      const ext = /wav/i.test(r.headers.get('content-type') || '') ? 'wav' : 'mp3';
+      res.setHeader('Content-Disposition', `attachment; filename="call ${String(call.phone || '').replace(/[^\d+]/g, '')} ${String(call.startedAt || '').slice(0, 10)}.${ext}"`);
+    }
     Readable.fromWeb(r.body).pipe(res);
   })
 );
