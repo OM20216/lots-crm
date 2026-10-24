@@ -169,19 +169,21 @@ export function CallerPanel() {
   );
 }
 
-export function CallButton({ phone, context, label = 'Call' }) {
+// className / children: other looks (e.g. the round icon buttons on Contacts); default "📞 Call"
+export function CallButton({ phone, context, label = 'Call', className = 'btn sm', children }) {
   const { hasWidget, dial, callState } = useSparkTG();
   if (!phone) return null;
+  const content = children ?? <>📞 {label}</>;
   if (!hasWidget)
     return (
-      <a className="btn sm" href={`tel:${phone}`}>
-        📞 {label}
+      <a className={className} href={`tel:${phone}`} title={`Call ${phone}`} onClick={(e) => e.stopPropagation()}>
+        {content}
       </a>
     );
   const busy = callState && !callState.ended;
   return (
-    <button type="button" className="btn sm" disabled={busy} title={busy ? 'Finish the current call first' : `Dial ${phone} via SparkTG`} onClick={(e) => (e.stopPropagation(), dial(phone, context))}>
-      📞 {label}
+    <button type="button" className={className} disabled={busy} title={busy ? 'Finish the current call first' : `Dial ${phone} via SparkTG`} onClick={(e) => (e.stopPropagation(), dial(phone, context))}>
+      {content}
     </button>
   );
 }

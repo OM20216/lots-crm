@@ -82,7 +82,8 @@ export async function start(ctx, by, { fresh = false } = {}) {
   if (!configured()) throw new Error('Vtiger is not set up: VTIGER_URL, VTIGER_USERNAME and VTIGER_ACCESS_KEY are needed in the private secrets file.');
   if (running) return ctx.getState();
   const old = ctx.getState() || {};
-  const keep = !fresh && old.lastId && old.status !== 'done';
+  // continue after the last record read: a stopped import goes on, a finished one fetches only contacts added in Vtiger since
+  const keep = !fresh && old.lastId;
   const total = await contactCount();
   ctx.setState({
     status: 'running',
