@@ -26,13 +26,22 @@ const redact = (msg) => {
 
 export const configured = () => Boolean(process.env.MYSQL_HOST && process.env.MYSQL_DATABASE);
 
+// MySQL refuses a lone UTF-16 surrogate ("half an emoji") in JSON and utf8mb4 columns. Vtiger has a few such
+// strings, and JSON.stringify writes one as \udXXX, so MySQL rejects the whole batch — and since the store retries
+// the same batch, every later save waits behind it. Replace the broken half with U+FFFD before anything is encoded
+// or bound, so one bad character can never block the CRM again.
+const wellFormed = (v) => String(v).replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '\uFFFD');
+// clean every string in the record on the way out: JSON.stringify escapes a lone surrogate as \udXXX, so the text
+// itself must be fixed before it is encoded (fixing the finished text would find no surrogate character in it).
+const jsonText = (v) => JSON.stringify(v, (key, val) => (typeof val === 'string' ? wellFormed(val) : val));
+
 // ---------- column mapping (record → table row) ----------
 const dt = (v) => {
   if (!v) return null;
   const d = new Date(v);
   return isNaN(d) ? null : d.toISOString().slice(0, 23).replace('T', ' '); // UTC
 };
-const s = (v, n = 200) => (v == null || v === '' ? null : String(v).slice(0, n));
+const s = (v, n = 200) => (v == null || v === '' ? null : wellFormed(v).slice(0, n));
 const int = (v) => (v == null || v === '' || !Number.isFinite(Number(v)) ? null : Math.round(Number(v)));
 
 const TABLES = {
@@ -82,7 +91,7 @@ const KV_KEYS = ['counters', 'agents', 'agentEmails', 'agentShifts', 'settings',
 const SCHEMA_VERSION = 2; // v2: readable detail tables — existing data is copied into them once
 
 // ---------- readable detail tables (derived from each record, rewritten when the record changes) ----------
-const txt = (v, n = 60000) => (v == null || v === '' ? null : String(v).slice(0, n));
+const txt = (v, n = 60000) => (v == null || v === '' ? null : wellFormed(v).slice(0, n));
 const DETAILS = {
   cases: [
     {
@@ -449,7 +458,7 @@ export async function flush() {
         const name = collectionOf.get(rec);
         const t = TABLES[name];
         if (!t || rec[t.key] == null) continue;
-        (byTable[name] ||= []).push({ ...t.row(rec), doc: JSON.stringify(rec) });
+        (byTable[name] ||= []).push({ ...t.row(rec), doc: jsonText(rec) });
       }
       for (const [name, rows] of Object.entries(byTable)) {
         const t = TABLES[name];
@@ -464,7 +473,7 @@ export async function flush() {
         }
       }
       for (const k of keys) {
-        await conn.query('INSERT INTO kv (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v=VALUES(v)', [k, JSON.stringify(raw[k] ?? null)]);
+        await conn.query('INSERT INTO kv (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v=VALUES(v)', [k, jsonText(raw[k] ?? null)]);
       }
       // readable detail tables
       const recsByCollection = {};

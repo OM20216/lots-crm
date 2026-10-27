@@ -3,32 +3,47 @@ import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
 import { STATUSES } from '../taxonomy.js';
 import { Due, Empty, Select, StatusBadge, ago, storeLabel, useLoad, useMeta, usePicklists } from '../ui.jsx';
+import CaseImport from '../components/CaseImport.jsx';
+
+const PAGE = 50; // the imported cases number in lakhs: the browser gets one page at a time
+const n = (v) => Number(v || 0).toLocaleString('en-IN');
 
 export default function Cases() {
   const nav = useNavigate();
-  const { stores, agents } = useMeta();
+  const { stores, agents, isAdmin } = useMeta();
   const { list } = usePicklists();
   const [params, setParams] = useSearchParams();
   const [q, setQ] = useState(params.get('q') || '');
+  const [showImport, setShowImport] = useState(false);
   const filters = Object.fromEntries(params.entries());
-  const [cases] = useLoad(() => api.get('/cases?' + params.toString()), [params.toString()]);
+  const page = Math.max(1, Number(params.get('page')) || 1);
+
+  const query = new URLSearchParams(params);
+  query.delete('page');
+  query.set('limit', String(PAGE));
+  query.set('offset', String((page - 1) * PAGE));
+  const [data, reload, loadErr] = useLoad(() => api.page('/cases?' + query.toString()), [query.toString()]);
+  const cases = data?.items;
+  const total = data?.total || 0;
+  const pages = Math.max(1, Math.ceil(total / PAGE));
 
   const setF = (k, v) => {
     const p = new URLSearchParams(params);
     if (v) p.set(k, v);
     else p.delete(k);
+    p.delete('page'); // a changed filter starts at the first page
+    setParams(p);
+  };
+  const goPage = (n) => {
+    const p = new URLSearchParams(params);
+    if (n > 1) p.set('page', String(n));
+    else p.delete('page');
     setParams(p);
   };
 
-  function exportCsv() {
-    const cols = ['id', 'createdAt', 'channel', 'callerType', 'name', 'phone', 'email', 'businessName', 'cardNo', 'store', 'caseType', 'category', 'subCategory', 'productCategory', 'orderRef', 'status', 'resolutionType', 'assignedTo', 'dueAt', 'closedAt', 'description'];
-    const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const csv = [cols.join(','), ...cases.map((c) => cols.map((k) => esc(c[k])).join(','))].join('\n');
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv' }));
-    a.download = `lots-cases-${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-  }
+  // The whole filtered list, built on the server (lakhs of rows do not fit in the browser).
+  const exportParams = new URLSearchParams(params);
+  exportParams.delete('page');
 
   return (
     <>
@@ -44,11 +59,21 @@ export default function Cases() {
           >
             <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search case no., phone, name, email, card, order…" />
           </form>
-          <button className="btn" onClick={exportCsv} disabled={!cases?.length}>
+          {isAdmin && (
+            <button className={showImport ? 'btn primary' : 'btn'} onClick={() => setShowImport(!showImport)}>
+              Import from Vtiger
+            </button>
+          )}
+          <a className="btn" href={'/api/cases/export?' + exportParams.toString()} download>
             Export CSV
-          </button>
+          </a>
         </div>
       </div>
+      {showImport && isAdmin && (
+        <section className="card">
+          <CaseImport onDone={reload} />
+        </section>
+      )}
       <div className="card filters even">
         <Select value={filters.status} options={STATUSES} onChange={(v) => setF('status', v)} placeholder="Any status" />
         <Select value={filters.channel} options={list('Channel')} onChange={(v) => setF('channel', v)} placeholder="Any channel" />
@@ -62,7 +87,24 @@ export default function Cases() {
         )}
       </div>
       <section className="card">
-        {!cases ? (
+        <div className="row between">
+          <span className="muted small">
+            {data ? `${n(total)} case${total === 1 ? '' : 's'}${pages > 1 ? ` · page ${n(page)} of ${n(pages)}` : ''}` : 'Loading…'}
+          </span>
+          {pages > 1 && (
+            <div className="row">
+              <button className="btn" disabled={page <= 1} onClick={() => goPage(page - 1)}>
+                ← Previous
+              </button>
+              <button className="btn" disabled={page >= pages} onClick={() => goPage(page + 1)}>
+                Next →
+              </button>
+            </div>
+          )}
+        </div>
+        {loadErr ? (
+          <Empty>{loadErr}</Empty>
+        ) : !cases ? (
           <Empty>Loading…</Empty>
         ) : cases.length === 0 ? (
           <Empty>No cases match.</Empty>
@@ -85,6 +127,7 @@ export default function Cases() {
                 <tr key={c.id} className="clickable" onClick={() => nav(`/cases/${c.id}`)}>
                   <td>
                     <Link to={`/cases/${c.id}`}>{c.id}</Link>
+                    {c.vtigerCaseNo && <div className="muted small">{c.vtigerCaseNo}</div>}
                   </td>
                   <td>
                     {c.businessName || c.name || '—'}

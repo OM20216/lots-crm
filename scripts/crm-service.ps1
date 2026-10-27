@@ -56,8 +56,14 @@ function Start-Crm {
   if (-not (Get-ScheduledTask -TaskName $Task -ErrorAction SilentlyContinue)) { throw "The task is not installed: run 'install' first." }
   Remove-Item $stopFlag -ErrorAction SilentlyContinue
   Start-ScheduledTask -TaskName $Task
-  for ($i = 0; $i -lt 40 -and -not (Health); $i++) { Start-Sleep -Seconds 1 }
-  if (Health) { Write-Host "Running: http://localhost:$port" } else { throw 'The CRM did not answer within 40 s - see crm-error.log' }
+  # A cold start reads ~1.6 lakh cases and ~3.2 lakh contacts from the remote MySQL before it listens (several
+  # minutes). 40 s was too short: the CRM was healthy but still loading, and the start was reported as failed.
+  $wait = 600
+  for ($i = 0; $i -lt $wait -and -not (Health); $i++) {
+    if ($i -gt 0 -and $i % 30 -eq 0) { Write-Host "Still starting ($i s): loading cases and contacts from MySQL..." }
+    Start-Sleep -Seconds 1
+  }
+  if (Health) { Write-Host "Running: http://localhost:$port" } else { throw "The CRM did not answer within $wait s - see crm-error.log" }
 }
 function Show-Status {
   $t = Get-ScheduledTask -TaskName $Task -ErrorAction SilentlyContinue

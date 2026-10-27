@@ -31,6 +31,7 @@ const calls = await import('./calls.js');
 const matrixImport = await import('./matrixImport.js');
 const matrixLink = await import('./matrixLink.js');
 const vtiger = await import('./vtiger.js');
+const vtigerCases = await import('./vtigerCases.js');
 const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
 const { workflowFor } = await import('../src/workflows.js');
 const { CRISIS_CONTACTS, HO_MATRIX, MATRIX_SOURCE, STAGES, WORK_HOURS } = await import('../src/escalationMatrix.js');
@@ -211,20 +212,109 @@ api.put('/stores/:code', (req, res) => {
 });
 
 // ----- cases -----
-api.get('/cases', (req, res) => {
-  const { status, channel, store: st, caseType, q, overdue, assignedTo } = req.query;
+// Shared by the list (paged: lakhs of imported cases cannot all go to the browser) and the CSV export.
+function filterCases(query) {
+  const { status, channel, store: st, caseType, q, overdue, assignedTo } = query;
   let list = db().cases;
   if (status) list = list.filter((c) => status.split(',').includes(c.status));
   if (channel) list = list.filter((c) => c.channel === channel);
   if (st) list = list.filter((c) => c.store === st);
   if (caseType) list = list.filter((c) => c.caseType === caseType);
   if (assignedTo) list = list.filter((c) => (assignedTo === '-' ? !c.assignedTo : c.assignedTo === assignedTo));
+  if (query.from) list = list.filter((c) => (c.createdAt || '').slice(0, 10) >= query.from);
+  if (query.to) list = list.filter((c) => (c.createdAt || '').slice(0, 10) <= query.to);
   if (overdue) list = list.filter((c) => c.status === 'Escalated' && c.dueAt && c.dueAt < now());
   if (q) {
     const s = q.toLowerCase();
-    list = list.filter((c) => [c.id, c.name, c.phone, c.email, c.businessName, c.cardNo, c.subject, c.orderRef].some((v) => v && v.toLowerCase().includes(s)));
+    list = list.filter((c) => [c.id, c.vtigerCaseNo, c.vtigerId, c.name, c.phone, c.email, c.businessName, c.cardNo, c.subject, c.orderRef].some((v) => v && v.toLowerCase().includes(s)));
   }
-  res.json([...list].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)).map(({ timeline, ...c }) => ({ ...c, lastFollowupAt: c.lastFollowupAt || lastFollowup(timeline) })));
+  return list;
+}
+
+const CASE_PAGE_MAX = 5000;
+api.get('/cases', (req, res) => {
+  const list = filterCases(req.query);
+  const offset = Math.max(0, Number(req.query.offset) || 0);
+  const limit = Math.min(CASE_PAGE_MAX, Math.max(1, Number(req.query.limit) || CASE_PAGE_MAX));
+  const rows = [...list]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(offset, offset + limit)
+    // the list needs no timeline, calls, files, import details or long text: keep the answer small for 2 lakh cases
+    .map(({ timeline, calls, attachments, source, resolution, description, ...c }) => ({ ...c, imported: Boolean(c.vtigerId), lastFollowupAt: c.lastFollowupAt || lastFollowup(timeline) }));
+  res.set('X-Total-Count', String(list.length));
+  res.json(rows);
+});
+
+// The whole filtered list as CSV, made on the server (Export CSV beside the search).
+const CASE_CSV = [
+  ['id', (c) => c.id],
+  ['vtigerCaseNo', (c) => c.vtigerCaseNo],
+  ['vtigerStatus', (c) => [c.source?.status, c.source?.caseStatus].filter(Boolean).join(' · ')],
+  ['createdAt', (c) => c.createdAt],
+  ['updatedAt', (c) => c.updatedAt],
+  ['channel', (c) => c.channel],
+  ['callerType', (c) => c.callerType],
+  ['name', (c) => c.name],
+  ['phone', (c) => c.phone],
+  ['email', (c) => c.email],
+  ['businessName', (c) => c.businessName],
+  ['cardNo', (c) => c.cardNo],
+  ['store', (c) => c.store],
+  ['caseType', (c) => c.caseType],
+  ['category', (c) => c.category],
+  ['subCategory', (c) => c.subCategory],
+  ['sub2', (c) => c.sub2],
+  ['requestFor', (c) => c.requestFor],
+  ['productCategory', (c) => c.productCategory],
+  ['productType', (c) => c.productType],
+  ['orderRef', (c) => c.orderRef],
+  ['purchaseDate', (c) => c.purchaseDate],
+  ['purchaseAmount', (c) => c.purchaseAmount],
+  ['refundAmount', (c) => c.refundAmount],
+  ['status', (c) => c.status],
+  ['closureType', (c) => c.closureType],
+  ['assignedTo', (c) => c.assignedTo],
+  ['dueAt', (c) => c.dueAt],
+  ['closedAt', (c) => c.closedAt],
+  ['subject', (c) => c.subject],
+  ['description', (c) => c.description],
+  ['resolution', (c) => c.resolution],
+];
+api.get('/cases/export', async (req, res) => {
+  const rows = [...filterCases(req.query)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const date = new Date().toISOString().slice(0, 10);
+  if (req.query.format === 'xlsx') {
+    const ExcelJS = await import('exceljs');
+    const WB = ExcelJS.default || ExcelJS;
+    const wb = new WB.Workbook();
+    const ws = wb.addWorksheet('Cases');
+    ws.columns = CASE_CSV.map(([k]) => ({ header: k, key: k, width: 18 }));
+    for (const c of rows) {
+      const row = {};
+      for (const [k, get] of CASE_CSV) row[k] = get(c);
+      ws.addRow(row);
+    }
+    ws.getRow(1).font = { bold: true };
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="lots-cases-${date}.xlsx"`);
+    await wb.xlsx.write(res);
+    res.end();
+    return;
+  }
+  const esc = (v) => `\"${String(v ?? '').replace(/\"/g, '\"\"')}\"`;
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="lots-cases-${date}.csv"`);
+  res.write('\uFEFF' + CASE_CSV.map(([k]) => esc(k)).join(',') + '\r\n');
+  let chunk = '';
+  for (const c of rows) {
+    chunk += CASE_CSV.map(([, get]) => esc(get(c))).join(',') + '\r\n';
+    if (chunk.length >= 256 * 1024) {
+      res.write(chunk);
+      chunk = '';
+    }
+  }
+  if (chunk) res.write(chunk);
+  res.end();
 });
 
 // A case with where its escalation goes (target) and the levels above Level 1 (escalation matrix)
@@ -826,15 +916,19 @@ api.get('/lookup', (req, res) => {
 
   // A full mobile number is an exact lookup: owner phone, alternate phone, or an add-on card holder's phone.
   if (key.length === 10) {
-    const match = core.findMemberByPhone(key);
-    const related = db().cases.filter((c) => phoneKey(c.phone) === key || (match && c.memberId === match.member.id));
+    // a shared mobile (several contacts, each with its own card no.): no automatic match, the agent picks from the list
+    const holders = core.membersByPhone(key);
+    const match = holders.length === 1 ? holders[0] : null;
+    const ids = new Set(holders.map((h) => h.member.id));
+    const related = db().cases.filter((c) => phoneKey(c.phone) === key || ids.has(c.memberId));
     const calls = related
       .flatMap((c) => (c.calls || []).filter((k) => k.status === 'found').map((k) => ({ caseId: c.id, txnId: k.txnId, ...k.info })))
       .slice(-5)
       .reverse();
     return res.json({
-      members: match ? [match.member] : [],
+      members: [...new Set(holders.map((h) => h.member))],
       match,
+      shared: holders.length > 1 ? holders.length : 0,
       cases: related.slice(-10).reverse().map(summary),
       calls,
       openCases: related.filter((c) => c.status !== 'Closed').length,
@@ -881,51 +975,70 @@ api.post('/members', (req, res) => {
   checkUniquePhones(req.body);
   const m = { id: store.nextId('member', 'M-', 5), createdAt: now(), status: 'Active', addOnCards: [], ...req.body };
   db().members.push(m);
+  const added = db().members[db().members.length - 1];
+  core.reindexMember(added);
+  linkCasesToContacts([added]); // cases logged with this mobile / email / card no. before the contact existed
   save();
   res.status(201).json(m);
 });
 
 // Bulk import from the member master or Vtiger (Contacts → Import CSV in parts, or the server's Vtiger import).
-// Existing contacts (same Vtiger contact, card no. or mobile) are updated. Every number and card is checked against the
-// contact index, not by reading all contacts per row. Same rules as one contact: one mobile / card belongs to one person.
-function importMembers(rows) {
+// No duplicates: a row whose Vtiger contact, membership card no. or (without a card no.) mobile is already in the CRM updates
+// that contact instead of adding another — also when the same contact is in the file twice. Every number and card is checked
+// against the contact index. Same rules as one contact: a card no. belongs to one person; a mobile too, unless each contact
+// sharing it has its own card no. (user, 26 Oct 2026). dryRun: only counts what would happen (the preview), nothing is saved.
+function importMembers(rows, { dryRun = false } = {}) {
   let added = 0;
   let updated = 0;
   let noNumber = 0;
   const skipped = [];
   const ix = core.memberIndex();
+  // preview: contacts this file would add / change, so later rows of the file are checked against them too
+  const local = { vtiger: new Map(), card: new Map(), phone: new Map() };
+  const findVtiger = (k) => local.vtiger.get(k) || ix.vtiger.get(k);
+  const findCard = (k) => local.card.get(k) || ix.card.get(k);
+  const phoneHolders = (k) => [...ix.phone.all(k), ...(local.phone.get(k) || [])];
+  const remember = (m, rec) => {
+    if (rec.vtigerId) local.vtiger.set(rec.vtigerId, m);
+    for (const x of core.contactCards(rec)) local.card.set(x.key, { member: m, via: 'card' });
+    for (const x of core.contactPhones(rec)) (local.phone.get(x.key) || local.phone.set(x.key, []).get(x.key)).push({ member: m, via: 'owner' });
+  };
   const conflictOf = (merged, existing) => {
     const seen = new Set();
     for (const x of core.contactPhones(merged)) {
       if (seen.has(x.key)) return `${x.key} is entered twice on this contact.`;
       seen.add(x.key);
-      const owner = ix.phone.get(x.key)?.member;
-      if (owner && owner !== existing) return `${x.key} already belongs to ${owner.businessName || owner.ownerName} (${owner.id}).`;
+      const owner = core.cardKey(merged.cardNo) ? null : phoneHolders(x.key).find((e) => e.member !== existing)?.member;
+      if (owner) return `${x.key} already belongs to ${owner.businessName || owner.ownerName} (${owner.id || 'new in this file'}).`;
     }
     seen.clear();
     for (const x of core.contactCards(merged)) {
       if (seen.has(x.key)) return `Card ${x.shown} is entered twice on this contact.`;
       seen.add(x.key);
-      const owner = ix.card.get(x.key)?.member;
-      if (owner && owner !== existing) return `Card ${x.shown} already belongs to ${owner.businessName || owner.ownerName} (${owner.id}).`;
+      const owner = findCard(x.key)?.member;
+      if (owner && owner !== existing) return `Card ${x.shown} already belongs to ${owner.businessName || owner.ownerName} (${owner.id || 'new in this file'}).`;
     }
     return null;
   };
+  const touched = [];
   for (const r of rows) {
     const key = phoneKey(r.phone);
     if (key.length !== 10 && !core.cardKey(r.cardNo)) {
       noNumber++;
       continue;
     }
-    const byPhone = ix.phone.get(key);
+    const byPhone = phoneHolders(key)[0];
+    const hasCard = Boolean(core.cardKey(r.cardNo));
+    const byCard = hasCard && findCard(core.cardKey(r.cardNo));
     const existing =
-      (r.vtigerId && ix.vtiger.get(r.vtigerId)) ||
-      (core.cardKey(r.cardNo) && ix.card.get(core.cardKey(r.cardNo))?.via === 'card' && ix.card.get(core.cardKey(r.cardNo)).member) ||
-      (byPhone?.via === 'owner' && phoneKey(byPhone.member.phone) === key && byPhone.member) ||
+      (r.vtigerId && findVtiger(r.vtigerId)) ||
+      (byCard?.via === 'card' && byCard.member) ||
+      // matched by mobile only when the row has no card no. of its own (with one, it is its own contact even on a shared mobile)
+      (!hasCard && byPhone?.via === 'owner' && phoneKey(byPhone.member.phone) === key && byPhone.member) ||
       null;
     // two different Vtiger contacts with the same mobile / card are not merged into one: the second is listed as skipped
     if (r.vtigerId && existing?.vtigerId && existing.vtigerId !== r.vtigerId) {
-      skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: `Same mobile or card as Vtiger contact ${existing.vtigerId} (${existing.id}), already imported; duplicates in Vtiger are not merged.` });
+      skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: `Same mobile or card as Vtiger contact ${existing.vtigerId} (${existing.id || 'new in this file'}); duplicates in Vtiger are not merged.` });
       continue;
     }
     const clean = Object.fromEntries(Object.entries(r).filter(([, v]) => v !== undefined && v !== '' && !(Array.isArray(v) && !v.length)));
@@ -935,22 +1048,103 @@ function importMembers(rows) {
       skipped.push({ row: r.businessName || r.ownerName || r.phone, reason: conflict });
       continue;
     }
+    if (dryRun) {
+      remember(existing || { ...clean, id: '' }, merged);
+      if (existing) updated++;
+      else added++;
+      continue;
+    }
     if (existing) {
       Object.assign(existing, clean, { id: existing.id });
       core.reindexMember(existing);
+      touched.push(existing);
       updated++;
     } else {
       db().members.push({ id: store.nextId('member', 'M-', 5), createdAt: now(), status: 'Active', addOnCards: [], ...clean });
       const m = db().members[db().members.length - 1]; // the tracked copy, so a later row of this batch updating it is saved
       store.unwatch(m); // lakhs of new contacts: no 10-minute safety copy of each (it filled the memory)
       core.reindexMember(m);
+      touched.push(m);
       added++;
     }
   }
-  save();
-  return { added, updated, noNumber, skipped: skipped.length, skippedRows: skipped.slice(0, 50), total: db().members.length };
+  const casesLinked = dryRun ? 0 : linkCasesToContacts(touched);
+  if (!dryRun) save();
+  return { dryRun, added, updated, noNumber, skipped: skipped.length, skippedRows: skipped.slice(0, 50), casesLinked, total: db().members.length };
 }
-api.post('/members/import', (req, res) => res.json(importMembers(Array.isArray(req.body) ? req.body : [])));
+
+// Cases logged before a contact existed (or without picking it) are attached to the contact: same mobile, email or card no.
+// Only through a number that is the contact's alone (a mobile shared by several contacts does not decide).
+function linkCasesToContacts(members) {
+  if (!members.length) return 0;
+  const free = db().cases.filter((c) => !c.memberId);
+  if (!free.length) return 0;
+  const byKey = new Map();
+  const add = (k, c) => (byKey.get(k) || byKey.set(k, []).get(k)).push(c);
+  for (const c of free) {
+    if (phoneKey(c.phone).length === 10) add('p' + phoneKey(c.phone), c);
+    if (core.cardKey(c.cardNo)) add('c' + core.cardKey(c.cardNo), c);
+    if (c.email) add('e' + String(c.email).trim().toLowerCase(), c);
+  }
+  let linked = 0;
+  for (const m of members) {
+    const keys = [
+      ...core.contactPhones(m).filter((x) => core.membersByPhone(x.key).length === 1).map((x) => 'p' + x.key),
+      ...core.contactCards(m).map((x) => 'c' + x.key),
+      ...[m.email, ...(m.otherEmails || [])].filter(Boolean).map((e) => 'e' + String(e).trim().toLowerCase()),
+    ];
+    for (const k of keys)
+      for (const c of byKey.get(k) || [])
+        if (!c.memberId) {
+          c.memberId = m.id;
+          if (!c.businessName) c.businessName = m.businessName || '';
+          core.log(c, { by: 'System', type: 'note', text: `Linked to contact ${m.id} (${m.businessName || m.ownerName}) when the contact was imported / saved` });
+          linked++;
+        }
+  }
+  return linked;
+}
+api.post('/members/import', (req, res) => res.json(importMembers(Array.isArray(req.body) ? req.body : [], { dryRun: req.query.dryRun === '1' })));
+
+// Bulk import from Vtiger cases (server job): only new Vtiger cases are added; a case already in the CRM (same
+// Vtiger id) is left untouched, so work done here is never overwritten. IDs come from the CRM counter as usual.
+function importCases(list) {
+  const cases = db().cases;
+  let added = 0;
+  let linked = 0;
+  for (const c of list) {
+    const rec = { id: store.nextId('case', 'LWS-'), ...c };
+    cases.push(rec);
+    store.unwatch(rec); // lakhs of new cases: no 10-minute safety copy of each (it filled the memory)
+    if (rec.memberId) linked++;
+    added++;
+  }
+  save();
+  return { added, linked };
+}
+
+// ----- Vtiger cases import (server job; same access key as the contacts import) -----
+const vtigerCaseJob = {
+  // a job cut off by a restart shows as stopped, so it can be continued
+  getState: () => {
+    const s = db().settings.vtigerCaseImport || null;
+    return s && s.status === 'running' && !vtigerCases.isRunning() ? { ...s, status: 'stopped' } : s;
+  },
+  setState: (s) => {
+    db().settings.vtigerCaseImport = s;
+    save();
+  },
+  importCases,
+  caseIds: () => new Set(db().cases.map((c) => c.vtigerId).filter(Boolean)),
+  memberOf: (contactNo) => core.memberIndex().vtiger.get(contactNo) || null, // Vtiger Contact Id ("CON141") → imported CRM contact
+  stores: () => db().stores,
+};
+api.get('/vtiger-cases', (req, res) => res.json({ configured: vtigerCases.configured?.() ?? vtiger.configured(), running: vtigerCases.isRunning(), job: vtigerCaseJob.getState() }));
+api.post('/vtiger-cases/import', async (req, res) => res.json({ job: await vtigerCases.start(vtigerCaseJob, agentOf(req), { fresh: Boolean(req.body?.fresh), max: Number(req.body?.max) || 0 }) }));
+api.post('/vtiger-cases/import/stop', (req, res) => {
+  vtigerCases.stop();
+  res.json({ ok: true });
+});
 
 // ----- Vtiger contacts import (server job; the access key stays in the private secrets file) -----
 const vtigerJob = {
@@ -1010,6 +1204,8 @@ api.patch('/members/:id', (req, res) => {
   checkAddOns(req.body);
   checkUniquePhones({ ...m, ...req.body }, m.id);
   Object.assign(m, req.body, { id: m.id });
+  core.reindexMember(m);
+  linkCasesToContacts([m]); // a number / email / card no. added now may belong to earlier cases
   save();
   res.json(m);
 });
@@ -1291,6 +1487,82 @@ function needsFollowupToday(c) {
   const last = c.lastFollowupAt || lastFollowup(c.timeline);
   return !last || last < s;
 }
+
+// ----- reports -----
+// Everything the Report page and the dashboard trend need, counted on the server: the browser gets small numbers,
+// not 1.9 lakh cases. `days` is the window for cases created and closed; today is included.
+// Short cache for /api/reports: it is one pass over ~2 lakh cases (~3 s), so recomputing it on every dashboard
+// refresh and every Report page load would block the event loop for seconds. 20 s staleness is invisible.
+const reportCache = new Map();
+api.get('/reports', (req, res) => {
+  const days = Math.min(366, Math.max(1, Number(req.query.days) || 30));
+  const cached = reportCache.get(days);
+  if (cached && Date.now() - cached.at < 20000) return res.json(cached.body);
+  const end = new Date();
+  const day = (d) => d.toLocaleDateString('en-CA');
+  const to = day(end);
+  const from = day(new Date(end.getTime() - (days - 1) * 86400000));
+  const cases = db().cases;
+  const inWindow = (at) => Boolean(at) && at.slice(0, 10) >= from && at.slice(0, 10) <= to;
+
+  // one bucket per day, also for the days with nothing (the chart shows gaps)
+  const byDay = new Map();
+  for (let i = days - 1; i >= 0; i--) {
+    const key = day(new Date(end.getTime() - i * 86400000));
+    byDay.set(key, { date: key, created: 0, closed: 0 });
+  }
+  const count = (list, key) => list.reduce((acc, x) => ((acc[x[key] || '-'] = (acc[x[key] || '-'] || 0) + 1), acc), {});
+  const agentRows = new Map(db().agents.map((name) => [name, { name, created: 0, closed: 0, open: 0, escalated: 0 }]));
+  const agentOf = (name) => agentRows.get(name) || agentRows.set(name, { name, created: 0, closed: 0, open: 0, escalated: 0 }).get(name);
+
+  let created = 0, closed = 0, open = 0, resolved = 0, escalated = 0, waiting = 0, pending = 0;
+  let imported = 0, linked = 0, rot = 0;
+  for (const c of cases) {
+    if (c.status !== 'Closed') {
+      open++;
+      if (c.assignedTo) agentOf(c.assignedTo).open++;
+      if (c.status === 'Resolved') resolved++;
+      if (c.status === 'Escalated') { escalated++; if (c.assignedTo) agentOf(c.assignedTo).escalated++; }
+      if (c.status === 'Waiting') waiting++;
+      if (c.status === 'Pending') pending++;
+    }
+    if (c.vtigerId) { imported++; if (c.memberId) linked++; }
+    if (inWindow(c.createdAt)) {
+      created++;
+      if (c.createdBy) agentOf(c.createdBy).created++;
+      const d = byDay.get(c.createdAt.slice(0, 10));
+      if (d) d.created++;
+    }
+    if (inWindow(c.closedAt)) {
+      closed++;
+      if (c.assignedTo) agentOf(c.assignedTo).closed++;
+      if (c.resolutionType === 'ROT') rot++;
+      const d = byDay.get(c.closedAt.slice(0, 10));
+      if (d) d.closed++;
+    }
+  }
+  const openCases = cases.filter((c) => c.status !== 'Closed');
+  const escalatedCases = cases.filter((c) => c.status === 'Escalated');
+  const t = now();
+  const calls = db().calls.filter((r) => inWindow(r.startedAt));
+  const body = {
+    range: { days, from, to },
+    totals: { created, closed, open, resolved, escalated, waiting, pending, imported, linked, unlinked: imported - linked, rot },
+    byDay: [...byDay.values()],
+    byStatus: count(cases.filter((c) => inWindow(c.createdAt)), 'status'),
+    byChannel: count(cases.filter((c) => inWindow(c.createdAt)), 'channel'),
+    byType: count(cases.filter((c) => inWindow(c.createdAt)), 'caseType'),
+    byStore: count(cases.filter((c) => inWindow(c.createdAt)), 'store'),
+    topCategories: Object.entries(count(openCases.filter((c) => c.category), 'category')).sort((a, b) => b[1] - a[1]).slice(0, 8),
+    agents: [...agentRows.values()].filter((a) => a.created || a.closed || a.open || a.escalated).sort((a, b) => b.open - a.open || b.created - a.created),
+    escalations: { open: escalated, overdue: escalatedCases.filter((c) => c.dueAt && c.dueAt < t).length, dueToday: escalatedCases.filter(needsFollowupToday).length },
+    calls: { total: calls.length, connected: calls.filter((r) => r.connected).length, missedOpen: db().missedCalls.filter((m) => m.status === 'Open').length },
+    emailsSent: db().outbox.filter((o) => inWindow(o.at)).length,
+    importedOpen: count(cases.filter((c) => c.vtigerId && c.status !== 'Closed'), 'status'),
+  };
+  reportCache.set(days, { at: Date.now(), body });
+  res.json(body);
+});
 
 api.get('/stats', (req, res) => {
   const t = now();

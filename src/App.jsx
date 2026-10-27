@@ -9,6 +9,7 @@ import MissedCalls from './pages/MissedCalls.jsx';
 import Cases from './pages/Cases.jsx';
 import CaseDetail from './pages/CaseDetail.jsx';
 import Followups from './pages/Followups.jsx';
+import Reports from './pages/Reports.jsx';
 import Leads from './pages/Leads.jsx';
 import Contacts from './pages/Contacts.jsx';
 import ContactForm from './pages/ContactForm.jsx';
@@ -285,6 +286,7 @@ export default function App() {
             <Route path="/cases" element={<Cases />} />
             <Route path="/cases/:id" element={<CaseDetail />} />
             <Route path="/followups" element={<Followups />} />
+            <Route path="/reports" element={<Reports />} />
             <Route path="/leads" element={<Leads />} />
             <Route path="/contacts" element={<Contacts />} />
             <Route path="/contacts/new" element={<><Contacts /><ContactForm /></>} />

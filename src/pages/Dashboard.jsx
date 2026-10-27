@@ -1,5 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { api } from '../api.js';
+import { BreakdownRows, TrendChart } from '../components/TrendChart.jsx';
 import { STATUSES, STATUS_HELP } from '../taxonomy.js';
 import { Empty, StatusBadge, storeLabel, useMeta } from '../ui.jsx';
 
@@ -15,9 +17,20 @@ function Tile({ label, value, to, alert, sub }) {
 
 export default function Dashboard() {
   const { stats, stores, agent, refreshStats } = useMeta();
+  const [trend, setTrend] = useState(null);
   useEffect(() => {
     refreshStats();
   }, [refreshStats]);
+  useEffect(() => {
+    let live = true;
+    api
+      .get('/reports?days=14')
+      .then((d) => live && setTrend(d))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, []);
   if (!stats) return <Empty>Loading…</Empty>;
 
   return (
@@ -29,14 +42,9 @@ export default function Dashboard() {
 
       <h2 className="section-title">Needs attention now</h2>
       <div className="tiles">
-        <Tile label="Missed calls to call back" value={stats.missedOpen} to="/missed" alert={stats.missedBreached > 0} sub={stats.missedBreached ? `${stats.missedBreached} past 30-min TAT` : 'TAT 30 min'} />
-        <Tile label="Pending emails" value={stats.pendingEmails} to="/emails" alert={stats.pendingEmails > 0} sub="Check every 5 min" />
         <Tile label="Escalations overdue" value={stats.overdueEscalations} to="/followups" alert={stats.overdueEscalations > 0} sub="L1 TAT 1 working day" />
         <Tile label="Store follow-ups due today" value={stats.notFollowedUpToday} to="/followups" alert={stats.notFollowedUpToday > 0} sub="SOP: call the store daily" />
         <Tile label="Store replies to check" value={stats.storeRepliesToReview} to="/followups" alert={stats.storeRepliesToReview > 0} sub={stats.promisesMissed ? `${stats.promisesMissed} promised dates missed` : 'Not a resolution yet?'} />
-        <Tile label="Outbound leads due" value={stats.leadsDue} to="/leads" sub="New + call-backs + confirmations" />
-        <Tile label="Unassigned open cases" value={stats.unassigned} to="/cases?assignedTo=-" alert={stats.unassigned > 0} sub="Auto-assign needs an agent on shift" />
-        <Tile label="Automated actions today" value={stats.today.automated} to="/automation" sub="Categorised, assigned, emailed, chased" />
       </div>
 
       <h2 className="section-title">Open cases by status</h2>
@@ -44,6 +52,17 @@ export default function Dashboard() {
         {STATUSES.filter((s) => s !== 'Closed').map((s) => (
           <Tile key={s} label={<StatusBadge status={s} />} value={stats.byStatus[s]} to={`/cases?status=${s}`} sub={STATUS_HELP[s]} />
         ))}
+      </div>
+
+      <div className="two-col">
+        <section className="card">
+          <h3>Last 14 days</h3>
+          {trend ? <TrendChart byDay={trend.byDay} days={14} /> : <div className="muted small">Counting…</div>}
+        </section>
+        <section className="card">
+          <h3>By channel</h3>
+          {trend ? <BreakdownRows data={trend.byChannel} /> : <div className="muted small">Counting…</div>}
+        </section>
       </div>
 
       <div className="three-col">

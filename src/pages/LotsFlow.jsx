@@ -46,7 +46,7 @@ const NODES = [
   n('start', 700, -200, {
     icon: '▶️', label: 'START — Case comes in', tone: 'start', start: true,
     detail: 'Two-way channels: inbound call · outbound call · email',
-    options: ['Inbound call', 'Missed / abandoned call', 'Email to contactus@cpwi.in', 'Outbound call'],
+    options: ['Inbound call', 'Missed / disconnected call', 'Email to contactus@cpwi.in', 'Outbound call'],
     to: '/', how: 'Dashboard shows everything that needs attention now across all channels.',
   }),
   n('ib', 0, 0, {
@@ -62,7 +62,7 @@ const NODES = [
     how: 'SparkTG dialer inside the CRM: ringing call opens the case form with the caller identified; the call is logged with outcome, talk time and recording.',
   }),
   n('missed', 380, 0, {
-    icon: '📵', label: 'Missed / Abandoned Call', tone: 'violet', tat: '30 min',
+    icon: '📵', label: 'Missed / Disconnected Call', tone: 'violet', tat: '30 min',
     detail: 'Agent busy · caller hung up · non-working hours',
     options: ['No missed call should be left unattended', 'Call back within 30 minutes', 'Ask about the query and give a satisfactory resolution'],
     to: '/missed', auto: true,

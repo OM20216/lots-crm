@@ -4,6 +4,74 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
+## 27 October 2026
+
+### Dashboard: five tiles removed (user: "i want to remove Missed calls to call back, Pending emails, Outbound leads due, Unassigned open cases, Automated actions today")
+- **Removed** from *Needs attention now*: Missed calls to call back, Pending emails, Outbound leads due, Unassigned open cases, Automated actions today.
+- **Kept:** Escalations overdue, Store follow-ups due today, Store replies to check, the open cases by status tiles, and the Today / Escalated by store / Top open categories lists.
+- The counts are still made by the server and still used on their own pages (Missed calls, Email Inbox, Leads, All cases, Automation); only the dashboard tiles are gone. README §5 and §19 updated; built and deployed to the live CRM.
+
+### Report page (the menu's Report item opened a blank page)
+- **Why:** the left menu linked to `/reports`, but no page or route existed (only the Report tab inside Follow-ups). Clicking it showed a blank screen.
+- **New page `/reports`:**
+  - date range 7 days / 30 days / 90 days / 1 year;
+  - cases created and closed per day (per month for the year view), as CSS bars — no chart library;
+  - totals: created, closed (with resolved-on-call ROT), open now, escalated open, imported from Vtiger with linked / not linked, emails sent;
+  - breakdowns by channel, status, case type and store; top open categories;
+  - agents: open now, escalated, created and closed in the range;
+  - escalations (open, overdue, follow-up due), calls (total, connected, missed still open), imported cases still open;
+  - **Export CSV** of the same date range (the case export now takes `from` / `to`).
+- **Server:** new `GET /api/reports?days=N`; one pass over all cases, so the browser gets numbers, not 1.9 lakh records. `filterCases` also takes `from` / `to` for the export.
+- **Dashboard:** added a **Last 14 days** chart and **By channel** card, from the same endpoint.
+- **Tested:** test copy (600 cases) — payload shape, empty ranges, dated export (379 bytes), Report page and dashboard in the browser; corrected a `req`/`query` bug the test caught before deploy.
+
+### Deploy: surrogate-pair MySQL write bug, Vtiger case import resumed, Report page live
+- **What broke the restart:** after the Vtiger case import reached about 158,000 cases, one Vtiger record carried a lone UTF-16 surrogate (half an emoji) in a text field. JSON.stringify writes that as \udXXX, and MySQL rejects the whole batch for the cases.doc JSON column. Because the store retries the same batch, every later save waited behind it and the CRM never answered /api/health (the restart looked dead).
+- **Fix:** server/mysql-store.js now replaces any lone surrogate with U+FFFD **before** the value is encoded (a JSON.stringify replacer cleans every string in the record, and the column helpers clean the readable columns). One bad character can no longer block a write. scripts/crm-service.ps1 now waits up to 10 minutes for the health check, since loading ~1.9 lakh cases and ~3.2 lakh contacts takes several minutes.
+- **Import resumed:** the job state (last Vtiger record read) survived, so the import continued from 158,000 instead of re-reading. It writes through cleanly now (no new errors in crm-error.log). Final count: 192,396 cases added (192,403 in the CRM with 7 logged here), 138,796 linked to contacts.
+- **Report page removed at the user's request** ("the whole interface of report is wrong"). The page, its route and nav entry are gone; the dashboard 14-day trend and channel mix (and /api/reports) remain.
+- **Removed:** the five dashboard tiles the user asked to drop earlier stay removed.
+- **Notes:** server/index.js ilterCases now takes rom/	o; case export streams CSV with those dates.
+
+## 26 October 2026
+
+### CSV import: no duplicates, every field filled, earlier cases attached (user: "should not allow duplicacy … fill all the options and cases automatically of every contact")
+- **No duplicates:** a contact already in the CRM is updated, never added again. It is recognised by the same Vtiger contact, the same membership card no., or, without a card no., the same mobile.
+- **Repeats in one file:** the same contact twice in one file becomes one contact. The first row is kept, and later rows only fill in empty fields, so they never overwrite. (A test with two people under one membership ID showed the older version let the second overwrite the first person's mobile.)
+- **Preview before saving:** the file is checked against the CRM without saving (`POST /api/members/import?dryRun=1`), in parts. It shows **N new · N already in the CRM (updated) · N skipped (number / card no. of another contact) · N without a number**, plus the rows that will be skipped. The import button says exactly that ("Import: 4 new, 1 updated").
+- **Every field:** any CSV laid out like the contact form (Vtiger's field names: First / Last Name, or 5+ form columns) fills every field of the contact, not only Vtiger exports.
+- **Earlier cases attached:** cases logged before the contact existed (no contact picked) are attached when the contact is imported, created or edited. A case is attached when its mobile (only if no other contact shares it), email or card no. matches, with a note on the case timeline. Count shown after the import.
+- **Tested on a test copy** with a CSV covering: a repeat row, an existing contact, the same membership ID for two people, a shared mobile with its own card, a "?????" row and 3 earlier cases.
+  - First import: 4 added, 1 updated, 3 repeats merged, 1 left out, 3 cases attached, 5 contacts in total.
+  - The same file again: 0 added, 5 updated.
+  - The preview equals the import (API). Index test 17/17.
+
+### SOP flow chart: "Missed / Abandoned Call" → "Missed / Disconnected Call" (user's request)
+- **Changed:** the flow chart step and its channel option, plus the Settings text on the call-event webhook, now say "disconnected", matching Type of call (renamed 24 Oct).
+- **Kept:** the Support help article still answers to "abandoned", and now also to "disconnected".
+
+### Shared mobiles allowed for contacts with their own membership ID (user: "the duplicate number is fine; if it has a unique register id add them also")
+- **New rule:** a mobile can belong to several contacts when each has its **own membership card no.**
+  - Card numbers stay unique.
+  - A contact without a card no. still cannot take a number another contact has.
+  - Until now one mobile belonged to one contact only.
+- **Contact index:** keeps every holder of a mobile (`core.membersByPhone`). The save check (`phoneConflict`) lets a contact with a card no. share a mobile.
+- **Caller lookup:**
+  - a full mobile shared by several contacts gives no automatic match; all of them are listed;
+  - Log new case says "N contacts share this mobile … click the caller to fill";
+  - the SparkTG caller pop-up lists them, instead of "Not a registered member";
+  - a card no. or membership ID still identifies exactly one contact.
+- **Contact form:** a shared number is a note ("Also used by …; allowed: this contact has its own membership card no."), not an error, when the contact has a card no.
+- **Import:**
+  - a row with its own card no. is matched to an existing contact only by Vtiger id or card no., never by mobile, so it is added as its own contact;
+  - two different Vtiger contacts are still never merged;
+  - rows whose card no. belongs to another contact stay skipped.
+- **Live:** the Vtiger duplicates that have a membership ID (13,371 of 19,382) plus the 3 unexplained ones are read by Contact Id (about 135 Vtiger requests) and imported. **Partly done:** about 6,000 were added (newest M-300536) before Vtiger refused requests ("TOO_MANY_REQUESTS", even the login), so the API allowance was used up for the day. Running it again finishes it: ones already added are updated by their Vtiger id, not doubled.
+- **Tested:**
+  - index: 17 checks (5 new);
+  - test copy: 7 API checks (3 contacts on one mobile; no-card and repeated-card rows skipped; lookup lists all 3; card picks one; re-import updates; form rules);
+  - browser: the pick list in Log new case.
+
 ## 24 October 2026
 
 ### Contacts: list of cards + contact details on the right (user's screenshot from another CRM)

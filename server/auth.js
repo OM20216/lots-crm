@@ -171,6 +171,7 @@ const ADMIN_ONLY = [
   ['GET', /^\/(export|users)$/],
   ['PUT', /^\/users\/[^/]+$/],
   ['POST', /^\/vtiger\/import(\/stop)?$/],
+  ['POST', /^\/vtiger-cases\/import(\/stop)?$/],
 ];
 const adminOnly = (req) => ADMIN_ONLY.some(([m, re]) => (m instanceof RegExp ? m.test(req.method) : m === req.method) && re.test(req.path)) || (req.method === 'PATCH' && /^\/support\/tickets\/[^/]+$/.test(req.path) && (req.body?.action || 'reply') === 'reply');
 

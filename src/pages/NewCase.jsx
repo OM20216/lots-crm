@@ -29,7 +29,7 @@ const OUTCOMES = [
   },
 ];
 
-// SOP communication channels. "Missed call callback" = calling back a missed / abandoned call (TAT 30 min).
+// SOP communication channels. "Missed call callback" = calling back a missed / disconnected call (TAT 30 min).
 // SOP glossary EDC = expected date of closure: L1 TAT is 1 working day (Sunday not counted).
 function edc() {
   const d = new Date();
@@ -310,7 +310,7 @@ export default function NewCase() {
           {found && <MemberCard member={linked} match={lookup.match?.member.id === form.memberId ? lookup.match : null} openCases={lookup.openCases} memberId={form.memberId} onUnlink={unlink} />}
           {!found && lookup.members.length > 0 && (
             <div className="lookup">
-              <div className="muted small">Matching members: click to fill</div>
+              <div className="muted small">{lookup.shared ? `${lookup.shared} contacts share this mobile (each with its own card no.): click the caller to fill` : 'Matching members: click to fill'}</div>
               {lookup.members.map((m) => (
                 <button type="button" key={m.id} className="lookup-row" onClick={() => pickMember(m)}>
                   <strong>{m.businessName}</strong> · {m.ownerName} · {m.phone} · card {m.cardNo || '—'} {m.status === 'Blocked' && <span className="badge st-escalated">Blocked</span>}

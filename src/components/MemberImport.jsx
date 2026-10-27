@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useMeta } from '../ui.jsx';
-import { isVtiger, norm, vtigerRows } from '../vtigerContacts.js';
+import { isContactForm, isVtiger, mergeRepeats, norm, vtigerRows } from '../vtigerContacts.js';
 
 // Column names seen in member-master exports → CRM fields.
 const ALIASES = {
@@ -160,6 +160,7 @@ export default function MemberImport({ onDone }) {
   const [preview, setPreview] = useState(null);
   const [result, setResult] = useState(null);
   const [err, setErr] = useState('');
+  const [progress, setProgress] = useState(null);
 
   function storeCode(v) {
     const s = String(v || '').trim().toLowerCase();
@@ -168,93 +169,141 @@ export default function MemberImport({ onDone }) {
     return hit ? hit.code : v;
   }
 
+  // the file's contacts, in parts, through the server's import: dryRun = only count (the preview), otherwise save
+  async function send(list, dryRun) {
+    const sum = { added: 0, updated: 0, noNumber: 0, skipped: 0, skippedRows: [], casesLinked: 0, total: 0 };
+    for (let i = 0; i < list.length; i += BATCH) {
+      setProgress({ done: i, of: list.length, dryRun });
+      const r = await api.post('/members/import' + (dryRun ? '?dryRun=1' : ''), list.slice(i, i + BATCH));
+      for (const k of ['added', 'updated', 'noNumber', 'skipped', 'casesLinked']) sum[k] += r[k] || 0;
+      sum.skippedRows = [...sum.skippedRows, ...(r.skippedRows || [])].slice(0, 50);
+      sum.total = r.total;
+    }
+    return sum;
+  }
+
   async function onFile(e) {
     setErr('');
     setResult(null);
+    setPreview(null);
     const f = e.target.files?.[0];
     if (!f) return;
     const rows = parseCsv((await f.text()).replace(/^﻿/, ''));
     if (rows.length < 2) return setErr('The file has no data rows.');
     const headers = rows[0].map(norm);
-    if (isVtiger(headers)) {
-      const v = vtigerRows(rows, stores);
-      return setPreview({ ...v, file: f.name, vtiger: true, noNumber: v.members.filter((m) => !m.phone && !m.cardNo).length });
-    }
-    const map = {};
-    for (const [field, names] of Object.entries(ALIASES)) {
-      const idx = headers.findIndex((h) => names.includes(h));
-      if (idx >= 0) map[field] = idx;
-    }
-    if (map.phone === undefined && map.cardNo === undefined) return setErr('Could not find a mobile or card number column. Rename the header to “Mobile” or “Card No”.');
-    const members = rows.slice(1).map((r) => {
-      const m = Object.fromEntries(Object.entries(map).map(([field, i]) => [field, (r[i] || '').trim()]));
-      if (m.homeStore) m.homeStore = storeCode(m.homeStore);
-      if (m.status) m.status = /block|inactive|cancel/i.test(m.status) ? 'Blocked' : 'Active';
-      if (!m.businessName) m.businessName = m.ownerName || '';
-      return m;
-    });
-    const unused = rows[0].filter((_, i) => !Object.values(map).includes(i));
-    setPreview({ members, map: Object.keys(map), unused, file: f.name, noNumber: members.filter((m) => !m.phone && !m.cardNo).length });
-  }
-
-  const [progress, setProgress] = useState(null);
-  async function doImport() {
-    const list = preview.members;
-    const sum = { added: 0, updated: 0, noNumber: 0, skipped: 0, skippedRows: [], total: 0 };
-    try {
-      for (let i = 0; i < list.length; i += BATCH) {
-        setProgress({ done: i, of: list.length });
-        const r = await api.post('/members/import', list.slice(i, i + BATCH));
-        for (const k of ['added', 'updated', 'noNumber', 'skipped']) sum[k] += r[k] || 0;
-        sum.skippedRows = [...sum.skippedRows, ...r.skippedRows].slice(0, 50);
-        sum.total = r.total;
+    let read;
+    if (isContactForm(headers)) {
+      // laid out like the contact form (a Vtiger export or LOTS's own sheet): every field of the contact is filled in
+      read = { ...vtigerRows(rows, stores), form: true, vtiger: isVtiger(headers) };
+    } else {
+      const map = {};
+      for (const [field, names] of Object.entries(ALIASES)) {
+        const idx = headers.findIndex((h) => names.includes(h));
+        if (idx >= 0) map[field] = idx;
       }
-      setResult(sum);
-      setPreview(null);
-      onDone?.();
+      if (map.phone === undefined && map.cardNo === undefined) return setErr('Could not find a mobile or card number column. Rename the header to “Mobile” or “Card No”.');
+      const members = rows.slice(1).map((r) => {
+        const m = Object.fromEntries(Object.entries(map).map(([field, i]) => [field, (r[i] || '').trim()]));
+        if (m.homeStore) m.homeStore = storeCode(m.homeStore);
+        if (m.status) m.status = /block|inactive|cancel/i.test(m.status) ? 'Blocked' : 'Active';
+        if (!m.businessName) m.businessName = m.ownerName || '';
+        return m;
+      });
+      read = { members, map: Object.keys(map), unused: rows[0].filter((_, i) => !Object.values(map).includes(i)) };
+    }
+    // the same contact twice in the file becomes one contact
+    const { members, repeats } = mergeRepeats(read.members);
+    const base = { ...read, members, rows: read.members.length, repeats, file: f.name };
+    setPreview({ ...base, checking: true });
+    try {
+      // what would happen, checked against the CRM before anything is saved
+      const check = await send(members, true);
+      setPreview({ ...base, check });
     } catch (e2) {
-      setErr(`${e2.message}. ${sum.added + sum.updated} contacts were saved before this; import the file again to continue (saved ones are updated, not doubled).`);
+      setPreview(null);
+      setErr(e2.message);
     } finally {
       setProgress(null);
     }
   }
 
+  async function doImport() {
+    let sum = null;
+    try {
+      sum = await send(preview.members, false);
+      setResult({ ...sum, repeats: preview.repeats });
+      setPreview(null);
+      onDone?.();
+    } catch (e2) {
+      setErr(`${e2.message}. Contacts sent before this were saved; import the file again to continue (saved ones are updated, not doubled).`);
+    } finally {
+      setProgress(null);
+    }
+  }
+
+  const n = (v) => Number(v || 0).toLocaleString('en-IN');
+  const c = preview?.check;
   return (
     <section className="card">
       <h2>Import contacts</h2>
       <VtigerImport onDone={onDone} />
       <h3 className="vt-or">Or from a CSV file</h3>
       <p className="muted small">
-        A Vtiger Contacts export (every field comes in) or a member master from Excel, as CSV. Contacts already in the CRM (same Vtiger contact, card no. or mobile) are updated, new ones are added. Large files are sent in parts of {BATCH.toLocaleString('en-IN')}.
+        A Vtiger Contacts export or a sheet with the contact form's column names (every field comes in), or a simple member list. <strong>No duplicates:</strong> a contact already in the CRM (same Vtiger contact, membership card no., or mobile when there is no card no.) is updated, not added again, and the same contact twice in the file becomes one. You see what will happen before anything is saved. Cases logged earlier with the contact's mobile, email or card no. are attached to it.
       </p>
-      <input type="file" accept=".csv,.txt,.tsv" onChange={onFile} />
+      <input type="file" accept=".csv,.txt,.tsv" onChange={onFile} disabled={!!progress} />
       {err && <div className="error">{err}</div>}
       {preview && (
         <div className="notice">
-          <strong>{preview.members.length.toLocaleString('en-IN')}</strong> contacts in {preview.file}
-          {preview.vtiger ? ' (Vtiger export)' : ''}. Columns recognised: {preview.map.join(', ')}.
-          {preview.noNumber > 0 && <div className="small">{preview.noNumber.toLocaleString('en-IN')} have no valid mobile or card number (e.g. “?????”) and will be left out.</div>}
-          {preview.unused.length > 0 && <div className="small muted">Ignored columns: {preview.unused.join(', ')}</div>}
-          <div className="small">
-            First row: {preview.members[0].businessName} · {preview.members[0].phone} · card {preview.members[0].cardNo || '—'} · store {preview.members[0].homeStore || '—'}
+          <div>
+            <strong>{n(preview.rows)}</strong> rows in {preview.file}
+            {preview.vtiger ? ' (Vtiger export)' : preview.form ? ' (contact form columns: every field filled in)' : ''}.
           </div>
+          {preview.repeats > 0 && <div className="small">{n(preview.repeats)} rows were the same contact again in this file (same Vtiger contact, card no., or mobile without a card no.): merged into one; the first row is kept, later ones only fill in empty fields.</div>}
+          {preview.checking ? (
+            <div className="small">Checking against the CRM… {progress ? `${n(progress.done)} of ${n(progress.of)}` : ''}</div>
+          ) : (
+            c && (
+              <div className="imp-check">
+                <span className="ok">{n(c.added)} new</span>
+                <span>{n(c.updated)} already in the CRM: will be updated, not doubled</span>
+                {c.skipped > 0 && <span className="bad">{n(c.skipped)} skipped (number or card no. belongs to another contact)</span>}
+                {c.noNumber > 0 && <span className="muted">{n(c.noNumber)} left out: no valid mobile or card no.</span>}
+              </div>
+            )
+          )}
+          {c?.skippedRows?.length > 0 && (
+            <details className="small">
+              <summary>Rows that will be skipped (first {c.skippedRows.length})</summary>
+              <ul className="tight">
+                {c.skippedRows.map((r, i) => (
+                  <li key={i}>
+                    {r.row}: {r.reason}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          )}
+          <div className="small muted">Columns recognised: {preview.map.join(', ')}.</div>
+          {preview.unused.length > 0 && <div className="small muted">Ignored columns: {preview.unused.join(', ')}</div>}
           <div className="row end">
-            <button className="btn" onClick={() => setPreview(null)}>
+            <button className="btn" onClick={() => setPreview(null)} disabled={!!progress}>
               Cancel
             </button>
-            <button className="btn primary" onClick={doImport} disabled={!!progress}>
-              {progress ? `Importing… ${progress.done.toLocaleString('en-IN')} of ${progress.of.toLocaleString('en-IN')}` : `Import ${(preview.members.length - preview.noNumber).toLocaleString('en-IN')} contacts`}
+            <button className="btn primary" onClick={doImport} disabled={!!progress || !c || c.added + c.updated === 0}>
+              {progress && !progress.dryRun ? `Importing… ${n(progress.done)} of ${n(progress.of)}` : c ? `Import: ${n(c.added)} new, ${n(c.updated)} updated` : 'Checking…'}
             </button>
           </div>
         </div>
       )}
       {result && (
         <div className="notice ok">
-          Imported: {result.added.toLocaleString('en-IN')} added, {result.updated.toLocaleString('en-IN')} updated
-          {result.noNumber > 0 ? `, ${result.noNumber.toLocaleString('en-IN')} left out (no valid mobile or card no.)` : ''}. {result.total.toLocaleString('en-IN')} contacts in the CRM.
+          Imported: {n(result.added)} added, {n(result.updated)} updated (no duplicates)
+          {result.repeats > 0 ? `, ${n(result.repeats)} repeated rows merged` : ''}
+          {result.noNumber > 0 ? `, ${n(result.noNumber)} left out (no valid mobile or card no.)` : ''}. {n(result.casesLinked)} earlier case(s) attached to their contact. {n(result.total)} contacts in the CRM.
           {result.skipped > 0 && (
             <div className="error">
-              {result.skipped} row(s) skipped because their number already belongs to another contact:
+              {n(result.skipped)} row(s) skipped because their number or card no. already belongs to another contact:
               <ul className="tight">
                 {result.skippedRows.map((r, i) => (
                   <li key={i}>

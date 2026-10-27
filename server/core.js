@@ -137,10 +137,24 @@ function indexEntries(m) {
   const words = [m.id, m.phone, m.altPhone, ...(m.otherPhones || []), m.cardNo, m.email, ...(m.otherEmails || []), m.businessName, m.ownerName, m.gstin, m.contact?.contactType, ...(m.addOnCards || []).flatMap((a) => [a.name, a.phone, a.cardNo])];
   return { phones, cards, emails, line: words.filter(Boolean).join('\u0001').toLowerCase() };
 }
+// a mobile can be shared by contacts that each have their own membership card no. (user, 26 Oct 2026): every holder is kept
+function phoneMap() {
+  const m = new Map();
+  return {
+    add: (k, v) => (m.get(k) || m.set(k, []).get(k)).push(v),
+    remove: (k, member) => {
+      const rest = (m.get(k) || []).filter((e) => e.member !== member);
+      rest.length ? m.set(k, rest) : m.delete(k);
+    },
+    get: (k) => m.get(k)?.[0], // the first holder
+    all: (k) => m.get(k) || [],
+    has: (k) => m.has(k),
+  };
+}
 function addToIndex(ix, m, pos) {
   const e = indexEntries(m);
   const put = (map, k, v) => !map.has(k) && map.set(k, v);
-  for (const [k, v] of e.phones) put(ix.phone, k, v);
+  for (const [k, v] of e.phones) if (!ix.phone.all(k).some((x) => x.member === m)) ix.phone.add(k, v);
   for (const [k, v] of e.cards) put(ix.card, k, v);
   for (const k of e.emails) put(ix.email, k, m);
   put(ix.id, low(m.id), m);
@@ -151,7 +165,7 @@ function addToIndex(ix, m, pos) {
 }
 function removeFromIndex(ix, old) {
   const drop = (map, k) => (map.get(k) === old.m || map.get(k)?.member === old.m) && map.delete(k);
-  for (const [k] of old.phones) drop(ix.phone, k);
+  for (const [k] of old.phones) ix.phone.remove(k, old.m);
   for (const [k] of old.cards) drop(ix.card, k);
   for (const k of old.emails) drop(ix.email, k);
   drop(ix.id, low(old.m.id));
@@ -180,7 +194,7 @@ export function memberIndex() {
     index.version = version;
     return index;
   }
-  index = { version, phone: new Map(), card: new Map(), id: new Map(), email: new Map(), vtiger: new Map(), text: [], of: new Map() };
+  index = { version, phone: phoneMap(), card: new Map(), id: new Map(), email: new Map(), vtiger: new Map(), text: [], of: new Map() };
   for (const m of db().members) addToIndex(index, m);
   return index;
 }
@@ -200,6 +214,12 @@ export function searchMembers(q, limit) {
   const { text } = memberIndex();
   for (let i = text.length - 1; i >= 0 && out.length < limit; i--) if (text[i][1].includes(q)) out.push(text[i][0]); // newest first
   return out;
+}
+
+/** Every contact with this mobile (shared numbers: each with its own card no.), as { member, via, addOn }. */
+export function membersByPhone(phone) {
+  const key = phoneKey(phone);
+  return key.length === 10 ? memberIndex().phone.all(key) : [];
 }
 
 export function findMemberByPhone(phone) {
@@ -248,8 +268,10 @@ export function phoneConflict(record, excludeId) {
     if (seen.has(x.key)) return { phone: x.key, label: x.label, message: `${x.key} is entered twice on this contact (${seen.get(x.key)} and ${x.label}).` };
     seen.set(x.key, x.label);
   }
+  // a contact with its own membership card no. may share a mobile with other contacts (user, 26 Oct 2026)
+  if (cardKey(record.cardNo)) return null;
   // only the contacts that hold one of these numbers (from the index), not every contact
-  for (const m of new Set([...seen.keys()].map((k) => memberIndex().phone.get(k)?.member).filter(Boolean))) {
+  for (const m of new Set([...seen.keys()].flatMap((k) => memberIndex().phone.all(k).map((x) => x.member)))) {
     if (m.id === excludeId) continue;
     const hit = contactPhones(m).find((o) => seen.has(o.key));
     if (hit) {

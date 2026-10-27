@@ -122,8 +122,10 @@ export default function ContactForm() {
       const out = {};
       for (const n of nums) {
         const r = await api.get('/lookup?q=' + n).catch(() => null);
-        const m = r?.match?.member;
-        if (m && m.id !== id) out[n] = { id: m.id, name: m.businessName || m.ownerName, as: r.match.via === 'add-on' ? 'add-on member' : 'registered contact' };
+        // every other contact with this number (a mobile may be shared by contacts that each have their own card no.)
+        const others = (r?.members || []).filter((x) => x.id !== id);
+        const m = others[0];
+        if (m) out[n] = { id: m.id, name: m.businessName || m.ownerName, as: r.match?.via === 'add-on' ? 'add-on member' : 'registered contact', more: others.length - 1 };
       }
       setTaken(out);
     }, 400);
@@ -182,7 +184,8 @@ export default function ContactForm() {
   async function save() {
     setServerErr('');
     const e = validate(v);
-    for (const [k, d] of formNumbers(v)) if (taken[d] && !e[k]) e[k] = `${d} is already registered to ${taken[d].name} (${taken[d].id}). One number can belong to one contact only.`;
+    // allowed when this contact has its own membership card no. (card numbers stay unique)
+    if (!String(v.cardNo || '').trim()) for (const [k, d] of formNumbers(v)) if (taken[d] && !e[k]) e[k] = `${d} is already registered to ${taken[d].name} (${taken[d].id}). One number can belong to one contact only.`;
     setErrors(e);
     if (Object.keys(e).length) {
       const firstKey = Object.keys(e)[0].split('.')[0];
@@ -281,9 +284,16 @@ export default function ContactForm() {
   );
 }
 
-function Taken({ n, taken }) {
+function Taken({ n, taken, allowed }) {
   const t = taken[digits(n)];
   if (!t) return null;
+  if (allowed)
+    return (
+      <div className="cf-note">
+        Also used by <Link to={`/contacts/${t.id}`}>{t.name} ({t.id})</Link>
+        {t.more > 0 ? ` and ${t.more} more` : ''}. Allowed: this contact has its own membership card no.
+      </div>
+    );
   return (
     <div className="cf-err">
       Already registered to <Link to={`/contacts/${t.id}`}>{t.name} ({t.id})</Link> as {t.as}. One number can belong to one contact only.
@@ -411,7 +421,7 @@ function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
                   </button>
                 )}
               </div>
-              {errors[`phones.${i}`] ? <div className="cf-err">{errors[`phones.${i}`]}</div> : <Taken n={p.number} taken={taken} />}
+              {errors[`phones.${i}`] ? <div className="cf-err">{errors[`phones.${i}`]}</div> : <Taken n={p.number} taken={taken} allowed={Boolean(String(v.cardNo || '').trim())} />}
             </div>
           ))}
           <button type="button" className="cf-add" onClick={() => set({ phones: [...v.phones, { type: 'Mobile', number: '' }] })}>
@@ -449,7 +459,7 @@ function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
                     </div>
                   ))}
                 </div>
-                {errors[`addons.${i}`] ? <div className="cf-err">{errors[`addons.${i}`]}</div> : <Taken n={a.mobile} taken={taken} />}
+                {errors[`addons.${i}`] ? <div className="cf-err">{errors[`addons.${i}`]}</div> : <Taken n={a.mobile} taken={taken} allowed={Boolean(String(v.cardNo || '').trim())} />}
               </div>
             ))}
             {v.addons.length < MAX_ADDON_CARDS ? (

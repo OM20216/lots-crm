@@ -253,7 +253,7 @@ export const SUPPORT_ARTICLES = [
   {
     id: 'missed-calls',
     title: 'Missed calls (30 minutes to call back)',
-    keywords: ['missed call', 'callback', 'call back missed', 'abandoned', '30 minutes', 'missed calls page'],
+    keywords: ['missed call', 'callback', 'call back missed', 'abandoned', 'disconnected', '30 minutes', 'missed calls page'],
     answer:
       'Missed calls show in the top bar (Recent missed and 2nd round) and on the Missed calls page, with the caller if known.\n' +
       'The SOP TAT is 30 minutes: call back within half an hour. The dashboard and the daily report count the ones past 30 minutes.\n' +

@@ -176,6 +176,9 @@ export default function CaseDetail() {
     ['Amount to be refunded', c.refundAmount && `₹${c.refundAmount}`],
     ['Assigned to', c.assignedTo],
     ['Subject', c.subject],
+    ['Vtiger case no.', c.vtigerCaseNo],
+    ['Vtiger status', [c.source?.status, c.source?.caseStatus].filter(Boolean).join(' › ')],
+    ['Vtiger owner', c.source?.ownerName],
   ].filter(([, v]) => v);
   const TABS = [
     ['details', 'Details'],
@@ -321,6 +324,12 @@ export default function CaseDetail() {
                     ))}
                   </dl>
                   {c.description && <div className="detail-text">{c.description}</div>}
+                  {c.resolution && (
+                    <div className="detail-text">
+                      <div className="muted small">Resolution</div>
+                      {c.resolution}
+                    </div>
+                  )}
                   <SopWarnings list={c.status === 'Closed' ? [] : sopWarnings(c)} />
                 </>
               ) : (

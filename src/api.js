@@ -22,6 +22,14 @@ async function request(method, url, body) {
 
 export const api = {
   get: (url) => request('GET', url),
+  // A list that comes with X-Total-Count (paged tables): { items, total }.
+  page: async (url) => {
+    const res = await fetch('/api' + url, { headers: { 'x-agent': currentAgent() } });
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && data.signIn && typeof window !== 'undefined') window.dispatchEvent(new Event('lots-signin'));
+    if (!res.ok) throw Object.assign(new Error(data.error || `Request failed (${res.status})`), { status: res.status, data });
+    return { items: Array.isArray(data) ? data : [], total: Number(res.headers.get('X-Total-Count')) || 0 };
+  },
   post: (url, body) => request('POST', url, body),
   patch: (url, body) => request('PATCH', url, body),
   put: (url, body) => request('PUT', url, body),

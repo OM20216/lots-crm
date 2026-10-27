@@ -131,7 +131,17 @@ export function CallerPanel() {
           </div>
         </div>
       )}
-      {!searching && who && !m && <div className="cp-hint">Not a registered member{callState.name && callState.name !== 'Unknown' ? ` (SparkTG: ${callState.name})` : ''}.</div>}
+      {!searching && who && !m && who.members?.length > 1 && (
+        <div className="cp-shared">
+          <div className="cp-hint">{who.members.length} contacts share this mobile (each with its own card no.). Ask which one is calling:</div>
+          {who.members.slice(0, 6).map((x) => (
+            <Link key={x.id} className="cp-shared-row" to={`/contacts?c=${x.id}`}>
+              <strong>{x.businessName || x.ownerName}</strong> · {x.ownerName} · card {x.cardNo || '—'}
+            </Link>
+          ))}
+        </div>
+      )}
+      {!searching && who && !m && !(who.members?.length > 1) && <div className="cp-hint">Not a registered member{callState.name && callState.name !== 'Unknown' ? ` (SparkTG: ${callState.name})` : ''}.</div>}
 
       <div className="cp-actions">
         <button className="btn primary" onClick={() => nav(newCaseHref)}>

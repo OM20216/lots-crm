@@ -79,7 +79,7 @@ function SparkTgPanel() {
         </div>
         <pre className="raw">{origin}/new?phone={'{CALLER_NUMBER}'}&amp;txn={'{CALL_ID}'}</pre>
         <div>
-          <strong>Call-event webhook</strong>. Missed / abandoned calls land in the Missed calls list automatically:
+          <strong>Call-event webhook</strong>. Missed / disconnected calls land in the Missed calls list automatically:
         </div>
         <pre className="raw">{origin}/api/sparktg/event?token=YOUR_SPARKTG_WEBHOOK_TOKEN</pre>
         <div className="muted">SparkTG has to be able to reach this computer for the webhook, so it needs a public address or a tunnel. The screen-pop only needs the agent’s browser to reach the CRM.</div>
