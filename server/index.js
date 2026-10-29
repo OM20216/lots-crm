@@ -213,6 +213,12 @@ api.put('/stores/:code', (req, res) => {
 
 // ----- cases -----
 // Shared by the list (paged: lakhs of imported cases cannot all go to the browser) and the CSV export.
+// Dates as LOTS reads them: India time (UTC+5:30). Stored times are UTC, so a case logged before 5:30 AM belongs to that
+// day in India, not the day before.
+const IST_MS = 5.5 * 3600e3;
+const istDay = (iso) => (iso && !isNaN(Date.parse(iso)) ? new Date(Date.parse(iso) + IST_MS).toISOString().slice(0, 10) : '');
+const istTime = (iso) => (iso && !isNaN(Date.parse(iso)) ? new Date(Date.parse(iso) + IST_MS).toISOString().slice(0, 16).replace('T', ' ') : '');
+
 function filterCases(query) {
   const { status, channel, store: st, caseType, q, overdue, assignedTo } = query;
   let list = db().cases;
@@ -221,8 +227,8 @@ function filterCases(query) {
   if (st) list = list.filter((c) => c.store === st);
   if (caseType) list = list.filter((c) => c.caseType === caseType);
   if (assignedTo) list = list.filter((c) => (assignedTo === '-' ? !c.assignedTo : c.assignedTo === assignedTo));
-  if (query.from) list = list.filter((c) => (c.createdAt || '').slice(0, 10) >= query.from);
-  if (query.to) list = list.filter((c) => (c.createdAt || '').slice(0, 10) <= query.to);
+  if (query.from) list = list.filter((c) => istDay(c.createdAt) >= query.from);
+  if (query.to) list = list.filter((c) => istDay(c.createdAt) <= query.to);
   if (overdue) list = list.filter((c) => c.status === 'Escalated' && c.dueAt && c.dueAt < now());
   if (q) {
     const s = q.toLowerCase();
@@ -250,8 +256,8 @@ const CASE_CSV = [
   ['id', (c) => c.id],
   ['vtigerCaseNo', (c) => c.vtigerCaseNo],
   ['vtigerStatus', (c) => [c.source?.status, c.source?.caseStatus].filter(Boolean).join(' · ')],
-  ['createdAt', (c) => c.createdAt],
-  ['updatedAt', (c) => c.updatedAt],
+  ['createdAt', (c) => istTime(c.createdAt)], // India time, "2026-10-28 15:42"
+  ['updatedAt', (c) => istTime(c.updatedAt)],
   ['channel', (c) => c.channel],
   ['callerType', (c) => c.callerType],
   ['name', (c) => c.name],
@@ -274,46 +280,60 @@ const CASE_CSV = [
   ['status', (c) => c.status],
   ['closureType', (c) => c.closureType],
   ['assignedTo', (c) => c.assignedTo],
-  ['dueAt', (c) => c.dueAt],
-  ['closedAt', (c) => c.closedAt],
+  ['dueAt', (c) => istTime(c.dueAt)],
+  ['closedAt', (c) => istTime(c.closedAt)],
   ['subject', (c) => c.subject],
   ['description', (c) => c.description],
   ['resolution', (c) => c.resolution],
 ];
+// Case export (Cases and Report pages): CSV or Excel, with the page's filters and date range. Both are STREAMED: rows go
+// out as the download takes them, so all 1.9 lakh cases can be exported without holding the whole file in memory (the
+// full export once took the CRM down).
+const EXCEL_MAX = 50000;
 api.get('/cases/export', async (req, res) => {
-  const rows = [...filterCases(req.query)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  const date = new Date().toISOString().slice(0, 10);
+  const rows = [...filterCases(req.query)].sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
+  const date = istDay(new Date().toISOString());
+  const pause = () => new Promise((r) => setImmediate(r)); // let agents' requests in between parts
   if (req.query.format === 'xlsx') {
+    // an Excel file is built largely in memory (about +0.9 GB for 2 lakh cases): above the cap, CSV, which streams
+    if (rows.length > EXCEL_MAX) return res.status(413).type('text/plain').send(`${rows.length} cases: Excel export is limited to ${EXCEL_MAX} cases. Use Export CSV (it opens in Excel too), or pick a shorter date range.`);
     const ExcelJS = await import('exceljs');
-    const WB = ExcelJS.default || ExcelJS;
-    const wb = new WB.Workbook();
-    const ws = wb.addWorksheet('Cases');
-    ws.columns = CASE_CSV.map(([k]) => ({ header: k, key: k, width: 18 }));
-    for (const c of rows) {
-      const row = {};
-      for (const [k, get] of CASE_CSV) row[k] = get(c);
-      ws.addRow(row);
-    }
-    ws.getRow(1).font = { bold: true };
+    const X = ExcelJS.default || ExcelJS;
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="lots-cases-${date}.xlsx"`);
-    await wb.xlsx.write(res);
-    res.end();
+    const wb = new X.stream.xlsx.WorkbookWriter({ stream: res, useStyles: true, useSharedStrings: false });
+    const ws = wb.addWorksheet('Cases', { views: [{ state: 'frozen', ySplit: 1 }] });
+    ws.columns = CASE_CSV.map(([k]) => ({ header: k, key: k, width: 18 }));
+    ws.getRow(1).font = { bold: true };
+    ws.getRow(1).commit();
+    let n = 0;
+    for (const c of rows) {
+      const row = {};
+      for (const [k, get] of CASE_CSV) row[k] = get(c) ?? '';
+      ws.addRow(row).commit();
+      if (++n % 2000 === 0) await pause();
+    }
+    ws.commit();
+    await wb.commit();
     return;
   }
-  const esc = (v) => `\"${String(v ?? '').replace(/\"/g, '\"\"')}\"`;
+  const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="lots-cases-${date}.csv"`);
-  res.write('\uFEFF' + CASE_CSV.map(([k]) => esc(k)).join(',') + '\r\n');
+  // write in parts and wait whenever the download has not taken the last part yet
+  const send = (text) => (res.write(text) ? Promise.resolve() : new Promise((r) => res.once('drain', r)));
+  await send('\uFEFF' + CASE_CSV.map(([k]) => esc(k)).join(',') + '\r\n');
   let chunk = '';
+  let n = 0;
   for (const c of rows) {
     chunk += CASE_CSV.map(([, get]) => esc(get(c))).join(',') + '\r\n';
     if (chunk.length >= 256 * 1024) {
-      res.write(chunk);
+      await send(chunk);
       chunk = '';
     }
+    if (++n % 2000 === 0) await pause();
   }
-  if (chunk) res.write(chunk);
+  if (chunk) await send(chunk);
   res.end();
 });
 
