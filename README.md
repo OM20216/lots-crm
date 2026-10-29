@@ -514,7 +514,7 @@ Replies are recognised from the store contacts, the team emails, both escalation
 - **Text:** the description is capped at 4,000 characters and the resolution at 6,000, HTML is stripped and empty fields are left out.
 - **Result (live):** 1,92,396 cases imported; 1,38,796 linked to a CRM contact. One Vtiger record had half an emoji that MySQL refused; such characters are now replaced before saving, so one bad character can't block the writes.
 - **Cases page:** 50 rows per page (Previous / Next, total and page), and **Export CSV** streams every case that matches the current filters from the server.
-- **Built, not merged** (branch `wip/vtiger-sync-link`): a job that links the about 53,600 cases without a contact (by the Vtiger contact, a mobile only one contact has, the card no., then the email), and a **nightly Vtiger sync** at 02:00 (new contacts, new cases, links). Its full test against Vtiger is still to be finished.
+- **In main since 29 Oct 2026 (pull request #1), not live until the CRM is restarted:** a job that links the about 53,600 cases without a contact (by the Vtiger contact, a mobile only one contact has, the card no., then the email), and a **nightly Vtiger sync** at 02:00 (new contacts, new cases, links). Cases → **Link to contacts** and the sync switch / time are on the Vtiger panels (admin only). Its full test against Vtiger is still to be finished. The nightly sync is on by default, so it runs from the first night after the restart.
 
 ---
 
@@ -1102,7 +1102,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [ ] **OMS link** for orders on call: needs OMS access.
 - [ ] Calls that reach no agent's dialer need SparkTG's call-event webhook.
 - [ ] **Calls from before the CRM:** SparkTG's call report (export or report API) is needed; the API can't list them.
-- [ ] **Vtiger:** link the about 53,600 cases without a contact and the nightly sync are built on branch `wip/vtiger-sync-link` (finish the test, then merge). Case comments, emails and other modules (add-ons, feedback, templates) are not imported.
+- [ ] **Vtiger:** link the about 53,600 cases without a contact and the nightly sync are in main (pull request #1, 29 Oct) but not tested in full; finish the test before restarting the live CRM, or switch the nightly sync off. Case comments, emails and other modules (add-ons, feedback, templates) are not imported.
 - [ ] **Menu links** for Outbound calls (`/leads`) and the Knowledge base (`/kb`): both pages work but no menu item or tile opens them.
 - [ ] **Contacts list:** shows the newest 500 (search finds any); no filters or Load more yet.
 - [ ] **Backup and downtime alert:** no automatic database backup or alert when the CRM is down.
