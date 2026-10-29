@@ -32,6 +32,7 @@ const matrixImport = await import('./matrixImport.js');
 const matrixLink = await import('./matrixLink.js');
 const vtiger = await import('./vtiger.js');
 const vtigerCases = await import('./vtigerCases.js');
+const vtigerLink = await import('./vtigerLink.js');
 const { mergeDependencies, mergeLists, sameValue } = await import('../src/picklists.js');
 const { workflowFor } = await import('../src/workflows.js');
 const { CRISIS_CONTACTS, HO_MATRIX, MATRIX_SOURCE, STAGES, WORK_HOURS } = await import('../src/escalationMatrix.js');
@@ -1184,6 +1185,91 @@ api.get('/vtiger', (req, res) => res.json({ configured: vtiger.configured(), run
 api.post('/vtiger/import', async (req, res) => res.json({ job: await vtiger.start(vtigerJob, agentOf(req), { fresh: Boolean(req.body?.fresh) }) }));
 api.post('/vtiger/import/stop', (req, res) => {
   vtiger.stop();
+  res.json({ ok: true });
+});
+
+// ----- imported Vtiger cases → their contacts (server job) -----
+const vtigerLinkJob = {
+  db,
+  core,
+  save,
+  getState: () => {
+    const s = db().settings.vtigerCaseLink || null;
+    return s && s.status === 'running' && !vtigerLink.isRunning() ? { ...s, status: 'stopped' } : s;
+  },
+  setState: (s) => {
+    db().settings.vtigerCaseLink = s;
+  },
+};
+api.get('/vtiger-cases/link', (req, res) => res.json({ running: vtigerLink.isRunning(), job: vtigerLinkJob.getState() }));
+api.post('/vtiger-cases/link', async (req, res) => res.json({ job: await vtigerLink.start(vtigerLinkJob, agentOf(req)) }));
+api.post('/vtiger-cases/link/stop', (req, res) => {
+  vtigerLink.stop();
+  res.json({ ok: true });
+});
+
+// ----- nightly Vtiger sync: LOTS still works in Vtiger, so its new contacts and cases are fetched every night -----
+// Contacts first (new cases then find their contact), then cases, then the link job for cases still without one.
+// Only records added in Vtiger since the last read are fetched; work done in the CRM is never overwritten.
+const VTIGER_SYNC = { enabled: true, time: '02:00' };
+const syncSettings = () => ({ ...VTIGER_SYNC, ...(db().settings.vtigerSync || {}) });
+const vtigerBusy = () => vtiger.isRunning() || vtigerCases.isRunning() || vtigerLink.isRunning();
+async function runVtigerSync(by) {
+  if (!vtiger.configured() || vtigerBusy()) return null;
+  const pause = (ms) => new Promise((r) => setTimeout(r, ms));
+  const waitWhile = async (busy) => {
+    while (busy()) await pause(5000);
+  };
+  const result = { startedAt: now(), by };
+  const contactsBefore = vtigerJob.getState()?.added || 0;
+  const casesBefore = vtigerCaseJob.getState()?.added || 0;
+  try {
+    await vtiger.start(vtigerJob, by);
+    await waitWhile(vtiger.isRunning);
+    const cj = vtigerJob.getState();
+    if (cj?.status === 'error') throw new Error('contacts: ' + cj.error);
+    result.contactsAdded = (cj?.added || 0) - contactsBefore;
+    await vtigerCases.start(vtigerCaseJob, by);
+    await waitWhile(vtigerCases.isRunning);
+    const kj = vtigerCaseJob.getState();
+    if (kj?.status === 'error') throw new Error('cases: ' + kj.error);
+    result.casesAdded = (kj?.added || 0) - casesBefore;
+    await vtigerLink.start(vtigerLinkJob, by, { all: false });
+    await vtigerLinkJob.done;
+    const lj = vtigerLinkJob.getState();
+    if (lj?.status === 'error') throw new Error('linking: ' + lj.error);
+    result.casesLinked = lj?.linked || 0;
+    result.status = 'done';
+  } catch (e) {
+    result.status = 'error';
+    result.error = String(e.message || e);
+  }
+  result.finishedAt = now();
+  db().settings.vtigerSync = { ...syncSettings(), lastRun: result };
+  save();
+  return result;
+}
+// once a day, at or after the set time (the PC may have been off at that hour: then at the next chance)
+setInterval(() => {
+  const s = syncSettings();
+  const d = new Date();
+  const today = d.toLocaleDateString('en-CA');
+  if (!s.enabled || s.lastDay === today || d.toTimeString().slice(0, 5) < s.time || !vtiger.configured() || vtigerBusy()) return;
+  db().settings.vtigerSync = { ...s, lastDay: today };
+  save();
+  runVtigerSync('Nightly sync').catch(() => {});
+}, 60000);
+api.get('/vtiger-sync', (req, res) => res.json({ ...syncSettings(), running: vtigerBusy() }));
+api.put('/vtiger-sync', (req, res) => {
+  const { enabled, time } = req.body || {};
+  if (time !== undefined && !/^([01]\d|2[0-3]):[0-5]\d$/.test(String(time))) throw core.fail('Time must be HH:MM (24-hour), e.g. 02:00');
+  db().settings.vtigerSync = { ...syncSettings(), ...(enabled !== undefined ? { enabled: Boolean(enabled) } : {}), ...(time !== undefined ? { time } : {}) };
+  save();
+  res.json(syncSettings());
+});
+api.post('/vtiger-sync/run', (req, res) => {
+  if (vtigerBusy()) return res.status(409).json({ error: 'A Vtiger import is already running' });
+  runVtigerSync(agentOf(req)).catch(() => {});
   res.json({ ok: true });
 });
 

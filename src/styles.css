@@ -760,3 +760,7 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .rep-row-bar i { display: block; height: 100%; background: var(--red); border-radius: 999px; }
 .rep-row .num { min-width: 36px; text-align: right; font-weight: 600; }
 .rep-table td, .rep-table th { white-space: nowrap; }
+
+/* Vtiger import panels: the link job and the nightly sync */
+.vt-sub { border-top: 1px dashed #e5e7eb; padding-top: 8px; display: grid; gap: 6px; }
+.vt-sub input[type=time] { padding: 4px 6px; }
