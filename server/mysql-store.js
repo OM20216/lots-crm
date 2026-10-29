@@ -56,7 +56,8 @@ const TABLES = {
     }),
   },
   members: {
-    table: 'members', key: 'id', order: 'id',
+    // oldest first, so "newest" lists and searches are right after a restart ('M-99999' sorts after 'M-300536' as text)
+    table: 'members', key: 'id', order: 'created_at, LENGTH(id), id',
     row: (m) => ({
       id: m.id, card_no: s(m.cardNo, 50), business_name: s(m.businessName), owner_name: s(m.ownerName), phone: s(m.phone, 20), alt_phone: s(m.altPhone, 20),
       email: s(m.email), gstin: s(m.gstin, 20), customer_group: s(m.customerGroup, 80), customer_type: s(m.customerType, 80), home_store: s(m.homeStore, 10),
