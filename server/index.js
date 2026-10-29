@@ -1211,7 +1211,8 @@ api.post('/vtiger-cases/link/stop', (req, res) => {
 // ----- nightly Vtiger sync: LOTS still works in Vtiger, so its new contacts and cases are fetched every night -----
 // Contacts first (new cases then find their contact), then cases, then the link job for cases still without one.
 // Only records added in Vtiger since the last read are fetched; work done in the CRM is never overwritten.
-const VTIGER_SYNC = { enabled: true, time: '02:00' };
+// off until an admin switches it on (Vtiger panels): its full test against Vtiger is still open, and each run uses part of Vtiger's daily request limit
+const VTIGER_SYNC = { enabled: false, time: '02:00' };
 const syncSettings = () => ({ ...VTIGER_SYNC, ...(db().settings.vtigerSync || {}) });
 const vtigerBusy = () => vtiger.isRunning() || vtigerCases.isRunning() || vtigerLink.isRunning();
 async function runVtigerSync(by) {
