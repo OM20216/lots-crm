@@ -514,7 +514,7 @@ Replies are recognised from the store contacts, the team emails, both escalation
 - **Text:** the description is capped at 4,000 characters and the resolution at 6,000, HTML is stripped and empty fields are left out.
 - **Result (live):** 1,92,396 cases imported; 1,38,796 linked to a CRM contact. One Vtiger record had half an emoji that MySQL refused; such characters are now replaced before saving, so one bad character can't block the writes.
 - **Cases page:** 50 rows per page (Previous / Next, total and page), and **Export CSV** streams every case that matches the current filters from the server.
-- **In main since 29 Oct 2026 (pull request #1), not live until the CRM is restarted:** a job that links the about 53,600 cases without a contact (by the Vtiger contact, a mobile only one contact has, the card no., then the email), and a **nightly Vtiger sync** at 02:00 (new contacts, new cases, links). Cases → **Link to contacts** and the sync switch / time are on the Vtiger panels (admin only). Its full test against Vtiger is still to be finished. The nightly sync is on by default, so it runs from the first night after the restart.
+- **In main since 29 Oct 2026 (pull request #1), not live until the CRM is restarted:** a job that links the about 53,600 cases without a contact (by the Vtiger contact, a mobile only one contact has, the card no., then the email), and a **nightly Vtiger sync** at 02:00 (new contacts, new cases, links). Cases → Import from Vtiger → **Link cases to contacts** and the sync switch / time are on the Vtiger panels (admin only). Its full test against Vtiger is still to be finished. The nightly sync is on by default, so it runs from the first night after the restart.
 
 ---
 
