@@ -8,6 +8,9 @@ const PAGE = 50;
 const n = (v) => Number(v || 0).toLocaleString('en-IN');
 const localIso = (d) => d.toLocaleDateString('en-CA');
 
+// the same cap as the server's Excel export (larger ranges: CSV)
+const EXCEL_MAX = 50000;
+
 export default function Reports() {
   const nav = useNavigate();
   const { stores, agents } = useMeta();
@@ -124,9 +127,16 @@ export default function Reports() {
           <a className="btn" href={csvHref} download={`lots-cases-${from}-to-${to}.csv`}>
             Export CSV
           </a>
-          <a className="btn primary" href={excelHref} download={`lots-cases-${from}-to-${to}.xlsx`}>
-            Download Excel
-          </a>
+          {total > EXCEL_MAX ? (
+            // a very large Excel file is built in the CRM's memory: above the cap, CSV (opens in Excel too)
+            <span className="btn primary" aria-disabled="true" style={{ opacity: 0.5, cursor: 'not-allowed' }} title={`More than ${n(EXCEL_MAX)} cases: use Export CSV (it opens in Excel too), or pick a shorter date range`}>
+              Download Excel
+            </span>
+          ) : (
+            <a className="btn primary" href={excelHref} download={`lots-cases-${from}-to-${to}.xlsx`}>
+              Download Excel
+            </a>
+          )}
         </div>
       </div>
 

@@ -4,7 +4,38 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
-## 27 October 2026
+## 28 October 2026
+
+### Process documentation (user: "process documentation of each process ... the whole documentation")
+- **One complete document**, written from the CRM as it works today, with email left out (the mailbox is not connected). It replaces the agents' earlier PDF guide and two earlier drafts.
+  - Shared doc: "LOTS CRM: complete process documentation" (claude.ai, private until shared from its Share menu).
+  - In the project: `docs/process-documentation.md`, the flow charts in `docs/flows/` and the PDF `docs/LOTS CRM process documentation.pdf` (23 pages; also in the user's Downloads).
+- **16 sections:** overview, sign-in, contacts and number rules, calls (incoming, missed-call callback, outgoing, Call logs), how cases are created (every route + the Log new case steps), case statuses, daily case work, escalation, finishing a case, outbound calling lists, imports, reports, support, what the CRM does automatically, admin set-up, daily rhythm.
+- **17 horizontal process flows** (Start → steps → Stop, user's example): one per process, three for calls.
+- **Section 16, every escalation route, generated from the CRM's matrices:**
+  - 58 store routes, the same for all 6 stores: App 17, E-commerce 16, BDA 14, Store related 11;
+  - 12 HO routes and 8 other paths (home store, care desk, re-escalation, blocked, wrong store, level corrected by an admin, crisis contacts, after Level 2);
+  - TAT per level (FTR / L1 / L2): usually 1 / 2 / 3 days; Store Delivery related and Legal 4 h / 1 day / 2 days; all Product Quality routes 1 / 2 / 2 days;
+  - named SPOCs and email addresses are left out of the document (they stay in the CRM).
+- The doc's own PDF export draws only 8 charts, so the PDF is built from the same text and charts with headless Chrome.
+- **Gaps found while writing it:** Outbound leads has no link anywhere since its Dashboard tile was removed (agents open /leads); the Knowledge base page has no menu link.
+
+### Report / export check (user: "is the report system working and saving cases in Excel and CSV")
+- **Correct:** CSV and Excel exports of 1–28 Oct held the same 1,597 cases in the same order, 32 columns, no broken rows; the date range and the status / channel filters work.
+- **Crash:** an export of all cases (2018 to now, about 1.9 lakh) took the live CRM down. The CSV was written without waiting for the download, and the Excel file was built whole in memory, with about 2 GB free on the PC. The service did not restart by itself (task "Ready"). It was started again from the committed code; nothing was lost (pending 0).
+- **Fix, tested, not live yet** (`server/index.js` /api/cases/export, `src/pages/Reports.jsx`):
+  - CSV is written in parts, waiting for the download, so any range works: 2 lakh cases in 12 s with memory flat, and the CRM keeps answering;
+  - Excel is streamed and capped at 50,000 cases (a full Excel export still added about 0.9 GB); above that the server answers 413 and the Report page greys out Download Excel, pointing to CSV, which opens in Excel too;
+  - dates are India time: the From / To filter, and createdAt / updatedAt / dueAt / closedAt in the file ("2026-10-28 15:42"); a case at 01:30 on 2 Oct counts on 2 Oct;
+  - a case without updatedAt no longer breaks the sort.
+  - Tested on a test copy with 2 lakh cases: full CSV, full Excel refused, 1-year Excel (23,141 cases, 7 s), the Report page.
+- **Until it is live:** do not export very long ranges (years) from Report or Cases.
+
+### Built, not live (in git stash "wip: vtiger link + nightly sync + contact order")
+- **Contact order:** contacts are loaded oldest first by created date, so the Contacts list's "newest" are right after a restart (they were sorted as text: M-99999 after M-300536).
+- **Link imported cases to contacts:** a job for the 53,600 Vtiger cases with no contact. It looks their Vtiger contacts up (100 per request) and matches by the same Vtiger contact, a mobile only one contact has, the card no., then the email; it notes each link on the case. Tested with stand-in data (10 checks).
+- **Nightly Vtiger sync** at 02:00 (on / off and time on both Vtiger panels): new contacts, then new cases, then links. The full test against Vtiger was stopped before it finished.
+
 
 ### Dashboard: five tiles removed (user: "i want to remove Missed calls to call back, Pending emails, Outbound leads due, Unassigned open cases, Automated actions today")
 - **Removed** from *Needs attention now*: Missed calls to call back, Pending emails, Outbound leads due, Unassigned open cases, Automated actions today.
