@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useMeta } from '../ui.jsx';
+import { VtigerSync } from './CaseImport.jsx';
 import { isContactForm, isVtiger, mergeRepeats, norm, vtigerRows } from '../vtigerContacts.js';
 
 // Column names seen in member-master exports → CRM fields.
@@ -150,6 +151,7 @@ function VtigerImport({ onDone }) {
           </>
         )}
       </div>
+      <VtigerSync />
       <div className="muted small">Runs on the CRM server (about an hour for 3 lakh contacts); you can close this page. Contacts already in the CRM (same Vtiger contact, card no. or mobile) are updated, not doubled.</div>
     </div>
   );
