@@ -7,6 +7,8 @@ The CRM handles calls, missed calls, emails, outbound leads, contacts and store 
 
 For the end-to-end system map—including the app, server, database, integrations, automation and case lifecycle—see [PROJECT-WORKFLOW.md](PROJECT-WORKFLOW.md). The interactive LOTS Workflow screen remains the detailed SOP chart.
 
+**Process documentation** for agents and team leaders (every process, with a horizontal flow chart each, and every escalation route): [docs/process-documentation.md](docs/process-documentation.md), the charts in [docs/flows/](docs/flows/) and a PDF copy, [docs/LOTS CRM process documentation.pdf](<docs/LOTS CRM process documentation.pdf>).
+
 Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch `main`.
 
 ---
@@ -42,7 +44,12 @@ Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch
 | Case management (log, categorise, escalate, resolve, close), strictly following the SOP workflow | ✅ Ready |
 | LOTS Workflow screen: the SOP flow chart (React Flow) with live numbers | ✅ Ready |
 | New Case page in the SOP order (identify caller → source → case type → resolve within TAT) | ✅ Ready |
-| Contacts: Vtiger-style contact form, unique registered numbers, CSV import | ✅ Ready |
+| Contacts: contact cards + contact panel with the communication history (calls, recordings, missed calls, cases, emails), Vtiger-style contact form, unique card numbers, CSV import with preview and no duplicates | ✅ Ready |
+| Contacts imported straight from Vtiger (webservice): about 3 lakh contacts | ✅ Live. 2,94,533 imported 24 Oct; about 6,000 more of the Vtiger duplicates that have their own card no. on 26 Oct (stopped by Vtiger's daily limit, §11.3) |
+| Cases imported straight from Vtiger: all 1.92 lakh, linked to their contacts where the contact is in the CRM | ✅ Live (§6.9). 1,38,796 linked; about 53,600 without a contact |
+| Call logs: the whole call history with recordings (play and download) | ✅ Ready. SparkTG's API can't list calls from before the CRM (§7.5) |
+| Report: cases of any date range with filters, CSV and Excel export | ✅ Ready. **The streamed export (28 Oct) is not live until the CRM is restarted** (§17) |
+| Process documentation with 17 flow charts and every escalation route | ✅ Done (`docs/`) |
 | Caller identification by any number, add-on member or card | ✅ Ready |
 | SparkTG dialer in the CRM: caller panel on every call, click-to-call, call log | ✅ Built. API login works; **the live widget test with agents is still open** |
 | Call details from SparkTG (direction, outcome, duration, recording) | ✅ Confirmed on real SparkTG records |
@@ -58,7 +65,7 @@ Code: [github.com/OM20216/lots-crm](https://github.com/OM20216/lots-crm), branch
 | Simpler screens: case page "What to do now" + tabs, 11-item menu with an Admin page, 4-step New case | ✅ Ready |
 | MySQL storage on the company server (database `lots`) | ✅ Live |
 | Credentials kept outside the project | ✅ Done |
-| Logins / passwords for agents | ❌ Not yet. Agents pick their name (office network only) |
+| Logins / passwords for agents | ✅ Built (§13.3). **Not switched on yet:** no admin has a password, so agents still pick their name (office network only) |
 | SMS (SOP one-way channel), OMS link | ❌ Need an SMS provider / OMS access |
 
 ---
@@ -115,6 +122,9 @@ Zipping, copying or sharing the project folder never shares a password, and none
 | `SPARKTG_WEBHOOK_TOKEN` | Optional secret for `/api/sparktg/event` |
 | `MS_SIGNIN_CLIENT_ID` | Optional: own Microsoft app for "Sign in with Microsoft" (§9.3) |
 | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET` | Alternative mailbox connection with an IT app secret (§9.4) |
+| `VTIGER_URL`, `VTIGER_USERNAME`, `VTIGER_ACCESS_KEY` | Importing contacts and cases straight from Vtiger (§6.9, §11.3). The access key is under Vtiger → My Preferences |
+| `ANTHROPIC_API_KEY` | Optional: the AI email reader (§9.2). Without it the keyword rules are used |
+| `CRM_AUTH_OFF` | Emergency only: `1` turns sign-in off (§13.3) |
 | `TEAMS_WEBHOOK_URL` | Microsoft Teams workflow link (Power Automate "post to a channel when a webhook request is received"): email previews are posted there (§9.2). The link carries a signature — treat it as a password |
 
 Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWORD='abc#123'`.
@@ -150,29 +160,35 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
    - **Mailbox → Sign in with Microsoft** with an account that can open contactus@cpwi.in (§9.3); then switch the Teams previews **off** to go live
    - agent shifts (9–6, 10–7, 11–8, 12–9 or Off)
    - supervisor email (daily report)
-5. **Contacts → Import CSV** with the member master, so callers are recognised.
+5. **Contacts → Import CSV → Import all contacts from Vtiger** (or a CSV of the member master), so callers are recognised; then **Cases → Import from Vtiger** for the case history (§11.3, §6.9).
 6. Make **one incoming and one outgoing test call** (§7.6).
 
 ---
 
 ## 5. Screens
 
-**Left menu** — only what agents use every day (collapses to icons with ‹):
+**Left menu** — only what agents use every day (collapses to icons with ‹): Dashboard, Log new case, Inbox, Call logs, Contacts, Cases, Report, Support, and Admin at the bottom (admins only once sign-in is on).
 
 | Screen | What it is for |
 | --- | --- |
-| **Dashboard** | What needs attention now: overdue escalations, store follow-ups due today, store replies to check. Open cases by status, last 14 days (created and closed), channel mix, today's totals, escalations by store, top categories |
+| **Dashboard** | What needs attention now: escalations overdue, store follow-ups due today, store replies to check (each opens Follow-ups). Open cases by status, last 14 days (created and closed), channel mix, today's totals, escalations by store, top open categories |
 | **Log new case** | Four numbered steps in the SOP order, under the **Identify caller** panel: one search box for mobile, card no., membership ID, name, business name or email (owner, alternate and add-on card holders). An exact mobile, card no., membership ID or email fills the contact in; a name or business shows *Matching members* to click; an unknown mobile or email is copied onto the case: ① **How did they contact us?** (inbound call, missed-call callback, email, outbound call, with the SOP greeting) ② **Who is it?** (type of contact, name, business, mobile, card no.) ③ **What is the concern?** (case type cards → category → sub-category, store, invoice / order no.; the case master's other fields only when there's a real choice, product under *More details*; the workflow for the category) ④ **What happens now?** (resolved on call, info missing → Waiting, or escalate, with the EDC). SOP checks (§6.5), documents needed and SOP answers on the side |
-| **My cases** | Open cases assigned to the signed-in agent |
-| **All cases** | Search and filter all cases (status, channel, type, store, agent), CSV export |
-| **Report** | Cases created and closed per day (7 days to 1 year), open now, escalated, imported and linked from Vtiger, emails sent; by channel, status, case type and store; top open categories; agent workload; escalations, calls and imported cases still open; CSV export of the same dates (§15) |
-| **Follow-ups** | Escalated cases by **store or team** with deadlines, level, promised date and flags (*not followed up today*, *store replied — check*, *promise missed*); the daily call script, logging the call with the store's promised date, one follow-up email per store / team. **Report** tab: on time %, average days, overdue, levels, promises missed per store / team (§6.8) |
-| **Calls** | Every SparkTG call: direction, number, contact, agent, outcome, talk time, recording, linked cases. Stats per agent, including outbound calls against the SOP target of 80–100 a day |
-| **Emails** | Mailbox (once connected), email cases by status, logging an email by hand |
-| **Outbound calls** | Calling lists for every SOP outbound purpose: new registration, inactive customer, order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record the customer's feedback (SOP: "collecting feedback to improve our service"), with a **Survey feedback** panel |
-| **Contacts** | The member master: list, **+ Create Contact** / **Edit** (Vtiger-style form, §11), **Call**, **Cases**, CSV import |
-| **Knowledge base** | SOP / FAQ answers, call scripts and email templates, searchable |
+| **Inbox** | Mailbox (once connected), email cases by status, logging an email by hand (§9) |
+| **Call logs** | Every call through the CRM dialer or reported by SparkTG: Today / 7 days / 30 days / All or From–To dates, search by number, name, agent or case no., *With recording* filter, 200 at a time with **Load more**; recordings play in the list and **Download** as mp3. Tiles and figures per agent for the chosen range (§7.5) |
+| **Contacts** | Contact **cards** (initials, name, mobile, contact type, business; Call / Email / WhatsApp) — the newest 500, search finds any of the 3 lakh. Tapping a card opens the **contact panel** on the right: Edit, Call / Email / WhatsApp / Log case, the LOTS fields, add-on members and the **communication history** (calls with recordings, missed calls, cases, emails), newest first. **+ Create Contact**, **Import CSV**, **Import from Vtiger** (§11) |
+| **Cases** | All cases, 50 per page: search (case no., phone, name, email, card, order) beside **Export CSV**, filters (status, channel, type, store, agent), **Import from Vtiger** (admin, §6.9) |
+| **Report** | Cases of a date range: From / To with **Today**, **7 Days**, **30 Days**, **This Month**; search and filters (status, store, channel, agent); the cases table, 50 per page; **Export CSV** (any range) and **Download Excel** (up to 50,000 cases; greyed out above that). Dates in India time (§15) |
+| **Support** | The agent's help panel and support tokens (§12.1) |
 | **Admin** | One page linking the setup pages below |
+
+**Pages without a menu item** (opened from other pages or by address):
+
+| Page | What it is for |
+| --- | --- |
+| **Follow-ups** (`/followups`, from the Dashboard tiles and the Escalation flow) | Escalated cases by **store or team** with deadlines, level, promised date and flags (*not followed up today*, *store replied — check*, *promise missed*); the daily call script, logging the call with the store's promised date, one follow-up email per store / team. **Report** tab: on time %, average days, overdue, levels, promises missed per store / team (§6.8) |
+| **Outbound calls** (`/leads`, no link since its Dashboard tile was removed) | Calling lists for every SOP outbound purpose: new registration, inactive customer, order on call, LCC, confirmation, **follow-up**, **customer survey**, festival offers. Import, **Call**, log the outcome. Confirmation calls close or re-open their case; follow-up calls move a Waiting case back to Pending; survey calls record the customer's feedback (SOP: "collecting feedback to improve our service"), with a **Survey feedback** panel |
+| **Knowledge base** (`/kb`, no menu link) | SOP / FAQ answers, call scripts and email templates, searchable. The matching answers also show beside Log new case |
+| **Missed calls** (`/missed`, "All missed calls →" in the top-bar list) | Every missed call with its attempts (§7.3) |
 
 **Admin page** (for team leaders):
 
@@ -182,6 +198,9 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 | **Automation** | Mailbox connection, **Email previews in Microsoft Teams**, rule switches, timers, agent shifts, activity log, outbox |
 | **Case workflows** | The workflow of every case type: owner team, TAT, steps, and the teams' email addresses (§6.6) |
 | **LOTS workflow chart** | The SOP flow as an interactive chart; every box shows its live count (red = needs attention) |
+| **Escalation flow** | HO and store escalation matrices as a flow: First Time Resolution → Level 1 → Level 2 per row, with live counts |
+| **Support tokens** | Questions the agents sent to the help desk manager (§12.1) |
+| **Users and sign-in** | Passwords, roles (agent / admin) and the switch that makes sign-in required (§13.3) |
 | **Picklists** | Values of every dropdown. **+ Add** a value, or create a new list (§6.7) |
 | **Dependencies** | Which values go together (case type → category → sub-category / request for / sub-category 2 / resolution type, product category → product type, customer group → customer type). **Add a dependency pair** (§6.7) |
 
@@ -484,7 +503,7 @@ Replies are recognised from the store contacts, the team emails, both escalation
 
 ### 6.9 Cases imported from Vtiger (all 1.92 lakh)
 
-**All cases → Import from Vtiger** (admin only) brings LOTS's whole case history into the CRM. Like the contacts import it is a job on the server, with the `VTIGER_URL`, `VTIGER_USERNAME` and `VTIGER_ACCESS_KEY` settings in the private secrets file.
+**Cases → Import from Vtiger** (admin only) brings LOTS's whole case history into the CRM. Like the contacts import it is a job on the server, with the `VTIGER_URL`, `VTIGER_USERNAME` and `VTIGER_ACCESS_KEY` settings in the private secrets file.
 
 - **How it runs:** 200 cases per Vtiger request (its limit), onward from the last record id, saved every 2,000. The page can be closed. **Stop / Continue** go on from the last saved case, and a restart of the CRM shows the job as stopped. Cases already imported (same Vtiger record id) are skipped, so running it again never doubles a case and never overwrites changes made in the CRM.
 - **Speed:** about an hour for 1.92 lakh; Vtiger accepts roughly one request a second.
@@ -493,7 +512,9 @@ Replies are recognised from the store contacts, the team emails, both escalation
 - **Store:** Vtiger's case store; `Not Specific` becomes **NS**; when the case has none, the linked contact's home store is used.
 - **Statuses (decision, 26 Oct 2026):** only Vtiger cases whose case status is **Open** are live work. Among those the raw **Resolved** stays **Resolved**, and every other Open case becomes **Pending**. Everything else (Vtiger `Closed` or blank, including old `Case On Hold`, `New`, `Assigned`) comes in as **Closed** history. This keeps the Email Inbox, dashboard, TAT clocks and automation to the work that is really open: about 548 open cases — 242 Pending and 306 Resolved — of which only 27 are email cases. Imported cases are never **Waiting** or **Escalated**, so the automation cannot chase customers or stores about old cases. The raw Vtiger status, the Vtiger case no. and the owner are on the case page, and the import is on the timeline.
 - **Text:** the description is capped at 4,000 characters and the resolution at 6,000, HTML is stripped and empty fields are left out.
-- **All cases:** 50 rows per page (Previous / Next, total and page), and **Export CSV** streams every case that matches the current filters from the server.
+- **Result (live):** 1,92,396 cases imported; 1,38,796 linked to a CRM contact. One Vtiger record had half an emoji that MySQL refused; such characters are now replaced before saving, so one bad character can't block the writes.
+- **Cases page:** 50 rows per page (Previous / Next, total and page), and **Export CSV** streams every case that matches the current filters from the server.
+- **Built, not merged** (branch `wip/vtiger-sync-link`): a job that links the about 53,600 cases without a contact (by the Vtiger contact, a mobile only one contact has, the card no., then the email), and a **nightly Vtiger sync** at 02:00 (new contacts, new cases, links). Its full test against Vtiger is still to be finished.
 
 ---
 
@@ -545,7 +566,11 @@ Click a box for the list: number, contact, time, time left, agent, attempts, wit
 - **Outbound lead call not connected:** the lead becomes *Not reachable*.
 - **Confirmation call:** *Confirmed resolved* closes the case, *Not satisfied* sends it back to the store.
 
-### 7.5 Calls page
+### 7.5 Call logs page
+
+**Call logs** in the menu: the whole history by default, with quick ranges (Today / Last 7 days / Last 30 days / All), From / To dates, a search by number, name, agent or case no., a **With recording** filter and 200 calls at a time (**Load more**). Every recording plays in the list and has **Download** ("call <number> <date>.mp3"), streamed through the server so the SparkTG login stays private.
+
+**Calls from before the CRM:** SparkTG's API returns one call per call ID only and can't list older calls; they need SparkTG's call report (an export, or a report API from SparkTG).
 
 Totals and figures per agent (in / out, connected, not connected, linked to a case, average talk time of answered calls), outbound calls against the **80–100 a day** target, a filter for **"Connected, no case logged"**, recordings played through the server, and **Raw** to see SparkTG's own record.
 
@@ -553,7 +578,7 @@ Totals and figures per agent (in / out, connected, not connected, linked to a ca
 
 Confirmed on real records: `customerNumber`, `callType` (INBOUND / OUTBOUND), `disposition` (`ANSWER` / `NOANSWER`), `duration` (includes ringing time), `time`, `receivedBy` (agent), `recording` (.wav URL). To check the widget side:
 1. **⚙ button** next to the dialer: the raw widget events (`show_dialer` should carry `callId` and `caller.phone`).
-2. **Calls → Raw** on a finished call: SparkTG's record and how the CRM read it.
+2. **Call logs → Raw** on a finished call: SparkTG's record and how the CRM read it.
 3. **Stores & settings → SparkTG → Test connection:** login, agents, and how any call ID is read.
 
 ### 7.7 Other SparkTG options (if the account has them)
@@ -570,7 +595,7 @@ When a number arrives (dialer, typed, or from a SparkTG call ID), the CRM looks 
 
 - Numbers are compared on the **last 10 digits**, so `+91 98765 43210`, `919876543210` and `09876543210` all match.
 - **Every number on a contact counts:** registered mobile, alternate, extra phones and **add-on members'** mobiles. An exact **card number** (member or add-on) also matches. For email, every address on a contact counts, plus a mobile or card number written in the mail.
-- **Each number belongs to one contact only** (§11.2), so a match is always unambiguous.
+- **A mobile shared by several contacts** (allowed when each has its own card no., §11.2) gives no automatic match: all of them are listed (Log new case and the caller panel) and the agent clicks the caller. A card no. or membership ID always identifies exactly one contact.
 - **Match found:** name, business, card, email, caller type and home store fill in on their own. The contact card shows owner, mobiles, card, customer group and type, home store, GSTIN / licence, add-on cards, open cases, the registered delivery address and notes. **Blocked** cards are red. An add-on member calling is shown as such, with their own name and card.
 - The caller's previous cases and recent calls are listed. **Not this member** unlinks a match for that number.
 - Only a SparkTG call ID given: the CRM gets the caller's number from SparkTG first.
@@ -700,6 +725,12 @@ From the SOP: 9–6, 10–7, 11–8, 12–9, or *Off*. An agent with no shift se
 
 Contacts are the member master (one record per customer), used for caller and email identification.
 
+**Contacts page:** contact cards on the left (the newest 500; the search finds any contact), the tapped contact on the right (kept in the address, `?c=M-00123`):
+- header with **Edit** (the form below) and **Call** (SparkTG dialer) / **Email** / **WhatsApp** / **Log case**;
+- the LOTS fields: mobiles, email, business, card no., contact ID and Vtiger id, contact type, status, segments, registered store, GSTIN, licence, source, joining date, assigned to, address, add-on members;
+- **communication history**, newest first: calls (incoming / outgoing, talk time, recording to play), missed calls, cases and the emails the CRM sent, matched by the contact and every mobile and email on it, add-on holders included (`GET /api/members/:id/history`).
+- My additions, not in the SOP: WhatsApp is a wa.me link (not an integration); Email is a mailto link until the mailbox is connected.
+
 ### 11.1 Contact form (like the Vtiger contact form)
 
 **+ Create Contact** or **Edit** opens a panel that **slides in from the right** over the list: Sections menu on the left (highlights the section on screen, jumps on click, collapses with «), **Type to search** to find a field, **✕ / Cancel / Esc** to close (asks first if anything is unsaved), **Save** always visible.
@@ -718,16 +749,22 @@ Contacts are the member master (one record per customer), used for caller and em
 
 Missing ✱ fields show *"The First Name field is required."* and the form jumps to the first problem. Formats are checked: 10-digit mobiles, email, PAN (ABCDE1234F), GSTIN (15 characters), 6-digit pincodes. Contact types, sources and cities are the CRM's own lists until LOTS's Vtiger lists are provided.
 
-### 11.2 Registered numbers are unique
+### 11.2 Registered numbers and card numbers
 
-A mobile (registered, alternate, extra, or an add-on member's) can belong to **one contact only**, and can't appear twice on the same contact. Numbers are compared on the last 10 digits.
-- **Contact form:** as soon as a number has 10 digits, a message appears under it: *"Already registered to Kumar Kirana (M-00001)"*, with a link to that contact, and Save is blocked.
+- **Card numbers are unique:** a membership or add-on card no. belongs to one person only.
+- **Mobiles (rule of 26 Oct 2026):** a mobile (registered, alternate, extra, or an add-on member's) may belong to several contacts **only when each has its own card no.** A contact without a card no. can't take a number another contact has. A number can't appear twice on the same contact. Numbers are compared on the last 10 digits.
+- **Contact form:** as soon as a number has 10 digits, a clash shows under it: *"Already registered to Kumar Kirana (M-00001)"*, with a link, and Save is blocked. For a contact with its own card no. a shared number is only a note (*"Also used by …"*).
 - **Server:** enforced for every save (form, import, any route); a clash returns HTTP 409 with the number and the contact it belongs to.
-- **Import:** rows whose number belongs to another contact are skipped and listed with the reason.
+- **Import:** rows whose number or card no. belongs to another contact are skipped and listed with the reason.
 
 ### 11.3 Import CSV
 
 **Contacts → Import CSV** reads the member master and recognises common headers (Mobile, Card No, Business Name, Owner, Email, GSTIN, Store, Address, Status…). Store names become store codes. Existing contacts are matched by card number or mobile and **updated**, not duplicated.
+
+- **No duplicates:** a contact already in the CRM is updated, never added again: the same Vtiger contact, the same card no., or (without a card no.) the same mobile. The same contact twice in one file becomes one contact; later rows only fill empty fields.
+- **Preview before saving:** the file is checked first without saving (`POST /api/members/import?dryRun=1`): *N new · N already in the CRM (updated) · N skipped · N without a number*, with the rows that will be skipped. The button then says exactly that ("Import: 4 new, 1 updated").
+- **Every field:** any CSV laid out like the contact form (Vtiger's field names) fills every field of the contact.
+- **Earlier cases attached:** cases logged before the contact existed are attached when the contact is imported, created or edited, by its mobile (only if no other contact shares it), email or card no., with a note on the case timeline.
 
 **Vtiger Contacts export** (recognised by its Contact Id / First Name / Last Name columns): every Vtiger field comes in, because the CRM's contact form has the same fields under the same names.
 
@@ -743,23 +780,27 @@ A mobile (registered, alternate, extra, or an add-on member's) can belong to **o
 - **Setup:** the CRM reads Vtiger's contacts through its webservice, with three settings in the private secrets file: `VTIGER_URL`, `VTIGER_USERNAME` and `VTIGER_ACCESS_KEY` (Vtiger → My Preferences → Access Key). They are never shown, logged or sent to the browser. Starting / stopping the import is admin-only.
 - **How it runs:** it is a job on the CRM server, so the page can be closed. It reads 200 contacts per request, in Vtiger record order, onward from the last one read (fast even deep in the list). Contacts are saved every 2,000, with the same checks as the CSV import.
 - **Speed:** about 6,000–7,000 contacts a minute, so about an hour for 3.35 lakh.
+- **Result (24 Oct 2026):** 3,35,065 Vtiger contacts read: 2,94,533 added, 10 linked to contacts already in the CRM, 19,382 skipped as duplicates, 21,140 without a mobile or card no. Excel list of the ones not imported: `Downloads\Vtiger contacts not imported - 24-10-2026.xlsx`.
+- **Get new contacts from Vtiger:** after a finished import, reads only the contacts added in Vtiger since.
+- **Vtiger's limits:** 200 records per request, a per-minute burst limit and about 50,000 requests a day (it answers TOO_MANY_REQUESTS, even to the login, until the next day; resets around 5:30 AM IST). The CRM spaces its requests; a stopped import continues where it stopped.
 - **Stop / Continue:** Continue goes on from the last saved contact; a restart of the CRM shows the job as stopped. **Import again from the start** re-reads everything; contacts already imported (same Vtiger Contact Id) are updated.
 - **Server set-up for lakhs of contacts:**
   - the service starts Node with a 4 GB memory limit (`scripts/run-crm.ps1`); about 1.6 GB is used with 2.95 lakh contacts;
   - the MySQL connection is compressed, so start-up (loading every contact and case) takes a few minutes on the full data (1.9 lakh cases and 3.2 lakh contacts); `scripts/crm-service.ps1` waits up to 10 minutes for the health check before it reports a failed start.
-- **Shared mobiles (26 Oct 2026):** a mobile may belong to several contacts when each has its own membership card no. (card numbers stay unique). A call or search by such a mobile lists all of them for the agent to pick.
+- **Shared mobiles (26 Oct 2026):** a mobile may belong to several contacts when each has its own membership card no. (card numbers stay unique). A call or search by such a mobile lists all of them for the agent to pick. The Vtiger duplicates with their own card no. (13,371) are being added: about 6,000 so far; running it again finishes it without doubling.
 - **Duplicates in Vtiger:** a second Vtiger contact with the same mobile or card as one already imported is **skipped and listed**, not merged. Contacts without a mobile or card no. are counted and left out. Vtiger's internal user ids (Assigned To, Created By, Modified By) are not taken.
 
 **Contact index:** caller search (Identify caller, Contacts search, email and call matching) uses an in-memory index of mobiles, card nos., membership IDs, emails and one text line per contact.
 - It is built when the CRM starts (3–5 s for 3 lakh contacts).
 - On MySQL, only the contacts that changed are re-indexed.
 - Tested with 3 lakh contacts: a search takes about 0.03 s (was 0.4–0.8 s), and the server uses about 350 MB of memory.
+- A contact by ID also comes from the index (0.004 s instead of reading every contact): contact panel, edits, history and automation.
 
 ---
 
 ## 12. Knowledge base, scripts and templates
 
-All taken from the SOP. The file is `src/knowledge.js`.
+All taken from the SOP. The file is `src/knowledge.js`. The page is at `/kb` (no menu link); the matching answers also show beside Log new case.
 
 - **Answers:**
   - membership documents, add-on cards, privilege card
@@ -794,7 +835,7 @@ All taken from the SOP. The file is `src/knowledge.js`.
 The round **?** button at the bottom right (next to the dialer) answers questions about the CRM itself (`src/supportKb.js`: 38 help articles, checked against the CRM on 22 Oct 2026), with suggested questions and a list of all topics.
 - **Not in the articles?** "Talk to the help desk manager" raises a **support token** (SUP-000123) with the question, the agent and the page. It is **emailed to the support address** (Stores & settings → Support → Support email) **with the client in Cc**: the agent who raised it (their email under Agents) and the fixed **Client copy (Cc)** addresses. It is also posted in Teams. In test mode the email goes only to the test address. An agent without a saved email is told they weren't copied.
 - **The chat:**
-  - The manager answers on **Admin → Support tokens** (also in the menu). The page refreshes every 20 seconds and shows the conversation, with the agent's messages marked.
+  - The manager answers on **Admin → Support tokens**. The page refreshes every 20 seconds and shows the conversation, with the agent's messages marked.
   - The answer comes back into the agent's support panel. If the panel is closed, a red badge appears on the button.
   - While the token is open, what the agent types goes to the manager, so they can write back (Teams is told). "Ask the help articles instead" switches back to the articles.
   - Either side can close the token; a closed token takes no more messages.
@@ -851,7 +892,8 @@ To browse the tables: VS Code extension **"MySQL" by Database Client**, MySQL Wo
 ### 13.2 Files, git and security
 
 - Attachments (from emails and added by agents) are stored in `server/data/attachments/<case>/`.
-- **Credentials** are outside the project (§3), including the Microsoft Teams workflow link. **No logins yet**: agents choose their name, so use the CRM only on the office network until logins are added.
+- **Credentials** are outside the project (§3), including the Microsoft Teams workflow link and the Vtiger access key. **Sign-in is built but not switched on** (§13.3): agents choose their name, so use the CRM only on the office network until it is on.
+- **Not built yet:** an automatic database backup and an alert when the CRM is down. MySQL backups are LOTS's own; the service restarts the CRM if it stops.
 - **Git:** `.gitignore` keeps out `server/data/` (all data and backups), `.env`, secrets files, the Microsoft sign-in file and logs. Save changes with `git add -A`, `git commit`, `git push`.
 - **GitHub repo `OM20216/lots-crm` is private.** An early upload contained `.env` with the SparkTG login. It was removed from `main`, and the repo is now private.
 
@@ -896,6 +938,10 @@ server/
   teams.js         Microsoft Teams: email previews and escalation cards posted to a channel (Power Automate workflow link)
   matrixImport.js  Escalation matrix from LOTS's Excel / CSV: HO sheet and store tabs, preview, apply, undo
   matrixLink.js    Live link to the matrix Excel on OneDrive / SharePoint
+  aiReader.js      Optional AI email reader (Claude) for new emails
+  vtigerApi.js     Vtiger webservice client: challenge / login with the access key, query, request spacing
+  vtiger.js        Vtiger contacts import job (200 per request, saved every 2,000, Stop / Continue)
+  vtigerCases.js   Vtiger cases import job and the link to CRM contacts
   storeMatrix.json Store escalation matrix as read from the workbook (348 rows); built by buildStoreMatrix.js
   data/            JSON data / backups / attachments (not in git)
 src/
@@ -907,12 +953,17 @@ src/
   workflows.js     Workflow per case type: owner team, TAT, steps, escalation target (also used by the server)
   picklists.js     Picklists and dependencies: base values from taxonomy.js + the ones added on the screens
   knowledge.js     SOP / FAQ answers, scripts, email templates (also used by the server)
+  contactFields.js, vtigerContacts.js, vtigerCases.js   Vtiger field mapping for contacts and cases (shared by the CSV import and the Vtiger jobs)
+  supportKb.js     The support button's help articles
   requirements.js  Request requirements, SOP checks (return / B2C), reference-number reading (also used by the server)
   api.js, ui.jsx   Fetch helper, shared UI helpers
-  components/      Dialer (widget, caller panel, Call button), MissedBar, Mailbox, MailboxCard, Classifier, CallsCard, WorkflowCard, EscalationPanel, MemberImport, Icon
-  pages/           One file per screen. ContactForm.jsx = contact form; LotsFlow.jsx/.css = workflow chart; Admin.jsx = setup pages
+  components/      Dialer (widget, caller panel, Call button), MissedBar, Mailbox, MailboxCard, Classifier, CallsCard, WorkflowCard, EscalationPanel, MemberImport, CaseImport, TrendChart, MatrixImport, Icon
+  pages/           One file per screen. Contacts.jsx = cards + contact panel; ContactForm.jsx = contact form; Calls.jsx = Call logs; Reports.jsx = Report; LotsFlow.jsx/.css = workflow chart; Admin.jsx = setup pages
 scripts/           crm-service.ps1 (background service: install / status / restart / stop), run-crm.ps1 (keeps it running)
+docs/              Process documentation (process-documentation.md), its 17 flow charts (flows/*.svg) and the PDF
 lots-workflow.svg  Static process chart of the SOP
+PROJECT-WORKFLOW.md  System map: app, server, database, integrations, case lifecycle
+WORKLOG.md         Day-by-day log of what was built, tested and decided
 .env.example, secrets.env.example   Setting templates
 ```
 
@@ -938,9 +989,9 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | GET | `/api/escalation-report?days=30` | Escalations per store / team: on time, average days, open, overdue, levels, promises missed |
 | POST / DELETE | `/api/picklists` | Add `{ field, value }` (409 if it exists) / remove an added value and its pairs |
 | POST / DELETE | `/api/dependencies` | Add `{ mainField, mainValue, subField, subValue }` (both values must be in their picklists; 409 if the pair exists) / remove an added pair |
-| GET / POST | `/api/cases` | List (filters: status, channel, store, caseType, assignedTo, q, overdue; `limit` up to 5,000, `offset`; the total is in the **X-Total-Count** header) / create |
+| GET / POST | `/api/cases` | List (filters: status, channel, store, caseType, assignedTo, q, overdue, `from` / `to` dates in India time; `limit` up to 5,000, `offset`; the total is in the **X-Total-Count** header) / create |
 | GET | `/api/cases/export` | All cases that match the same filters (dates in India time), as CSV (streamed, any range) or Excel (`format=xlsx`, streamed, up to 50,000 cases; more → 413, use CSV) |
-| GET | `/api/reports?days=30` | Counted reports for the Report page and the dashboard trend (7–366 days) |
+| GET | `/api/reports?days=30` | Counted figures for the dashboard's 14-day trend and channel mix (7–366 days) |
 | GET / POST | `/api/vtiger-cases`, `/api/vtiger-cases/import`, `/api/vtiger-cases/import/stop` | Vtiger cases import: progress / start (admin; `{ fresh, max }`) / stop |
 | GET / PATCH | `/api/cases/:id` | Case with history and escalation `target` / edit, change status (only along the workflow), add a note, tick a workflow step (`checkStep`, `done`) |
 | POST | `/api/cases/:id/email` | Send an email from the case `{ to, subject, body, kind, attachments: [file] }` (mailbox, or Teams preview) |
@@ -949,13 +1000,15 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | POST | `/api/cases/:id/calls` | Link a SparkTG call to a case |
 | GET | `/api/cases/:id/attachments/:file` | Download an attachment |
 | POST | `/api/calls/event` | Dialer event `{ callId, status: started \| ended, direction, phone, context, widget }` |
-| GET | `/api/calls`, `/api/calls/stats`, `/api/calls/:id` | Call log / stats / one call with SparkTG's raw record |
+| GET | `/api/calls`, `/api/calls/stats`, `/api/calls/:id` | Call logs (dates, search, with recording, paging) / stats for the range / one call with SparkTG's raw record |
 | GET | `/api/calls/:id/recording`, `/api/sparktg/recording/:case/:txn` | Recording, played through the server |
 | GET | `/api/sparktg/call/:txnId`, `/api/sparktg/test`, `/api/sparktg/status` | Caller for a call ID / connection test / webhook events |
 | ALL | `/api/sparktg/event` | SparkTG call-event webhook (missed calls) |
-| GET | `/api/lookup?q=` | Caller lookup by phone, card, email or name |
-| GET / POST | `/api/members`, `/api/members/import` | Contacts (search `q`) / create / bulk import. A clashing number returns **409** with `phone` and `memberId` |
+| GET | `/api/lookup?q=` | Caller lookup by phone, card, email or name; a shared mobile returns all its `holders` |
+| GET / POST | `/api/members`, `/api/members/import` | Contacts (search `q`) / create / bulk import (`?dryRun=1`: the preview, nothing saved). A clashing number returns **409** with `phone` and `memberId` |
 | GET / PATCH | `/api/members/:id` | One contact / edit (same 409 rule) |
+| GET | `/api/members/:id/history` | Communication history of a contact: calls, missed calls, cases, emails |
+| GET / POST | `/api/vtiger`, `/api/vtiger/import`, `/api/vtiger/import/stop` | Vtiger contacts import: progress / start (admin) / stop |
 | GET / POST / PATCH | `/api/missed-calls` (`?open=1`) | Missed calls (with the contact) / add / attempt or status |
 | GET / POST / PATCH | `/api/leads` | Outbound leads / call outcomes |
 | POST | `/api/email-intake` | New email → case (manual form and mailbox) |
@@ -998,6 +1051,12 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | Teams previews: fake Teams endpoint, then the real channel (test, samples, a full sample case); cards match all 8 email templates | ✅ |
 | Attachments: upload, download, escalation email carries files byte-for-byte (Graph stand-in), too-big file named, Teams lists them | ✅ |
 | **Screens in a browser** (headless Edge): picklists, dependencies, + Add, escalation panel, follow-ups report, settings, survey form, attachments, simplified case page, menu, Admin page, New case steps | ✅ |
+| **Vtiger, real account (read-only tests, then live):** contacts read 200 at a time, Stop / Continue without losing or doubling; 3,35,065 contacts and 1,92,396 cases imported live | ✅ |
+| Contact index with 3 lakh contacts: 0.03 s per search, 17 index checks (incl. shared mobiles) | ✅ |
+| CSV import: repeats in one file, existing contact, same card for two people, shared mobile with own card, "?????" row, earlier cases attached; preview equals the import; the same file again updates only | ✅ |
+| Contacts page: cards, contact panel, history with recording, buttons, phone width (10 browser checks) | ✅ |
+| Call logs with 260 test calls: ranges, search, recording filter, Load more, download (7 browser checks) | ✅ |
+| Case export: CSV and Excel of 1–28 Oct hold the same 1,597 cases; 2 lakh test cases: full CSV in 12 s with flat memory, Excel above 50,000 refused, 1-year Excel (23,141 cases) in 7 s | ✅ |
 | **Dialer widget with agents logged in** (SSO, show_dialer, click-to-call from the CRM, incoming call) | ⏳ Needs agents' SparkTG emails and a live test |
 | **Real mailbox** contactus@cpwi.in | ⏳ Needs "Sign in with Microsoft" |
 
@@ -1010,7 +1069,9 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [x] **GitHub repo `OM20216/lots-crm` made private.** ✅ Done
 - [ ] **Connect the mailbox:** Automation → Sign in with Microsoft (§9.3).
 - [ ] Enter every agent's **SparkTG login email** and **shift**; then one live incoming and outgoing test call.
-- [ ] **Import the member master** (Contacts → Import CSV).
+- [x] **Import the member master:** imported straight from Vtiger, 24 Oct 2026 (§11.3). The Vtiger duplicates with their own card no. are partly done (about 6,000 of 13,371): run the import again on a day Vtiger's limit allows.
+- [ ] **Restart the live CRM** to load the export fix of 28 Oct (`scripts\crm-service.ps1 restart`, only with no pending writes). Until then don't export very long ranges (years) from Report or Cases: the old export took the CRM down.
+- [ ] **Switch sign-in on:** give every agent a password, make the team leader Admin, then Admin → Users and sign-in (§13.3).
 - [ ] **Store contacts** for all six stores, **team contacts**, the **escalation matrix** and **holidays**; **supervisor email**.
 - [ ] When the mailbox is connected: switch **Email previews in Microsoft Teams** off so emails really go out.
 - [ ] Confirm the **SparkTG service**: the CRM uses 1672 (VMM's). If LOTS has its own service for 1860-123-5687, add its ID and login to the secrets file.
@@ -1040,6 +1101,11 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - [x] **Logins** with passwords and roles (23 Oct 2026, §13.3). To do on site: give every agent a password, make the team leader Admin, then switch sign-in on.
 - [ ] **OMS link** for orders on call: needs OMS access.
 - [ ] Calls that reach no agent's dialer need SparkTG's call-event webhook.
+- [ ] **Calls from before the CRM:** SparkTG's call report (export or report API) is needed; the API can't list them.
+- [ ] **Vtiger:** link the about 53,600 cases without a contact and the nightly sync are built on branch `wip/vtiger-sync-link` (finish the test, then merge). Case comments, emails and other modules (add-ons, feedback, templates) are not imported.
+- [ ] **Menu links** for Outbound calls (`/leads`) and the Knowledge base (`/kb`): both pages work but no menu item or tile opens them.
+- [ ] **Contacts list:** shows the newest 500 (search finds any); no filters or Load more yet.
+- [ ] **Backup and downtime alert:** no automatic database backup or alert when the CRM is down.
 - [x] Unique **card numbers** (23 Oct 2026): a membership or add-on card number belongs to one person only — refused on the contact form, the API and the import (the clashing row is skipped), like mobile numbers.
 - [x] **AI email reader** (23 Oct 2026, §9.2): built; to use it, put `ANTHROPIC_API_KEY` in the private secrets file and restart. Without a key the keyword rules are used.
 
@@ -1047,7 +1113,7 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 - **SMS** (the SOP's one-way channel): no SMS provider. Customers get emails (and calls) instead.
 - **"Answer within 3 rings"** can't be measured: SparkTG doesn't report ring time. It stays an SOP rule for agents.
 
-**Later (decided 16 Oct 2026):** connecting the mailbox and importing the member list.
+**Later (decided 16 Oct 2026):** connecting the mailbox. (The member list was imported on 24 Oct 2026.)
 
 **Note for PSRI:** its `SparkTGContext` listener doesn't list `agentEmail` in its `useEffect` dependencies, so it keeps the first email it saw. Fixed in this CRM.
 
@@ -1119,10 +1185,16 @@ Tests ran on separate test copies (`CRM_DATA_DIR`), never on live data. Microsof
 | 53 | **AI email reader** (server/aiReader.js, @anthropic-ai/sdk): Claude picks the case-master path, store and numbers from each new email; answer limited to the case master; keyword rules as fallback; on when ANTHROPIC_API_KEY is in the secrets file. 9 checks against a fake API |
 | 54 | LOTS confirmed the DH 105 / GNI Ecommerce store-matrix rows and the routes the sheet doesn't state; ⚠ flags replaced by a provenance note |
 | 55 | **Log new case, as on LOTS's Vtiger form:** call details under ① (Type of call Disconnected / Inbound / Outbound linked to the channel, Called number with "Same as contact's mobile", Call transaction ID); member card Edit / + Add Another Contact / Change; Channel dropdown (Call / Email) instead of the channel cards; Admin at the bottom of the menu |
-| 58 | **Import all contacts straight from Vtiger** (webservice + access key in the private secrets file): server job, 200 per request, saved every 2,000, Stop / Continue, duplicates in Vtiger skipped and listed; about an hour for 3.35 lakh |
-| 57 | **Vtiger contacts import for lakhs of contacts:** Vtiger Contacts CSV recognised (all fields, +91 mobiles, add-on member, updated mobile), sent in parts of 2,000 with progress, server checks against an index; contact index for caller search (0.03 s with 3 lakh contacts) |
 | 56 | **One search box** in Identify caller (user's request): mobile, card no., membership ID, name, business name or email, of the contact or its add-on card holders; Mobile and Card no. moved to ② Who is it? |
+| 57 | **Vtiger contacts import for lakhs of contacts:** Vtiger Contacts CSV recognised (all fields, +91 mobiles, add-on member, updated mobile), sent in parts of 2,000 with progress, server checks against an index; contact index for caller search (0.03 s with 3 lakh contacts) |
+| 58 | **Import all contacts straight from Vtiger** (webservice + access key in the private secrets file): server job, 200 per request, saved every 2,000, Stop / Continue, duplicates in Vtiger skipped and listed; about an hour for 3.35 lakh |
 | 59 | **Import all cases straight from Vtiger** (1.92 lakh): server job, 200 per request, saved every 2,000, Stop / Continue, re-runs skip cases already imported; Vtiger fields, owner, timestamps and the linked CRM contact (phone, business, card, store); only Vtiger's open cases stay open (Pending / Resolved), the rest is Closed history so the automation does not email about old cases. All cases pages 50 at a time and exports CSV from the server |
 | 60 | **Dashboard trimmed** (user's request): removed Missed calls to call back, Pending emails, Outbound leads due, Unassigned open cases and Automated actions today; kept the three follow-up tiles, open cases by status and the three lists |
 | 61 | **Report page** (the menu's Report item opened a blank page): cases created and closed per day, open / escalated / imported / linked now, emails sent, by channel, status, type and store, top open categories, agent workload, escalations, calls and imported cases still open; 7 days to 1 year with CSV export of the dates. Counted on the server in one pass over 1.9 lakh cases; the dashboard gets a 14-day trend and channel mix from the same `/api/reports` |
 | 62 | **Process documentation + export fix (28 Oct):** complete process document with 17 horizontal flows and every escalation route (`docs/process-documentation.md`, `docs/flows/`, PDF); case export streamed (CSV any range, Excel up to 50,000 cases), India-time dates; the full export had crashed the live CRM |
+| 63 | **Call logs** (24 Oct): Calls back in the menu as Call logs; the whole history with ranges, search, recording filter, Load more, recordings to play and download. "Abandoned Call" renamed **Disconnected Call** |
+| 64 | **Contacts page** (24 Oct): contact cards + contact panel with Call / Email / WhatsApp / Log case and the communication history (calls with recordings, missed calls, cases, emails); contact by ID from the index (0.004 s) |
+| 65 | **3,35,065 Vtiger contacts read** (24 Oct): 2,94,533 added; memory limit 4 GB; MySQL compression (start-up 8 min → about 1 min); Excel list of the contacts not imported |
+| 66 | **Shared mobiles and CSV import without duplicates** (26 Oct): a mobile may be shared by contacts that each have their own card no.; import preview, repeats merged, every field filled, earlier cases attached |
+| 67 | **Vtiger case import finished** (27 Oct): 1,92,396 cases, 1,38,796 linked; MySQL write fix for half-emoji characters. Report page removed at the user's request, then rebuilt (by the user) as a date range + cases table with quick presets, filters and CSV / Excel export |
+| 68 | **README brought up to date** (29 Oct): menu and pages, Contacts, Call logs, Report, Vtiger imports, shared-mobile rule, secrets, API, tests, open items |

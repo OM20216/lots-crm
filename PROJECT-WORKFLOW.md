@@ -24,7 +24,7 @@ flowchart TB
 
   subgraph Frontend[Frontend: src/]
     Browser --> Shell[App shell: navigation, agent, dialer, missed-call bar]
-    Shell --> Screens[Dashboard · New Case · Inbox · Calls · Contacts · Cases · Follow-ups · Leads · Knowledge · Admin]
+    Shell --> Screens[Dashboard · Log new case · Inbox · Call logs · Contacts · Cases · Report · Support · Admin; also Follow-ups, Outbound leads, Knowledge base]
     Screens --> Client[Shared API fetch wrapper]
     Client --> API
     FlowScreen[LOTS Workflow chart] -->|live counts| API
@@ -118,13 +118,13 @@ flowchart LR
 
 | Area | How it works |
 | --- | --- |
-| Calls | The SparkTG widget handles calls in the browser. Call events and call-detail sync populate call history; caller lookup links a call to a member and case. Missed calls appear in the top bar and are worked from the callback queue. |
+| Calls | The SparkTG widget handles calls in the browser. Call events and call-detail sync populate call history; caller lookup links a call to a member and case. Missed calls appear in the top bar and are worked from the callback queue. Call logs show the whole history with recordings to play or download. |
 | Email | When Microsoft sign-in is connected, the automation engine imports mailbox messages as Pending cases, attempts categorisation/linking, and can acknowledge or route them. Agent replies are threaded and logged on the case. While Teams preview mode is enabled, outgoing email previews go to Teams instead of the recipient. |
 | Escalations | Case type/category selects a workflow owner and required fields. Store rows or HO team rules determine the destination and TAT. Follow-ups track due dates, levels, promises, and replies; resolution is shared with the customer and confirmation closes the case. |
 | Outbound leads | Admin/agents load call lists for registration, inactive customers, order-on-call, LCC, confirmation, follow-up, surveys, or offers. Outcomes can change linked case state and save survey feedback. |
-| Contacts | Member/contact data supports caller lookup, case linking, call context, imports, and contact history. |
+| Contacts | Member/contact data supports caller lookup, case linking, call context, imports, and contact history. The Contacts page shows contact cards and a contact panel with the communication history. Contacts and cases are imported straight from Vtiger (webservice jobs) or from CSV, without duplicates; a mobile may be shared only by contacts with their own card no. |
 | Admin | Configure agent accounts, stores and team contacts, workflows, escalation matrices, holidays, picklists/dependencies, automation switches, mailbox, and integration settings. |
-| Dashboard and reports | API summaries and the `/api/flow` endpoint supply live operational counts for the dashboard and interactive LOTS SOP chart. |
+| Dashboard and reports | API summaries and the `/api/flow` endpoint supply live operational counts for the dashboard and interactive LOTS SOP chart. The Report page lists the cases of a date range with filters and exports them as CSV (streamed, any range) or Excel (up to 50,000 cases). |
 | Support | Knowledge articles answer staff questions; unresolved questions can be tracked as support tickets for the help desk. |
 
 ## Runtime and data path
@@ -144,12 +144,14 @@ flowchart LR
 - Case-specific routing, requirements and TAT: `src/workflows.js`, `src/requirements.js`, `src/escalationMatrix.js`, `src/storeMatrix.js`
 - Automation and email flows: `server/automation.js`, `server/mail.js`, `server/aiReader.js`
 - Calls and telephony: `server/calls.js`, `server/sparktg.js`, `src/sparktg.jsx`
+- Vtiger imports: `server/vtigerApi.js`, `server/vtiger.js`, `server/vtigerCases.js`, `src/contactFields.js`, `src/vtigerContacts.js`, `src/vtigerCases.js`
 - Data adapter and schema: `server/db.js`, `server/mysql-store.js`, `server/schema.sql`
+- Process documentation for staff: `docs/process-documentation.md`, `docs/flows/`
 - Detailed customer-care SOP chart: `src/pages/LotsFlow.jsx` (interactive) and `lots-workflow.svg` (static)
 
 ## Existing design boundaries
 
 - SMS and OMS are not currently connected; they require provider/system access.
 - Mail-based automation requires the mailbox connection. Some SparkTG functions require its account configuration.
-- Access control is optional and is enabled/configured through the admin user settings.
+- Access control is optional and is enabled/configured through the admin user settings (built, not switched on yet).
 - The detailed SOP chart shows the operational case journey; this map documents the broader software and data flow.
