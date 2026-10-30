@@ -81,11 +81,46 @@ export function useLoad(fn, deps = []) {
   return [data, reload, error, setData];
 }
 
-export function copy(text) {
+let copyToastTimer;
+
+// Small confirmation so an agent knows the text reached the clipboard.
+function copiedToast(ok) {
+  let el = document.getElementById('copy-toast');
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'copy-toast';
+    el.className = 'toast';
+    document.body.appendChild(el);
+  }
+  el.textContent = ok ? 'Copied' : 'Could not copy — select the text and press Ctrl+C';
+  el.classList.toggle('bad', !ok);
+  clearTimeout(copyToastTimer);
+  copyToastTimer = setTimeout(() => el.remove(), 2200);
+}
+
+// Clipboard API only exists on https/localhost; on a LAN address (http://192.168…) use the old selection trick.
+function copyFallback(text) {
   try {
-    navigator.clipboard.writeText(text);
+    const ta = document.createElement('textarea');
+    ta.value = String(text ?? '');
+    ta.setAttribute('readonly', '');
+    ta.style.position = 'fixed';
+    ta.style.top = '-1000px';
+    document.body.appendChild(ta);
+    ta.select();
+    const ok = document.execCommand('copy');
+    ta.remove();
+    copiedToast(ok);
   } catch {
-    /* clipboard unavailable */
+    copiedToast(false);
+  }
+}
+
+export function copy(text) {
+  if (navigator.clipboard?.writeText) {
+    navigator.clipboard.writeText(String(text ?? '')).then(() => copiedToast(true), () => copyFallback(text));
+  } else {
+    copyFallback(text);
   }
 }
 
