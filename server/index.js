@@ -1739,7 +1739,7 @@ api.get('/flow', (req, res) => {
     custtype: n(d.stores.length, 'stores'),
     casetype: n(open.filter((c) => !c.caseType).length, 'open, not categorised', open.some((c) => !c.caseType)),
     enq: n(open.filter((c) => c.caseType === 'Inquiry').length, 'open'),
-    comp: n(open.filter((c) => c.caseType.startsWith('Issues')).length, 'open'),
+    comp: n(open.filter((c) => (c.caseType || '').startsWith('Issues')).length, 'open'),
     req: n(open.filter((c) => c.caseType === 'Request').length, 'open'),
     kb: n(by((c) => c.caseType === 'Inquiry' && c.resolutionType === 'ROT' && isToday(c.closedAt)), 'answered today'),
     reqdocs: n(open.filter((c) => c.caseType === 'Request').length, 'open requests'),
