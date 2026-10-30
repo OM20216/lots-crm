@@ -354,7 +354,7 @@ function poolConfig() {
     database: process.env.MYSQL_DATABASE,
     ssl: process.env.MYSQL_SSL === 'true' ? { rejectUnauthorized: process.env.MYSQL_SSL_VERIFY !== 'false' } : undefined,
     waitForConnections: true,
-    connectionLimit: 5,
+    connectionLimit: CONNECTIONS,
     timezone: 'Z',
     dateStrings: true,
     multipleStatements: false,
@@ -371,8 +371,19 @@ async function ensureSchema() {
 const parseDoc = (d) => (typeof d === 'string' ? JSON.parse(d) : d);
 
 /** Load everything. `emptyDb()` gives defaults; `legacyFile` is imported once if the database is empty. */
+// The start-up load sorts whole records (the ORDER BY in TABLES). The company server's default sort buffer
+// (256 KB) is too small for the biggest tables (cases, members: 3+ lakh records) and MySQL stops with
+// "Out of sort memory". 64 MB covers the current data. MYSQL_SORT_BUFFER_MB lowers it once the database
+// admin raises sort_buffer_size on the server itself.
+const SORT_BUFFER_MB = Math.max(1, Number(process.env.MYSQL_SORT_BUFFER_MB) || 64);
+
+// A connection hands its sort buffer back when it closes, so the peak on the database server is
+// connectionLimit x SORT_BUFFER_MB: 3 x 64 MB instead of 5 x 64 MB. Three are enough for two agents writing.
+const CONNECTIONS = Math.max(1, Number(process.env.MYSQL_CONNECTIONS) || 3);
+
 export async function load(emptyDb, legacyFile) {
   pool = mysql.createPool(poolConfig());
+  pool.pool.on('connection', (conn) => conn.query('SET SESSION sort_buffer_size = ' + SORT_BUFFER_MB * 1048576));
   await pool.query('SELECT 1');
   state.connected = true;
   await ensureSchema();
