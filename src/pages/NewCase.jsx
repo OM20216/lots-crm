@@ -98,6 +98,7 @@ export default function NewCase() {
     for (const v of dependents ? dependents('Resolution Type', 'Category', form.category) || [] : []) res.add(v);
     for (const v of (CASE_MASTER[form.category] || {}).resolution || []) res.add(v);
     for (const v of RESOLUTION_TYPES) res.add(v);
+    for (const v of ['In-audible / Disconnected in between', 'Information Provided', 'Not Relevant or Spam', 'On Hold', 'Pending', 'Waiting for Clarification from CUSTOMER']) res.add(v);
     return [...res].filter(Boolean);
   }, [form.category, dependents]);
 
