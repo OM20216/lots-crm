@@ -494,7 +494,7 @@ export default function NewCase() {
               <span className="step-no">4</span> What happens now?
             </h2>
             <SopWarnings list={sopWarnings(form)} />
-            {outcome === 'Closed' && resolutionOptions.length > 0 && (
+            {outcome === 'Closed' && (
               <Field label="Resolution type">
                 <Select value={form.closureType || ''} options={resolutionOptions} onChange={(v) => set({ closureType: v })} />
               </Field>
