@@ -350,7 +350,7 @@ export default function NewCase() {
           {/* SOP: communication channel */}
           <section className="card">
             <h2 className="section-h">
-              <span className="step-no">1</span> How did they contact us? <span className="req">*</span>
+              <span className="step-no">1</span> Call details <span className="req">*</span>
             </h2>
             {/* channel and call details on one row, across the full width */}
             <div className="grid four">
