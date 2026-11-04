@@ -8,7 +8,7 @@ import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
 import { useSparkTG } from '../sparktg.jsx';
 import { requirementsFor, sopWarnings } from '../requirements.js';
-import { CALL_TYPES, CALL_TYPE_OF_CHANNEL, CASE_MASTER, RESOLUTION_TYPES } from '../taxonomy.js';
+import { CALL_TYPES, CALL_TYPE_OF_CHANNEL, CASE_MASTER, RESOLUTION_TYPES, STATUSES } from '../taxonomy.js';
 
 // SOP "Resolve within TAT?": resolved over telephone, info missing (Waiting) or escalate to the store team.
 const OUTCOMES = [
@@ -481,6 +481,12 @@ export default function NewCase() {
             </h2>
             <div className="grid">
               <Classifier value={form} onChange={setForm} />
+              <Field label="Priority">
+                <Select value={form.priority || ''} options={['High', 'Medium', 'Low']} onChange={(v) => set({ priority: v })} />
+              </Field>
+              <Field label="Status">
+                <Select value={form.status || ''} options={STATUSES} onChange={(v) => set({ status: v })} />
+              </Field>
               <div className="field wide">
                 <WorkflowHint c={form} />
               </div>
