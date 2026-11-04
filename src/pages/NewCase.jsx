@@ -8,7 +8,7 @@ import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
 import { useSparkTG } from '../sparktg.jsx';
 import { requirementsFor, sopWarnings } from '../requirements.js';
-import { CALL_TYPES, CALL_TYPE_OF_CHANNEL, CASE_MASTER, RESOLUTION_TYPES, STATUSES } from '../taxonomy.js';
+import { CALL_TYPES, CALL_TYPE_OF_CHANNEL, CASE_MASTER, RESOLUTION_TYPES } from '../taxonomy.js';
 
 // SOP "Resolve within TAT?": resolved over telephone, info missing (Waiting) or escalate to the store team.
 const OUTCOMES = [
@@ -485,7 +485,7 @@ export default function NewCase() {
                 <Select value={form.priority || ''} options={['Urgent', 'High', 'Medium', 'Low']} onChange={(v) => set({ priority: v })} />
               </Field>
               <Field label="Status">
-                <Select value={form.status || ''} options={STATUSES} onChange={(v) => set({ status: v })} />
+                <Select value={form.status || ''} options={['New', 'Assigned', 'Open', 'Wait for Response from CPWI', 'Wait for customer', 'Wait for 3rd party', 'Resolved', 'Closed', 'Unable to Provide Info to Customer', 'Case On Hold']} onChange={(v) => set({ status: v })} />
               </Field>
               <div className="field wide">
                 <WorkflowHint c={form} />
