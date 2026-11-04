@@ -169,11 +169,41 @@ export function applyOutcome(r) {
     }
   }
 
-  // Inbound call nobody answered → missed-call list (30-min TAT, auto-assigned).
-  if (r.direction === 'inbound' && connected === false && !r.caseId && r.phone && !db().missedCalls.some((m) => m.txnId === r.id)) {
-    const m = core.createMissedCall({ phone: r.phone, at: r.startedAt, reason: `Missed on SparkTG${r.info?.disposition ? ': ' + r.info.disposition : ''}`, txnId: r.id });
+  // Any call nobody got through on → missed-call list (30-min TAT, auto-assigned).
+  // It used to be inbound only; failed outbound attempts were shown as "Not connected" in Call logs
+  // but never reached the missed-call queue. Both now create an entry, one per call (deduped by txn id).
+  // A call that is itself the call-back of an existing missed call only adds an attempt to that entry.
+  if (r.connected === false && !r.missedCallId && r.phone && !db().missedCalls.some((m) => m.txnId === r.id)) {
+    const m = core.createMissedCall({
+      phone: r.phone,
+      at: r.startedAt,
+      reason: `${r.direction === 'inbound' ? 'Missed' : 'Not connected'} on SparkTG${r.info?.disposition ? ': ' + r.info.disposition : ''}`,
+      txnId: r.id,
+    });
     r.createdMissedCallId = m.id;
   }
+}
+
+// Calls finalised before this rule existed are "Not connected" in Call logs but have no missed-call row.
+// Backfill the last 24 hours once (older calls would only create long-overdue tasks).
+export function backfillMissedCalls({ hours = 24 } = {}) {
+  const since = Date.now() - hours * 3600000;
+  let made = 0;
+  for (const r of db().calls) {
+    if (r.connected !== false || r.missedCallId || !r.phone) continue;
+    if (new Date(r.startedAt).getTime() < since) continue;
+    if (db().missedCalls.some((m) => m.txnId === r.id)) continue;
+    const m = core.createMissedCall({
+      phone: r.phone,
+      at: r.startedAt,
+      reason: `${r.direction === 'inbound' ? 'Missed' : 'Not connected'} on SparkTG${r.info?.disposition ? ': ' + r.info.disposition : ''}`,
+      txnId: r.id,
+    });
+    r.createdMissedCallId = m.id;
+    made++;
+  }
+  if (made) save();
+  return made;
 }
 
 /** Case created during/after a call: tie them together (details arrive when enrichment finishes). */

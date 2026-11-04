@@ -1844,6 +1844,15 @@ app.listen(PORT, '0.0.0.0', (err) => {
   auto.start();
   setInterval(() => calls.sweepLiveCalls().catch(() => {}), 60000);
   setTimeout(() => calls.sweepLiveCalls().catch(() => {}), 10000);
+  // one-off: turn already-finalised "Not connected" calls into missed calls (the queue was empty before the fix)
+  setTimeout(() => {
+    try {
+      const n = calls.backfillMissedCalls();
+      if (n) console.log(`[calls] created ${n} missed call(s) from not-connected calls`);
+    } catch (e) {
+      console.error('[calls] backfill', e.message);
+    }
+  }, 8000);
   setTimeout(() => core.memberIndex(), 2000); // the contact index is ready before the first caller is searched
   console.log(`LOTS CRM running on http://localhost:${PORT} ${PROD ? '(production)' : '(dev)'}`);
   const dbs = store.status();
