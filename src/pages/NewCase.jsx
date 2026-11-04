@@ -421,7 +421,7 @@ export default function NewCase() {
 
           <section className="card">
             <h2 className="section-h">
-              <span className="step-no">2</span> Who is it?
+              <span className="step-no">2</span> Type of customer
             </h2>
             <div className="grid">
               <Field label="Type of contact">
@@ -467,7 +467,7 @@ export default function NewCase() {
           {/* SOP: select case type → category */}
           <section className="card">
             <h2 className="section-h">
-              <span className="step-no">3</span> What is the concern?
+              <span className="step-no">3</span> Query type
             </h2>
             <div className="grid">
               <Classifier value={form} onChange={setForm} />
