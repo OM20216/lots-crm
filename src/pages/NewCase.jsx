@@ -8,7 +8,7 @@ import { WorkflowHint } from '../components/WorkflowCard.jsx';
 import Icon from '../components/Icon.jsx';
 import { useSparkTG } from '../sparktg.jsx';
 import { requirementsFor, sopWarnings } from '../requirements.js';
-import { CALL_TYPES, CALL_TYPE_OF_CHANNEL } from '../taxonomy.js';
+import { CALL_TYPES, CALL_TYPE_OF_CHANNEL, CASE_MASTER } from '../taxonomy.js';
 
 // SOP "Resolve within TAT?": resolved over telephone, info missing (Waiting) or escalate to the store team.
 const OUTCOMES = [
@@ -91,6 +91,14 @@ export default function NewCase() {
   const [err, setErr] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (patch) => setForm((f) => ({ ...f, ...patch }));
+
+  // Resolution types of the chosen category (case master: "Resolution Type" by category), for the "What happens now?" dropdown.
+  const resolutionOptions = useMemo(() => {
+    const res = new Set();
+    for (const v of dependents ? dependents('Resolution Type', 'Category', form.category) || [] : []) res.add(v);
+    for (const v of (CASE_MASTER[form.category] || {}).resolution || []) res.add(v);
+    return [...res].filter(Boolean);
+  }, [form.category, dependents]);
 
   // On a live SparkTG call with this number, link the call automatically.
   const { callState } = useSparkTG();
@@ -486,6 +494,11 @@ export default function NewCase() {
               <span className="step-no">4</span> What happens now?
             </h2>
             <SopWarnings list={sopWarnings(form)} />
+            {outcome === 'Closed' && resolutionOptions.length > 0 && (
+              <Field label="Resolution type">
+                <Select value={form.closureType || ''} options={resolutionOptions} onChange={(v) => set({ closureType: v })} />
+              </Field>
+            )}
             <div className="outcomes">
               {OUTCOMES.map((o) => (
                 <label key={o.status} className={`outcome ${outcome === o.status ? 'on' : ''}`}>
