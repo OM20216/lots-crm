@@ -73,7 +73,7 @@ export default function Calls() {
           <div className={`tile ${s.notConnected ? 'alert' : ''}`}>
             <div className="tile-value">{s.notConnected}</div>
             <div className="tile-label">Not connected</div>
-            <div className="tile-sub">Not-connected calls go to Missed calls</div>
+            <div className="tile-sub">Missed inbound go to Missed calls</div>
           </div>
           <div className="tile">
             <div className="tile-value">{s.withCase}</div>
