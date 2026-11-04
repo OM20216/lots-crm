@@ -482,7 +482,7 @@ export default function NewCase() {
             <div className="grid">
               <Classifier value={form} onChange={setForm} />
               <Field label="Priority">
-                <Select value={form.priority || ''} options={['High', 'Medium', 'Low']} onChange={(v) => set({ priority: v })} />
+                <Select value={form.priority || ''} options={['Urgent', 'High', 'Medium', 'Low']} onChange={(v) => set({ priority: v })} />
               </Field>
               <Field label="Status">
                 <Select value={form.status || ''} options={STATUSES} onChange={(v) => set({ status: v })} />
