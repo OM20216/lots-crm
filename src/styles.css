@@ -94,7 +94,8 @@ textarea { resize: vertical; }
 .chip { padding: 8px 16px; border-radius: 20px; border: 1px solid #cfd4dc; background: #fff; cursor: pointer; font: inherit; font-weight: 600; }
 .chip.on.type-inquiry { background: #dcfce7; border-color: var(--ok); color: var(--ok); }
 .chip.on.type-issues { background: #ffedd5; border-color: #ea580c; color: #c2410c; }
-.chip.on.type-requests { background: #fef9c3; border-color: #ca8a04; color: #a16207; }
+.chip.on.type-requests,
+.chip.on.type-request { background: #fef9c3; border-color: #ca8a04; color: #a16207; }
 
 .outcomes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; }
 .outcome { border: 1px solid var(--line); border-radius: 8px; padding: 10px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; }
@@ -302,7 +303,8 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .type-card span { color: var(--muted); font-size: 12px; }
 .type-card.on.type-inquiry { border-color: var(--ok); background: #f0fdf4; }
 .type-card.on.type-issues { border-color: #ea580c; background: #fff7ed; }
-.type-card.on.type-requests { border-color: #ca8a04; background: #fefce8; }
+.type-card.on.type-requests,
+.type-card.on.type-request { border-color: #ca8a04; background: #fefce8; }
 .btn.big { padding: 11px 28px; font-size: 15px; }
 
 @media (max-width: 900px) {
