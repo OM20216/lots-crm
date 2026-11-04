@@ -176,6 +176,97 @@ export function applyOutcome(r) {
   }
 }
 
+// Background poller: SparkTG records calls even when nobody has the CRM open, so the widget alone cannot be
+// the only source of missed calls. Every minute we read each agent's recent calls and queue the inbound ones
+// that were not answered. Outbound calls are ignored — "Recent missed" is only for customers who rang us and
+// could not get through.
+let inboundPolling = false;
+
+// SparkTG timestamps are IST wall-clock without a zone ("2026-11-04 14:36:29").
+function sparkTgTime(value) {
+  if (!value) return null;
+  const s = String(value).trim();
+  const d = /^\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}(:\d{2})?$/.test(s) ? new Date(s.replace(' ', 'T') + '+05:30') : new Date(s);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Pure check so it can be tested without touching the call log: is this SparkTG record an unanswered
+// inbound call that should become a missed call?
+export function inboundMissedCandidate(raw, { since = 0 } = {}) {
+  const info = sparktg.normalizeCall(raw);
+  if (!info?.txnId) return null;
+  const dir = String(info.direction || '').toLowerCase();
+  if (!dir.startsWith('in')) return null; // outbound calls never go to "Recent missed"
+  if (isConnected({ info }) !== false) return null; // answered (or outcome unknown)
+  const at = sparkTgTime(info.startedAt);
+  if (!at || at.getTime() < since) return null;
+  if (!info.phone) return null;
+  return { info, at, phone: phoneKey(info.phone) || String(info.phone) };
+}
+
+export async function pollInboundMissedCalls({ hours = 24 } = {}) {
+  if (inboundPolling || !sparktg.configured()) return 0;
+  inboundPolling = true;
+  let made = 0;
+  const since = Date.now() - hours * 3600000;
+  const seenTxn = new Set();
+  try {
+    const agents = await sparktg.fetchAgents();
+    for (const a of agents) {
+      const agentId = a?.id ?? a?.agent_id ?? a?.agentId;
+      if (agentId == null) continue;
+      let list;
+      try {
+        list = await sparktg.agentRecentCalls(agentId);
+      } catch (e) {
+        console.error('[calls] inbound poller, agent', agentId, e.message);
+        continue;
+      }
+      for (const raw of list) {
+        const hit = inboundMissedCandidate(raw, { since });
+        if (!hit) continue;
+        const { info, at, phone } = hit;
+        const txn = info.txnId;
+        if (seenTxn.has(txn)) continue;
+        seenTxn.add(txn);
+        if (db().calls.some((x) => x.id === txn)) continue; // widget already has it (enrich/sweep owns it)
+        if (db().missedCalls.some((m) => m.txnId === txn)) continue; // already queued
+        const match = core.findMemberByPhone(phone);
+        const dur = Number(info.durationSec) || 0;
+        const r = {
+          id: txn,
+          direction: 'inbound',
+          phone,
+          calledTo: '',
+          callerName: '',
+          memberId: match?.member.id || null,
+          businessName: match?.member.businessName || '',
+          agent: info.agent || 'SparkTG',
+          agentEmail: '',
+          startedAt: at.toISOString(),
+          endedAt: new Date(at.getTime() + dur * 1000).toISOString(),
+          status: 'enriched',
+          raw,
+          info,
+          connected: false,
+          widget: null,
+          caseId: null,
+          missedCallId: null,
+          leadId: null,
+          createdBy: 'SparkTG poller',
+        };
+        db().calls.push(r);
+        applyOutcome(r); // creates the missed call (30-min TAT) and fires automation, exactly like the widget path
+        made++;
+      }
+    }
+    if (made) save();
+    return made;
+  } finally {
+    inboundPolling = false;
+  }
+}
+
 /** Case created during/after a call: tie them together (details arrive when enrichment finishes). */
 export function linkCaseToCall(c, txnId) {
   const r = db().calls.find((x) => x.id === String(txnId).trim());

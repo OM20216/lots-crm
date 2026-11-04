@@ -58,6 +58,12 @@ export async function fetchAgents() {
   return Array.isArray(raw) ? raw : asList(raw).length ? asList(raw) : [raw];
 }
 
+// Recent calls handled by one agent. Used by the background inbound-missed poller, so calls are
+// picked up even when nobody has the CRM (and its dialer widget) open.
+export async function agentRecentCalls(agentId) {
+  return asList(await get('/api/v1/agent-recent-calls', { 'agent-id': agentId, 'svc-id': cfg().svcId }));
+}
+
 // SparkTG field names are not documented here, so we try the common spellings and keep the raw record.
 // Check Settings → SparkTG → "Test connection" against a real call and adjust the lists if a field shows blank.
 const pick = (r, keys) => {

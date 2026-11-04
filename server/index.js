@@ -1844,6 +1844,19 @@ app.listen(PORT, '0.0.0.0', (err) => {
   auto.start();
   setInterval(() => calls.sweepLiveCalls().catch(() => {}), 60000);
   setTimeout(() => calls.sweepLiveCalls().catch(() => {}), 10000);
+  // SparkTG records calls even when no browser has the dialer open: queue unanswered inbound calls every minute.
+  let inboundPollerRuns = 0;
+  const pollInboundMissed = () =>
+    calls
+      .pollInboundMissedCalls()
+      .then((n) => {
+        inboundPollerRuns++;
+        if (n) console.log(`[calls] inbound poller queued ${n} missed call(s)`);
+        else if (inboundPollerRuns === 1) console.log('[calls] inbound poller is running (no new inbound missed calls)');
+      })
+      .catch((e) => console.error('[calls] inbound poller', e.message));
+  setInterval(pollInboundMissed, 60000);
+  setTimeout(pollInboundMissed, 15000);
   setTimeout(() => core.memberIndex(), 2000); // the contact index is ready before the first caller is searched
   console.log(`LOTS CRM running on http://localhost:${PORT} ${PROD ? '(production)' : '(dev)'}`);
   const dbs = store.status();
