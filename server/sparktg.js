@@ -5,7 +5,9 @@ function cfg() {
     baseUrl: (process.env.SPARKTG_BASE_URL || 'https://telephonycloud.co.in').replace(/\/$/, ''),
     username: process.env.SPARKTG_USERNAME || '',
     password: process.env.SPARKTG_PASSWORD || '',
-    svcId: process.env.SPARKTG_SVC_ID || '',
+    // SparkTG shows the service id as a label ("1672 - server -id"); the API takes just the number.
+    // A pasted label made every lookup return HTTP 400, so call outcomes (and missed calls) never arrived.
+    svcId: String(process.env.SPARKTG_SVC_ID || '').trim().match(/\d+/)?.[0] || '',
   };
 }
 
