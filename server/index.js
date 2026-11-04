@@ -1756,9 +1756,67 @@ api.get('/flow', (req, res) => {
   });
 });
 
-api.get('/export', (req, res) => {
+api.get('/export', async (req, res) => {
+  // Streamed in parts: the whole database is close to the maximum JavaScript string length,
+  // so JSON.stringify(db()) failed with "Invalid string length" and the backup button did not work.
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="lots-crm-backup-${now().slice(0, 10)}.json"`);
-  res.json(db());
+  const data = db();
+  const keys = Object.keys(data);
+  const waitDrain = () =>
+    new Promise((resolve, reject) => {
+      const cleanup = () => {
+        res.off('drain', onDrain);
+        res.off('error', onError);
+      };
+      const onDrain = () => {
+        cleanup();
+        resolve();
+      };
+      const onError = (e) => {
+        cleanup();
+        reject(e);
+      };
+      res.once('drain', onDrain);
+      res.once('error', onError);
+    });
+  let part = '';
+  const j = (x) => {
+    const s = JSON.stringify(x);
+    return s === undefined ? 'null' : s; // undefined would make the file invalid JSON
+  };
+  const flush = async () => {
+    if (!part) return;
+    const text = part;
+    part = '';
+    if (!res.write(text)) await waitDrain();
+  };
+  let pending = 0;
+  const add = async (text) => {
+    part += text;
+    if (part.length >= 256 * 1024) await flush();
+    if (++pending % 5000 === 0) await new Promise((r) => setImmediate(r)); // let agents' requests in
+  };
+  try {
+    part = '{';
+    for (let i = 0; i < keys.length; i++) {
+      await add(`${i ? ',' : ''}${j(keys[i])}:`);
+      const v = data[keys[i]];
+      if (Array.isArray(v)) {
+        await add('[');
+        for (let j2 = 0; j2 < v.length; j2++) await add(`${j2 ? ',' : ''}${j(v[j2])}`);
+        await add(']');
+      } else {
+        await add(j(v));
+      }
+    }
+    await add('}');
+    await flush();
+    res.end();
+  } catch (e) {
+    console.error('[export]', e);
+    if (!res.headersSent) res.status(500).json({ error: e.message }); else res.destroy();
+  }
 });
 
 app.use('/api', api);
