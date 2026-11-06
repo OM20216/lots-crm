@@ -2,6 +2,7 @@
 // (SUP-000123) for the help desk manager when it cannot answer. On a token the agent and the manager chat.
 import { useEffect, useRef, useState } from 'react';
 import { api, currentAgent } from '../api.js';
+import { portalUrl } from '../ui.jsx';
 import Icon from './Icon.jsx';
 
 const GREETING =
@@ -285,6 +286,16 @@ export default function SupportWidget() {
                   {s}
                 </button>
               ))}
+            </div>
+          )}
+
+          {info?.service === 'down' && (
+            <div className="notice small" style={{ margin: '0 12px 8px' }}>
+              The support service is offline. Your tokens are safe — open{' '}
+              <a href={portalUrl(info.portal)} target="_blank" rel="noreferrer">
+                the independent support portal
+              </a>
+              .
             </div>
           )}
 

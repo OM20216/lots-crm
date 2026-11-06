@@ -1,51 +1,58 @@
-// The support button: answers questions about the CRM from the help articles (src/supportKb.js) and,
-// when it cannot answer, creates a support token so the agent can chat with the help desk manager.
-import * as store from './db.js';
-import * as mail from './mail.js';
-import * as teams from './teams.js';
-import * as auto from './automation.js';
+// The support button: answers questions about the CRM from the local help articles (src/supportKb.js)
+// and, when it cannot answer, raises a support token.
+//
+// Tokens are NOT stored in the CRM database. They are owned by the standalone LOTS Support service
+// (support-service/, its own process, port and JSON store), so tokens keep working when the CRM server,
+// its build or MySQL is down. The CRM is only an API client of that service; the same service also
+// serves the agent portal (/) and the manager desk (/admin).
 import { SUPPORT_ARTICLES, SUGGESTED, matchArticle, relatedArticles } from '../src/supportKb.js';
 
-const db = () => store.get();
-const save = () => store.save();
-const now = () => new Date().toISOString();
+const SERVICE_URL = (process.env.SUPPORT_SERVICE_URL || 'http://127.0.0.1:4100').replace(/\/$/, '');
+const SERVICE_TOKEN = process.env.SUPPORT_SERVICE_TOKEN || '';
+const SERVICE_TIMEOUT = 5000;
 
-// managerEmail = the support email (To of every new token); clientCc = fixed addresses copied on it (e.g. a LOTS
-// supervisor). The agent who raised the token is copied too, from their email in Stores & settings → Agents.
-const DEFAULTS = { managerEmail: '', clientCc: '', teamsNotify: true };
-const EMAIL = /^[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}$/i;
-const emails = (v) => [...new Set(String(v || '').split(/[,;\s]+/).map((e) => e.trim()).filter(Boolean))];
+const DEFAULT_SETTINGS = { managerEmail: '', clientCc: '', teamsNotify: true };
 
-/** Support settings (Stores & settings → Support): who gets the token, who is copied, and whether Teams is told too. */
-export function settings() {
-  return { ...DEFAULTS, ...(db().settings?.support || {}) };
+function unavailable(detail) {
+  const error = new Error(
+    `The support service is not reachable at ${SERVICE_URL}.${detail ? ' ' + detail : ''} The help articles still work; open ${SERVICE_URL} to raise or read a support token.`
+  );
+  error.status = 503;
+  error.serviceDown = true;
+  return error;
 }
 
-export function updateSettings(patch) {
-  const fail = (message) => Object.assign(new Error(message), { status: 400 });
-  const d = db();
-  d.settings ||= {};
-  const next = { ...settings() };
-  if ('managerEmail' in patch) next.managerEmail = String(patch.managerEmail || '').trim();
-  if ('clientCc' in patch) next.clientCc = emails(patch.clientCc).join(', ');
-  if ('teamsNotify' in patch) next.teamsNotify = Boolean(patch.teamsNotify);
-  const bad = [...emails(next.managerEmail), ...emails(next.clientCc)].find((e) => !EMAIL.test(e));
-  if (bad) throw fail(`Not a valid email: ${bad}`);
-  d.settings.support = next;
-  save();
-  return settings();
+/** Call the standalone support service as the CRM (full access). */
+async function call(path, { method = 'GET', body } = {}) {
+  if (!SERVICE_TOKEN) {
+    const error = new Error(
+      `The support service is not configured: add SUPPORT_SERVICE_URL and SUPPORT_SERVICE_TOKEN to the CRM secrets file (${SERVICE_URL} is the service).`
+    );
+    error.status = 503;
+    error.serviceDown = true;
+    throw error;
+  }
+  let res;
+  try {
+    res = await fetch(SERVICE_URL + path, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'x-support-token': SERVICE_TOKEN },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(SERVICE_TIMEOUT),
+    });
+  } catch (e) {
+    throw unavailable(e.name === 'TimeoutError' ? 'It did not answer within 5 seconds.' : e.message);
+  }
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const error = new Error(data.error || `The support service returned HTTP ${res.status}`);
+    error.status = res.status;
+    throw error;
+  }
+  return data;
 }
 
-/** Who a token's email goes to: To = the support email, Cc = the agent who raised it + the fixed client copy. */
-export function recipients(ticket) {
-  const s = settings();
-  const to = emails(s.managerEmail);
-  const agent = String(db().agentEmails?.[ticket.agent] || '').trim();
-  const cc = [...(EMAIL.test(agent) ? [agent] : []), ...emails(s.clientCc)].filter((e, i, a) => !to.some((t) => t.toLowerCase() === e.toLowerCase()) && a.findIndex((x) => x.toLowerCase() === e.toLowerCase()) === i);
-  return { to, cc, agentEmail: EMAIL.test(agent) ? agent : '' };
-}
-
-// ---------- answers ----------
+// ---------- answers (local, work even when the support service is down) ----------
 
 /** The answer to a question, or null when the articles do not cover it. */
 export function answer(question) {
@@ -60,235 +67,121 @@ export function article(id) {
   return a ? { id: a.id, title: a.title, text: a.answer } : null;
 }
 
-/** What the support button shows on open: a greeting, the suggested questions and the article list. */
-export function overview() {
-  return {
-    suggested: SUGGESTED,
-    articles: SUPPORT_ARTICLES.map((a) => ({ id: a.id, title: a.title })),
-    managerEmail: settings().managerEmail,
-    managerKnown: Boolean(settings().managerEmail) || teams.configured(),
-  };
-}
-
 /** The articles closest to a question (for "did you mean"). */
 export function related(question, limit = 3) {
   return relatedArticles(question, limit);
 }
 
-// ---------- support tokens ----------
-
-export function tickets() {
-  const d = db();
-  d.supportTickets ||= [];
-  return d.supportTickets;
+/**
+ * What the support button shows on open: the suggested questions and the article list.
+ * The manager-notification status comes from the support service; if it is down the answers still work.
+ */
+export async function overview() {
+  const base = {
+    suggested: SUGGESTED,
+    articles: SUPPORT_ARTICLES.map((a) => ({ id: a.id, title: a.title })),
+    managerEmail: '',
+    managerKnown: false,
+    teamsConfigured: false,
+    service: 'down',
+    portal: SERVICE_URL,
+  };
+  try {
+    const s = await call('/api/overview');
+    return {
+      ...base,
+      managerEmail: s.managerEmail || '',
+      managerKnown: Boolean(s.managerKnown),
+      teamsConfigured: Boolean(s.teamsConfigured),
+      service: 'up',
+    };
+  } catch (e) {
+    return { ...base, serviceError: e.message };
+  }
 }
 
-const clean = (v, n = 400) => String(v || '').trim().slice(0, n);
+// ---------- settings (owned by the support service) ----------
 
-export function findTicket(id) {
-  return tickets().find((t) => t.id === id);
+export async function settings() {
+  try {
+    const s = await call('/api/settings');
+    return { ...DEFAULT_SETTINGS, ...s };
+  } catch (e) {
+    // Let the Settings page render and say the service is down, instead of failing the whole page.
+    if (e.status === 503) return { ...DEFAULT_SETTINGS, teamsConfigured: false, serviceDown: true, serviceError: e.message };
+    throw e;
+  }
+}
+
+export async function updateSettings(patch = {}) {
+  const body = {};
+  if ('managerEmail' in patch) body.managerEmail = patch.managerEmail;
+  if ('clientCc' in patch) body.clientCc = patch.clientCc;
+  if ('teamsNotify' in patch) body.teamsNotify = patch.teamsNotify;
+  const saved = await call('/api/settings', { method: 'PUT', body });
+  return { ...DEFAULT_SETTINGS, ...saved };
+}
+
+// ---------- support tokens (stored by the standalone service) ----------
+
+/** All tokens, open first then newest (the manager desk). */
+export async function listTickets() {
+  return call('/api/tickets');
+}
+
+/** One token, or null when it does not exist. */
+export async function getTicket(id) {
+  try {
+    return await call('/api/tickets/' + encodeURIComponent(id));
+  } catch (e) {
+    if (e.status === 404) return null;
+    throw e;
+  }
 }
 
 /**
- * Create a support token (SUP-000123) for the help desk manager and tell them about it.
+ * Create a support token (SUP-000123) in the support service. The service notifies the manager
+ * (Teams webhook when configured) independently of the CRM mailbox.
  * @param o.question  what the agent asked
  * @param o.agent     who asked
  * @param o.context   where it came from ({ page, caseId })
  */
 export async function createTicket({ question, agent, context } = {}) {
-  const q = clean(question, 1000);
-  if (!q) {
-    const err = new Error('Type your question first');
-    err.status = 400;
-    throw err;
-  }
-  const d = db();
-  d.supportTickets ||= [];
-  const ticket = {
-    id: store.nextId('support', 'SUP-', 6),
-    question: q,
-    agent: clean(agent || 'Unknown', 80),
-    status: 'Open',
-    createdAt: now(),
-    updatedAt: now(),
-    context: {
-      page: clean(context?.page, 120),
-      caseId: clean(context?.caseId, 20),
-    },
-    replies: [],
-    notified: {},
-  };
-  d.supportTickets.push(ticket);
-  save();
-  await notifyManager(ticket);
-  return ticket;
-}
-
-/** The help desk manager: an email to the configured address and a card in Teams. */
-async function notifyManager(ticket) {
-  const s = settings();
-  const notified = {};
-  const { to: supportTo, cc, agentEmail } = recipients(ticket);
-
-  if (supportTo.length) {
-    const subject = `Support token ${ticket.id}: ${ticket.question.slice(0, 120)}`;
-    const body = [
-      `Hi,`,
-      ``,
-      `An agent on the LOTS CRM needs help and has raised a support token.`,
-      ``,
-      [
-        `Token: ${ticket.id}`,
-        `Raised by: ${ticket.agent}${agentEmail ? ` (${agentEmail})` : ''}`,
-        `Raised at: ${new Date(ticket.createdAt).toLocaleString('en-IN')}`,
-        ticket.context?.page ? `Page: ${ticket.context.page}` : null,
-        ticket.context?.caseId ? `Case: ${ticket.context.caseId}` : null,
-      ]
-        .filter(Boolean)
-        .join('\n'),
-      ``,
-      `Question:\n${ticket.question}`,
-      ``,
-      `Reply in the CRM: Admin → Support tokens (the agent sees the answer in the support panel).`,
-      ``,
-      `Regards,\nLOTS CRM support`,
-    ].join('\n');
-
-    // sent straight from the mailbox (not through the email preview mode — the support team has to get it);
-    // test mode: only to the test address
-    const test = auto.settings().mailTestTo;
-    const d = db();
-    d.outbox ||= [];
-    const entry = {
-      id: store.nextId('mail', 'OUT-', 6),
-      at: now(),
-      to: supportTo.join(', '),
-      cc: cc.join(', '),
-      subject: test ? `[TEST] ${subject}` : subject,
-      body,
-      caseId: null,
-      kind: 'Support token',
-      by: ticket.agent,
-      status: 'sending',
-      test: test || undefined,
-    };
-    d.outbox.push(entry);
-    if (d.outbox.length > 2000) d.outbox = d.outbox.slice(-2000);
-    try {
-      if (!mail.configured()) throw new Error('Mailbox not connected');
-      await mail.send({ to: test || supportTo, cc: test ? [] : cc, subject: entry.subject, html: auto.brandedHtml(body, null) });
-      entry.status = 'sent';
-      notified.email = 'sent';
-    } catch (e) {
-      entry.status = 'failed';
-      entry.error = e.message;
-      notified.email = 'failed';
-      notified.emailError = e.message;
-    }
-    notified.emailTo = entry.to;
-    notified.emailCc = entry.cc;
-    save();
-  }
-
-  if (s.teamsNotify && teams.configured()) {
-    try {
-      await teams.postCard({
-        title: `🆘 Support token ${ticket.id}`,
-        subtitle: `${ticket.agent} · ${new Date(ticket.createdAt).toLocaleString('en-IN')}`,
-        facts: [
-          ['Agent', ticket.agent],
-          ['Page', ticket.context?.page || ''],
-          ['Case', ticket.context?.caseId || ''],
-          ['Email to', notified.emailTo || ''],
-          ['Cc', notified.emailCc || ''],
-        ],
-        lines: [ticket.question, 'Reply in the CRM: Admin → Support tokens.'],
-      });
-      notified.teams = 'sent';
-    } catch (e) {
-      notified.teams = 'failed';
-      notified.teamsError = e.message;
-    }
-  }
-
-  ticket.notified = notified;
-  ticket.updatedAt = now();
-  if (notified.email === 'failed') {
-    ticket.warning = `The email to the support address failed (${notified.emailError || 'unknown error'}). The token is saved — the answer can still be given in Admin → Support tokens.`;
-  } else if (notified.email !== 'sent' && notified.teams !== 'sent') {
-    ticket.warning = 'Nobody was notified — no support email (Stores & settings → Support) and Teams is not connected.';
-  } else delete ticket.warning;
-  // the agent is copied on the email only when their email is saved (Stores & settings → Agents)
-  if (notified.email === 'sent' && !agentEmail) ticket.warning = `You were not copied on the email: your email is not saved (Stores & settings → Agents).`;
-  save();
-  return notified;
+  return call('/api/tickets', {
+    method: 'POST',
+    body: { question, agent, context: context || {} },
+  });
 }
 
 /**
  * A message on a token — the chat between the agent and the help desk manager.
- * from 'manager': the answer (status Answered); from 'agent': the agent writes back (status Open again, the manager
- * is told in Teams). A closed token takes no more messages.
+ * from 'manager': the answer (status Answered); from 'agent': the agent writes back (status Open again).
  */
-export function replyTicket(id, text, by, from = 'manager') {
-  const t = findTicket(id);
-  if (!t) {
-    const err = new Error('Support token not found');
-    err.status = 404;
-    throw err;
-  }
-  if (t.status === 'Closed') {
-    const err = new Error(`${t.id} is closed — ask again to open a new token`);
-    err.status = 400;
-    throw err;
-  }
-  const body = clean(text, 2000);
-  if (!body) {
-    const err = new Error(from === 'agent' ? 'Write your message first' : 'Write the answer first');
-    err.status = 400;
-    throw err;
-  }
-  t.replies.push({ at: now(), by: clean(by || (from === 'agent' ? t.agent : 'Help desk'), 80), text: body, from });
-  t.status = from === 'agent' ? 'Open' : 'Answered';
-  t.updatedAt = now();
-  save();
-  if (from === 'agent' && settings().teamsNotify && teams.configured())
-    teams.postCard({ title: `💬 ${t.agent} wrote on ${t.id}`, subtitle: t.question.slice(0, 200), lines: [body, 'Reply in the CRM: Admin → Support tokens.'] }).catch(() => {});
-  return t;
+export async function replyTicket(id, text, by, from = 'manager') {
+  return call('/api/tickets/' + encodeURIComponent(id), {
+    method: 'PATCH',
+    body: { action: from === 'agent' ? 'message' : 'reply', reply: text, by },
+  });
 }
 
-export function closeTicket(id, by) {
-  const t = findTicket(id);
-  if (!t) {
-    const err = new Error('Support token not found');
-    err.status = 404;
-    throw err;
-  }
-  t.status = 'Closed';
-  t.closedAt = now();
-  t.closedBy = clean(by || 'Help desk', 80);
-  t.updatedAt = now();
-  save();
-  return t;
+export async function closeTicket(id, by) {
+  return call('/api/tickets/' + encodeURIComponent(id), {
+    method: 'PATCH',
+    body: { action: 'close', by },
+  });
 }
 
 /** Remove a token (the manager does not want it in the list). */
-export function deleteTicket(id) {
-  const d = db();
-  const before = (d.supportTickets || []).length;
-  d.supportTickets = (d.supportTickets || []).filter((t) => t.id !== id);
-  if (d.supportTickets.length === before) {
-    const err = new Error('Support token not found');
-    err.status = 404;
-    throw err;
-  }
-  save();
-  return { ok: true };
+export async function deleteTicket(id) {
+  return call('/api/tickets/' + encodeURIComponent(id), { method: 'DELETE' });
 }
 
-/** Open tokens first, then the newest. */
-export function listTickets() {
-  return [...tickets()].sort((a, b) => {
-    const open = (t) => (t.status === 'Open' || t.status === 'Answered' ? 0 : 1);
-    return open(a) - open(b) || b.createdAt.localeCompare(a.createdAt);
-  });
+/** Open tokens, for the dashboard. A support-service outage must not break /stats. */
+export async function openCount() {
+  try {
+    const list = await listTickets();
+    return list.filter((t) => t.status !== 'Closed').length;
+  } catch {
+    return 0;
+  }
 }

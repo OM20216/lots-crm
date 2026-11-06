@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { api } from '../api.js';
-import { fmtDate, useLoad, useMeta } from '../ui.jsx';
+import { fmtDate, portalUrl, useLoad, useMeta } from '../ui.jsx';
 import { TEAMS } from '../workflows.js';
 import HoMatrixCard, { ContactMatrixCard, StoreMatrixCard } from '../components/HoMatrixCard.jsx';
 
@@ -227,12 +227,26 @@ function SupportCard() {
     <section className="card">
       <h2>Support (the support button)</h2>
       <p className="muted small">
-        The support button at the bottom right answers questions about the CRM. When it cannot answer, the agent raises a support token and the help desk manager is notified here.
+        The support button at the bottom right answers questions about the CRM. When it cannot answer, the agent raises a support token. Tokens are stored by the standalone support service, not in the CRM
+        database, so they keep working when the CRM is down.
       </p>
+      {data?.serviceDown && <div className="error small">The support service is not reachable: {data.serviceError}</div>}
+      {data?.agentPortal && (
+        <p className="muted small">
+          Agent portal:{' '}
+          <a href={portalUrl(data.agentPortal)} target="_blank" rel="noreferrer">
+            {portalUrl(data.agentPortal)}
+          </a>{' '}
+          · Manager desk:{' '}
+          <a href={portalUrl(data.adminPortal, '/admin')} target="_blank" rel="noreferrer">
+            {portalUrl(data.adminPortal, '/admin')}
+          </a>
+        </p>
+      )}
       <div className="field">
         <span className="field-label">Support email (To)</span>
         <input type="email" value={value} onChange={(e) => setEmail(e.target.value)} placeholder="support@…" />
-        <span className="hint">Every new token is emailed to this address. Leave it empty to use Teams only.</span>
+        <span className="hint">Shown as the support contact. New-token alerts are posted in Teams when the support service has a webhook.</span>
       </div>
       <div className="field">
         <span className="field-label">Client copy (Cc)</span>

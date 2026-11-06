@@ -156,3 +156,18 @@ export function Select({ value, onChange, options, placeholder = 'Select…', ..
 export function Empty({ children }) {
   return <div className="empty">{children}</div>;
 }
+
+/**
+ * The standalone support service runs on the same PC as the CRM. Replace localhost/127.0.0.1 with the
+ * host the browser used, so the portal links also work for agents on the office network.
+ */
+export function portalUrl(url, path = '/') {
+  if (!url) return '';
+  try {
+    const u = new URL(path, url);
+    if (['localhost', '127.0.0.1', '::1', '[::1]'].includes(u.hostname)) u.hostname = window.location.hostname;
+    return u.toString();
+  } catch {
+    return url;
+  }
+}

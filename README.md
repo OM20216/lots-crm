@@ -98,6 +98,11 @@ npm start            # http://<this-pc-ip>:4000 — every agent opens this in Ch
   powershell -ExecutionPolicy Bypass -File scripts\crm-service.ps1 stop | start | uninstall
   ```
   "stop" and "restart" wait until no database writes are pending (`/api/health`). The logs go to `crm.log` / `crm-error.log` in the project folder. It needs the user logged on; running before anyone logs on needs an administrator, who can install the same script with a real service tool such as NSSM.
+- **Support tokens run separately** from the CRM, so agent questions still reach the help desk manager when the CRM is down. The service has its own task, port `4100` and store:
+  ```
+  powershell -ExecutionPolicy Bypass -File scripts\support-service.ps1 install | status | restart | stop
+  ```
+  Agents use `http://<this-pc-ip>:4100/`; the manager uses `http://<this-pc-ip>:4100/admin`. The CRM reads and writes tokens through this service, so both places show one shared list. See [support-service/README.md](support-service/README.md).
 
 ---
 

@@ -664,7 +664,7 @@ api.put('/holidays', (req, res) => {
 // ----- support button: answers about the CRM, and tokens for the help desk manager -----
 const support = await import('./support.js');
 
-api.get('/support', (req, res) => res.json({ ...support.overview(), tickets: support.listTickets().length }));
+api.get('/support', wrap(async (req, res) => res.json({ ...(await support.overview()), tickets: await support.openCount() })));
 
 // The answer to a question. No match → the caller (the support button) offers a support token.
 api.post('/support/ask', (req, res) => {
@@ -699,27 +699,36 @@ api.post(
   })
 );
 
-api.get('/support/tickets', (req, res) => res.json(support.listTickets()));
+api.get('/support/tickets', wrap(async (req, res) => res.json(await support.listTickets())));
 
-api.get('/support/tickets/:id', (req, res) => {
-  const t = support.findTicket(req.params.id);
-  if (!t) return res.status(404).json({ error: 'Support token not found' });
-  res.json(t);
-});
+api.get(
+  '/support/tickets/:id',
+  wrap(async (req, res) => {
+    const t = await support.getTicket(req.params.id);
+    if (!t) return res.status(404).json({ error: 'Support token not found' });
+    res.json(t);
+  })
+);
 
 // The help desk manager's answer, or a close.
-api.patch('/support/tickets/:id', (req, res) => {
-  const action = req.body?.action || (req.body?.status === 'Closed' ? 'close' : 'reply');
-  // 'reply' = the help desk manager answers; 'message' = the agent writes back on their token
-  const t = action === 'close' ? support.closeTicket(req.params.id, agentOf(req)) : support.replyTicket(req.params.id, req.body?.reply, agentOf(req), action === 'message' ? 'agent' : 'manager');
-  res.json(t);
-});
+api.patch(
+  '/support/tickets/:id',
+  wrap(async (req, res) => {
+    const action = req.body?.action || (req.body?.status === 'Closed' ? 'close' : 'reply');
+    // 'reply' = the help desk manager answers; 'message' = the agent writes back on their token
+    const t =
+      action === 'close'
+        ? await support.closeTicket(req.params.id, agentOf(req))
+        : await support.replyTicket(req.params.id, req.body?.reply, agentOf(req), action === 'message' ? 'agent' : 'manager');
+    res.json(t);
+  })
+);
 
-api.get('/support/settings', (req, res) => res.json({ ...support.settings(), teamsConfigured: teams.configured() }));
+api.get('/support/settings', wrap(async (req, res) => res.json(await support.settings())));
 
-api.delete('/support/tickets/:id', (req, res) => res.json(support.deleteTicket(req.params.id)));
+api.delete('/support/tickets/:id', wrap(async (req, res) => res.json(await support.deleteTicket(req.params.id))));
 
-api.put('/support/settings', (req, res) => res.json(support.updateSettings(req.body || {})));
+api.put('/support/settings', wrap(async (req, res) => res.json(await support.updateSettings(req.body || {}))));
 
 // Escalation report per store / team: on time, days to resolve, overdue, levels
 api.get('/escalation-report', (req, res) => {
@@ -1671,7 +1680,7 @@ api.get('/reports', (req, res) => {
   res.json(body);
 });
 
-api.get('/stats', (req, res) => {
+api.get('/stats', wrap(async (req, res) => {
   const t = now();
   const today = t.slice(0, 10);
   const cases = db().cases;
@@ -1706,9 +1715,9 @@ api.get('/stats', (req, res) => {
     topCategories: Object.entries(count(open.filter((c) => c.category), 'category'))
       .sort((a, b) => b[1] - a[1])
       .slice(0, 6),
-    supportTokens: support.listTickets().filter((x) => x.status !== 'Closed').length,
+    supportTokens: await support.openCount(),
   });
-});
+}));
 
 // Live count for every box of the workflow chart (Workflow page).
 api.get('/flow', (req, res) => {

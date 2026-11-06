@@ -1,0 +1,476 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>LOTS Support · Manager desk</title>
+<style>
+  :root{--red:#d7141a;--red-dark:#b00f14;--ink:#1d2230;--muted:#6b7280;--line:#e5e7eb;--bg:#f5f6f8;--card:#fff;--ok:#15803d;--warn:#b45309;--info:#1d4ed8}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 'Segoe UI',system-ui,-apple-system,sans-serif}
+  h1,h2,h3{margin:0 0 8px}
+  h2{font-size:16px}
+  a{color:var(--info)}
+  .muted{color:var(--muted)}
+  .small{font-size:12px}
+  .brand{display:flex;align-items:center;gap:8px;font-size:18px;font-weight:700}
+  .logo{background:var(--red);color:#fff;padding:2px 8px;border-radius:6px;letter-spacing:1px}
+  .login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px}
+  .login-card{width:100%;max-width:400px;display:flex;flex-direction:column;gap:12px}
+  .field{display:flex;flex-direction:column;gap:5px;font-weight:600;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  input,textarea,select{font:inherit;padding:9px 11px;border:1px solid #cfd4dc;border-radius:6px;background:#fff;width:100%;color:var(--ink)}
+  input:focus,textarea:focus,select:focus{outline:2px solid #fecaca;border-color:var(--red)}
+  textarea{resize:vertical;min-height:80px}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:8px 14px;border-radius:6px;border:1px solid #cfd4dc;background:#fff;color:var(--ink);cursor:pointer;font:inherit;font-weight:600;white-space:nowrap;text-decoration:none}
+  .btn:hover{background:#f3f4f6}
+  .btn.primary{background:var(--red);border-color:var(--red);color:#fff}
+  .btn.primary:hover{background:var(--red-dark)}
+  .btn.danger{color:#b91c1c;border-color:#fecaca}
+  .btn.small{padding:5px 10px;font-size:12px}
+  .block{width:100%}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:14px}
+  .error{color:#b91c1c;margin:0}
+  .topbar{background:var(--ink);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;gap:12px;position:sticky;top:0;z-index:5}
+  .topbar .brand{font-size:16px}
+  .who{display:flex;align-items:center;gap:10px;font-size:13px}
+  .wrap{max-width:1200px;margin:0 auto;padding:20px}
+  .tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--line)}
+  .tab{background:none;border:none;border-bottom:3px solid transparent;padding:10px 14px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer}
+  .tab.on{color:var(--ink);border-bottom-color:var(--red)}
+  .row{display:flex;gap:10px;align-items:center}
+  .row.between{justify-content:space-between}
+  .row.top{align-items:flex-start}
+  .grow{flex:1;min-width:0}
+  .stats{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px}
+  .stat{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 16px;min-width:110px}
+  .stat b{display:block;font-size:22px;line-height:1.15}
+  .stat span{font-size:12px;color:var(--muted)}
+  .cols{display:grid;grid-template-columns:380px 1fr;gap:14px;align-items:start}
+  @media (max-width:900px){.cols{grid-template-columns:1fr}}
+  .filters{display:flex;gap:8px;margin:10px 0}
+  .filters input{flex:1}
+  .filters select{width:auto}
+  .tlist{display:flex;flex-direction:column;gap:8px;max-height:62vh;overflow:auto}
+  .titem{text-align:left;border:1px solid var(--line);border-radius:8px;background:#fff;padding:10px 12px;cursor:pointer;font:inherit;display:flex;flex-direction:column;gap:4px}
+  .titem:hover{background:#fafafa}
+  .titem.on{border-color:var(--red);box-shadow:0 0 0 2px #fee2e2}
+  .titem .q{font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .titem .meta{display:flex;justify-content:space-between;gap:8px;font-size:12px;color:var(--muted)}
+  .status{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700}
+  .status.Open{background:#fef3c7;color:#92400e}
+  .status.Answered{background:#e0e7ff;color:#4338ca}
+  .status.Closed{background:#dcfce7;color:#166534}
+  .thread{display:flex;flex-direction:column;gap:10px;margin:14px 0;max-height:52vh;overflow:auto}
+  .msg{max-width:88%;padding:9px 12px;border-radius:10px;background:#f1f5f9}
+  .msg .head{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:3px}
+  .msg.from-agent{align-self:flex-start}
+  .msg.from-manager{align-self:flex-end;background:#fee2e2}
+  .msg.from-manager .head{color:#991b1b}
+  .pre{white-space:pre-wrap;margin:0}
+  .empty{padding:22px;text-align:center;color:var(--muted)}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;z-index:20;box-shadow:0 8px 24px rgba(0,0,0,.25);max-width:90vw}
+  .toast.bad{background:#b91c1c}
+  .badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:700;background:#e5e7eb;color:#374151}
+  .badge.ok{background:#dcfce7;color:#166534}
+  .badge.warn{background:#fef3c7;color:#92400e}
+  .fieldrow{margin-bottom:12px}
+  .fieldrow label{display:block;font-weight:600;margin-bottom:4px}
+  .fieldrow .hint{font-size:12px;color:var(--muted);margin-top:3px}
+  .check{display:flex;gap:8px;align-items:center;font-weight:600}
+  .check input{width:auto}
+  .kv{display:grid;grid-template-columns:170px 1fr;gap:8px 12px;font-size:13px}
+  .kv .k{color:var(--muted)}
+  .kv .v{word-break:break-all}
+</style>
+</head>
+<body>
+
+<div id="login" class="login">
+  <form class="card login-card" id="loginForm">
+    <div class="brand"><span class="logo">LOTS</span> Support</div>
+    <p class="muted" style="margin:0">Manager desk for the support tokens raised by agents. Independent of the CRM — it keeps working when the CRM is down.</p>
+    <label class="field"><span>Manager access code</span><input id="loginCode" type="password" required autocomplete="off" /></label>
+    <button class="btn primary block" type="submit">Open manager desk</button>
+    <p id="loginError" class="error" hidden></p>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <header class="topbar">
+    <div class="brand"><span class="logo">LOTS</span> Support · Manager desk</div>
+    <div class="who">
+      <a class="btn small" href="/" target="_blank" rel="noopener">Agent portal</a>
+      <button id="signout" class="btn small">Sign out</button>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <nav class="tabs">
+      <button class="tab on" data-tab="tokens">Support tokens</button>
+      <button class="tab" data-tab="settings">Settings</button>
+    </nav>
+
+    <section id="tab-tokens" class="panel">
+      <div class="stats">
+        <div class="stat"><b id="statOpen">0</b><span>Open / answered</span></div>
+        <div class="stat"><b id="statWaiting">0</b><span>Waiting for you</span></div>
+        <div class="stat"><b id="statClosed">0</b><span>Closed</span></div>
+        <div class="stat"><b id="statTotal">0</b><span>All tokens</span></div>
+      </div>
+      <div class="cols">
+        <div class="card">
+          <div class="row between"><h2 style="margin:0">Tokens</h2><button id="refresh" class="btn small">Refresh</button></div>
+          <div class="filters">
+            <input id="search" placeholder="Search id, agent or question…" autocomplete="off" />
+            <select id="statusFilter">
+              <option value="Open">Open</option>
+              <option value="Answered">Answered</option>
+              <option value="Closed">Closed</option>
+              <option value="all">All</option>
+            </select>
+          </div>
+          <div id="tokenList" class="tlist"></div>
+        </div>
+        <div class="card" id="detail">
+          <p class="muted">Select a token to read the conversation.</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="tab-settings" class="panel" hidden>
+      <div class="card">
+        <h2>Support service</h2>
+        <div class="kv" id="serviceInfo"></div>
+      </div>
+      <div class="card">
+        <h2>Notifications and recipients</h2>
+        <p class="muted">The support service notifies you independently of the CRM mailbox. Teams is used when a webhook is configured on the server.</p>
+        <form id="settingsForm">
+          <div class="fieldrow">
+            <label for="managerEmail">Support email (To)</label>
+            <input id="managerEmail" type="email" placeholder="support@example.com" />
+            <div class="hint">Shown to agents and used as the support contact. Saving it does not send email by itself; the Teams webhook sends the alerts.</div>
+          </div>
+          <div class="fieldrow">
+            <label for="clientCc">Always copy (CC)</label>
+            <input id="clientCc" type="text" placeholder="supervisor@example.com, another@example.com" />
+            <div class="hint">Comma-separated addresses.</div>
+          </div>
+          <div class="fieldrow">
+            <label class="check"><input id="teamsNotify" type="checkbox" /> Send Teams alerts for new tokens and agent messages</label>
+            <div class="hint" id="teamsHint"></div>
+          </div>
+          <button class="btn primary" type="submit">Save settings</button>
+        </form>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(() => {
+  const $ = (s) => document.querySelector(s);
+  const state = { code: '', tickets: [], selected: null, draft: '', timer: null, settings: null };
+
+  const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  const fmt = (iso) => (iso ? new Date(iso).toLocaleString('en-IN', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
+  const ago = (iso) => {
+    if (!iso) return '';
+    const m = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (m < 1) return 'just now';
+    if (m < 60) return m + ' min ago';
+    const h = Math.round(m / 60);
+    if (h < 24) return h + ' h ago';
+    return Math.round(h / 24) + ' d ago';
+  };
+
+  function toast(text, bad) {
+    const el = document.createElement('div');
+    el.className = 'toast' + (bad ? ' bad' : '');
+    el.textContent = text;
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+  }
+
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      ...opts,
+      headers: { 'Content-Type': 'application/json', 'x-support-admin': state.code, ...(opts.headers || {}) },
+    });
+    const body = await res.json().catch(() => ({ error: 'The support service sent an unreadable response' }));
+    if (!res.ok) throw new Error(body.error || ('HTTP ' + res.status));
+    return body;
+  }
+
+  // ---------- sign in ----------
+
+  $('#loginForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    state.code = $('#loginCode').value;
+    $('#loginError').hidden = true;
+    try {
+      await api('/api/tickets');
+    } catch (ex) {
+      state.code = '';
+      $('#loginError').textContent = ex.message === 'Access code required' ? 'That access code is not right.' : ex.message;
+      $('#loginError').hidden = false;
+      return;
+    }
+    localStorage.setItem('lotsSupportAdminCode', state.code);
+    boot();
+  });
+
+  $('#signout').addEventListener('click', () => {
+    localStorage.removeItem('lotsSupportAdminCode');
+    clearInterval(state.timer);
+    state.timer = null;
+    $('#app').hidden = true;
+    $('#login').hidden = false;
+    $('#loginCode').value = '';
+  });
+
+  // ---------- tabs ----------
+
+  function showTab(name) {
+    document.querySelectorAll('.tab').forEach((b) => b.classList.toggle('on', b.dataset.tab === name));
+    $('#tab-tokens').hidden = name !== 'tokens';
+    $('#tab-settings').hidden = name !== 'settings';
+    if (name === 'settings') loadSettings();
+  }
+  document.querySelectorAll('.tab').forEach((b) => b.addEventListener('click', () => showTab(b.dataset.tab)));
+
+  // ---------- tokens ----------
+
+  async function loadTickets() {
+    try {
+      const list = await api('/api/tickets');
+      state.tickets = Array.isArray(list) ? list : [];
+      if (state.selected && !state.tickets.some((t) => t.id === state.selected)) state.selected = null;
+      renderStats();
+      renderList();
+      if (state.selected) {
+        const t = state.tickets.find((x) => x.id === state.selected);
+        if (t) renderDetail(t, false);
+      }
+    } catch (ex) {
+      if (ex.message === 'Access code required') {
+        toast('Your access code is no longer accepted. Sign in again.', true);
+        $('#signout').click();
+      } else {
+        toast(ex.message, true);
+      }
+    }
+  }
+
+  function renderStats() {
+    const t = state.tickets;
+    $('#statOpen').textContent = t.filter((x) => x.status !== 'Closed').length;
+    $('#statWaiting').textContent = t.filter((x) => x.status === 'Open').length;
+    $('#statClosed').textContent = t.filter((x) => x.status === 'Closed').length;
+    $('#statTotal').textContent = t.length;
+  }
+
+  function statusChip(s) {
+    return '<span class="status ' + esc(s) + '">' + esc(s) + '</span>';
+  }
+
+  function visibleTickets() {
+    const q = $('#search').value.trim().toLowerCase();
+    const st = $('#statusFilter').value;
+    return state.tickets.filter((t) => {
+      if (st !== 'all' && t.status !== st) return false;
+      if (!q) return true;
+      return [t.id, t.agent, t.question, ...(t.replies || []).map((r) => r.text)].join(' ').toLowerCase().includes(q);
+    });
+  }
+
+  function renderList() {
+    const el = $('#tokenList');
+    const list = visibleTickets();
+    if (!list.length) {
+      el.innerHTML = '<div class="empty">No tokens match this filter.</div>';
+      return;
+    }
+    el.innerHTML = list
+      .map(
+        (t) =>
+          '<button type="button" class="titem' + (t.id === state.selected ? ' on' : '') + '" data-id="' + esc(t.id) + '">' +
+          '<span class="q">' + esc(t.question) + '</span>' +
+          '<span class="meta"><span>' + esc(t.id) + ' · ' + esc(t.agent) + ' · ' + statusChip(t.status) + '</span><span>' + esc(ago(t.updatedAt)) + '</span></span>' +
+          '</button>'
+      )
+      .join('');
+    el.querySelectorAll('.titem').forEach((b) => b.addEventListener('click', () => selectTicket(b.dataset.id)));
+  }
+
+  async function selectTicket(id) {
+    state.selected = id;
+    state.draft = '';
+    renderList();
+    try {
+      const t = await api('/api/tickets/' + encodeURIComponent(id));
+      renderDetail(t, true);
+    } catch (ex) {
+      toast(ex.message, true);
+    }
+  }
+
+  function threadHtml(t) {
+    const parts = [
+      '<div class="msg from-agent"><div class="head">' + esc(t.agent) + ' · ' + esc(fmt(t.createdAt)) + '</div><div class="pre">' + esc(t.question) + '</div></div>',
+    ];
+    (t.replies || []).forEach((r) => {
+      const cls = r.from === 'manager' ? 'from-manager' : 'from-agent';
+      parts.push(
+        '<div class="msg ' + cls + '"><div class="head">' + esc(r.by || (r.from === 'manager' ? 'Help desk' : t.agent)) + ' · ' + esc(fmt(r.at)) + '</div><div class="pre">' + esc(r.text) + '</div></div>'
+      );
+    });
+    return parts.join('');
+  }
+
+  function renderDetail(t, scroll) {
+    const el = $('#detail');
+    const open = t.status !== 'Closed';
+    const ctx = [t.context?.page, t.context?.caseId].filter(Boolean).map(esc).join(' · ');
+    el.innerHTML =
+      '<div class="row between top">' +
+        '<div><h2 style="margin:0">' + esc(t.id) + ' ' + statusChip(t.status) + '</h2>' +
+        '<div class="small muted" style="margin-top:4px">' + esc(t.agent) + ' · raised ' + esc(fmt(t.createdAt)) + (ctx ? ' · ' + ctx : '') + '</div></div>' +
+        '<div class="row">' +
+          (open ? '<button type="button" class="btn small danger" id="closeToken">Close token</button>' : '') +
+          '<button type="button" class="btn small danger" id="deleteToken">Delete</button>' +
+        '</div>' +
+      '</div>' +
+      '<div class="thread" id="thread">' + threadHtml(t) + '</div>' +
+      (open
+        ? '<form id="replyForm"><textarea id="replyText" placeholder="Write your answer to ' + esc(t.agent) + '…">' + esc(state.draft) + '</textarea>' +
+          '<div class="row" style="margin-top:8px;justify-content:flex-end"><button class="btn primary" type="submit">Send answer</button></div></form>'
+        : '<p class="muted small">Closed ' + esc(fmt(t.closedAt)) + (t.closedBy ? ' by ' + esc(t.closedBy) : '') + '.</p>');
+
+    if (open) {
+      $('#replyText').addEventListener('input', (e) => (state.draft = e.target.value));
+      $('#replyForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const text = $('#replyText').value.trim();
+        if (!text) return;
+        try {
+          await api('/api/tickets/' + encodeURIComponent(t.id), {
+            method: 'PATCH',
+            body: JSON.stringify({ action: 'reply', reply: text, by: 'Help desk' }),
+          });
+          state.draft = '';
+          await loadTickets();
+          await selectTicket(t.id);
+        } catch (ex) {
+          toast(ex.message, true);
+        }
+      });
+      $('#closeToken').addEventListener('click', async () => {
+        if (!confirm('Close ' + t.id + '?')) return;
+        try {
+          await api('/api/tickets/' + encodeURIComponent(t.id), { method: 'PATCH', body: JSON.stringify({ action: 'close', by: 'Help desk' }) });
+          await loadTickets();
+          await selectTicket(t.id);
+        } catch (ex) {
+          toast(ex.message, true);
+        }
+      });
+    }
+
+    $('#deleteToken').addEventListener('click', async () => {
+      if (!confirm('Delete ' + t.id + ' permanently? This cannot be undone.')) return;
+      try {
+        await api('/api/tickets/' + encodeURIComponent(t.id), { method: 'DELETE' });
+        state.selected = null;
+        state.draft = '';
+        el.innerHTML = '<p class="muted">Select a token to read the conversation.</p>';
+        await loadTickets();
+        toast(t.id + ' deleted');
+      } catch (ex) {
+        toast(ex.message, true);
+      }
+    });
+
+    if (scroll) {
+      const th = $('#thread');
+      if (th) th.scrollTop = th.scrollHeight;
+    }
+  }
+
+  $('#refresh').addEventListener('click', loadTickets);
+  $('#statusFilter').addEventListener('change', renderList);
+  $('#search').addEventListener('input', renderList);
+
+  // ---------- settings ----------
+
+  async function loadSettings() {
+    try {
+      const [s, health] = await Promise.all([api('/api/settings'), fetch('/api/health').then((r) => r.json())]);
+      state.settings = s;
+      $('#managerEmail').value = s.managerEmail || '';
+      $('#clientCc').value = s.clientCc || '';
+      $('#teamsNotify').checked = s.teamsNotify !== false;
+      $('#teamsHint').innerHTML = s.teamsConfigured
+        ? '<span class="badge ok">Teams webhook configured</span>'
+        : '<span class="badge warn">No Teams webhook configured</span> — alerts are saved but not sent. Ask IT to set SUPPORT_TEAMS_WEBHOOK in the support service settings.';
+      $('#serviceInfo').innerHTML =
+        '<div class="k">Status</div><div class="v"><span class="badge ok">Running</span></div>' +
+        '<div class="k">Tickets stored</div><div class="v">' + esc(health.tickets) + '</div>' +
+        '<div class="k">Agent portal</div><div class="v"><a href="' + esc(s.agentPortal) + '" target="_blank" rel="noopener">' + esc(s.agentPortal) + '</a></div>' +
+        '<div class="k">Manager portal</div><div class="v">' + esc(s.adminPortal) + '</div>' +
+        '<div class="k">Data folder</div><div class="v">' + esc(health.data) + '</div>' +
+        '<div class="k">Independent of CRM</div><div class="v">Yes — tokens are kept by this service, not by the CRM database.</div>';
+    } catch (ex) {
+      toast(ex.message, true);
+    }
+  }
+
+  $('#settingsForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    try {
+      const saved = await api('/api/settings', {
+        method: 'PUT',
+        body: JSON.stringify({
+          managerEmail: $('#managerEmail').value.trim(),
+          clientCc: $('#clientCc').value.trim(),
+          teamsNotify: $('#teamsNotify').checked,
+        }),
+      });
+      state.settings = saved;
+      toast('Settings saved');
+      loadSettings();
+    } catch (ex) {
+      toast(ex.message, true);
+    }
+  });
+
+  // ---------- boot ----------
+
+  async function boot() {
+    $('#login').hidden = true;
+    $('#app').hidden = false;
+    showTab('tokens');
+    await loadTickets();
+    clearInterval(state.timer);
+    state.timer = setInterval(() => {
+      loadTickets();
+      if (state.selected) selectTicket(state.selected);
+    }, 15000);
+  }
+
+  const savedCode = localStorage.getItem('lotsSupportAdminCode');
+  if (savedCode) {
+    state.code = savedCode;
+    api('/api/tickets')
+      .then(boot)
+      .catch(() => {
+        state.code = '';
+        localStorage.removeItem('lotsSupportAdminCode');
+      });
+  } else {
+    $('#loginCode').focus();
+  }
+})();
+</script>
+</body>
+</html>

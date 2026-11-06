@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { ago, fmtDate, useLoad } from '../ui.jsx';
+import { ago, fmtDate, portalUrl, useLoad } from '../ui.jsx';
 
 // The help desk manager's desk: the tokens agents raised with the support button.
 export default function Support() {
   const [tickets, reload, error] = useLoad(() => api.get('/support/tickets'));
+  const [info] = useLoad(() => api.get('/support'));
   const [selected, setSelected] = useState(null);
   const [reply, setReply] = useState('');
   const [showClosed, setShowClosed] = useState(false);
@@ -50,6 +51,15 @@ export default function Support() {
       </div>
 
       {error && <div className="error">{error}</div>}
+
+      {info?.portal && (
+        <div className="notice">
+          Tokens are kept by the standalone support service, so this desk keeps working when the CRM is down. Standalone manager desk:{' '}
+          <a href={portalUrl(info.portal, '/admin')} target="_blank" rel="noreferrer">
+            {portalUrl(info.portal, '/admin')}
+          </a>
+        </div>
+      )}
 
       <div className="sup-admin">
         <section className="card">
