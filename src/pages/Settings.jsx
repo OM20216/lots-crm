@@ -246,12 +246,12 @@ function SupportCard() {
       <div className="field">
         <span className="field-label">Support email (To)</span>
         <input type="email" value={value} onChange={(e) => setEmail(e.target.value)} placeholder="support@…" />
-        <span className="hint">Shown as the support contact. New-token alerts are posted in Teams when the support service has a webhook.</span>
+        <span className="hint">Shown as the support contact. Email alerts are not sent yet; new tokens are posted in Teams when the service has a webhook.</span>
       </div>
       <div className="field">
         <span className="field-label">Client copy (Cc)</span>
         <input value={ccValue} onChange={(e) => setCc(e.target.value)} placeholder="e.g. supervisor@cpwi.in (comma separated)" />
-        <span className="hint">Copied on every token email. The agent who raised the token is copied too, from their email under Agents below.</span>
+        <span className="hint">Kept as the copy list for when email alerts are added. Tokens are not emailed yet; Teams alerts and both portals work without email.</span>
       </div>
       <label className="row small">
         <input type="checkbox" checked={teams} onChange={(e) => setTeamsNotify(e.target.checked)} /> also post new tokens in Teams
