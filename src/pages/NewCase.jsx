@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
+import { mobileError } from '../phone.js';
 import { KB } from '../knowledge.js';
 import { Field, Select, StatusBadge, fmtDate, useMeta, usePicklists } from '../ui.jsx';
 import Classifier, { allowedCategories, allowedTypes } from '../components/Classifier.jsx';
@@ -461,7 +462,8 @@ export default function NewCase() {
                 <input value={form.businessName} onChange={(e) => set({ businessName: e.target.value })} />
               </Field>
               <Field label={isCall ? 'Mobile *' : 'Mobile'}>
-                <input value={form.phone} onChange={(e) => set({ phone: e.target.value.replace(/[^\d+ ]/g, '') })} placeholder="10-digit mobile" />
+                <input value={form.phone} onChange={(e) => set({ phone: e.target.value.replace(/[^\d+ ]/g, '').slice(0, 10) })} placeholder="10-digit mobile" />
+                {mobileError(form.phone) && <div className="small err">{mobileError(form.phone)}</div>}
               </Field>
               <Field label="Card no.">
                 <input value={form.cardNo} onChange={(e) => set({ cardNo: e.target.value })} placeholder="Membership / add-on card no." />

@@ -414,7 +414,7 @@ function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
                   <option>Office</option>
                 </select>
                 <span className="cf-flag" title="India +91">🇮🇳 +91</span>
-                <input inputMode="numeric" className={errors[`phones.${i}`] || (i === 0 && err) ? 'bad' : ''} value={p.number} onChange={(e) => set({ phones: v.phones.map((x, j) => (j === i ? { ...x, number: e.target.value.replace(/[^\d ]/g, '') } : x)) })} placeholder="10-digit number" />
+                <input inputMode="numeric" className={errors[`phones.${i}`] || (i === 0 && err) ? 'bad' : ''} value={p.number} onChange={(e) => set({ phones: v.phones.map((x, j) => (j === i ? { ...x, number: e.target.value.replace(/[^\d ]/g, '').slice(0, 10) } : x)) })} placeholder="10-digit number" />
                 {i > 0 && (
                   <button type="button" className="cf-del" onClick={() => set({ phones: v.phones.filter((_, j) => j !== i) })} title="Remove">
                     ✕

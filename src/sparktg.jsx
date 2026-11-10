@@ -3,6 +3,7 @@
 // CRM → widget: login_sso_email, click_to_call.
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import { isValidMobile } from './phone.js';
 
 const Ctx = createContext(null);
 
@@ -36,8 +37,9 @@ export function SparkTGProvider({ widgetUrl, agentEmail, onCallLogged, children 
     (phone, context = {}) => {
       if (!widgetUrl) return false;
       const p = normalizePhone(phone);
+      if (!isValidMobile(p)) return false;
       pendingOutbound.current = context;
-      sendToWidget('click_to_call', { phone: /^\d{10}$/.test(p) ? `+91${p}` : p });
+      sendToWidget('click_to_call', { phone: `+91${p}` });
       setCallState({ phone: p, name: '', callId: null, direction: 'outbound', ended: false, context });
       setWidgetVisible(true);
       return true;

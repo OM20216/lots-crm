@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { MISSED_REASONS } from '../taxonomy.js';
 import { Due, Empty, Field, Select, fmtDate, useLoad, useMeta } from '../ui.jsx';
 import { CallButton } from '../components/Dialer.jsx';
+import { mobileError } from '../phone.js';
 
 export default function MissedCalls() {
   const nav = useNavigate();
@@ -37,7 +38,8 @@ export default function MissedCalls() {
       </div>
       <form className="card row wrap" onSubmit={add}>
         <Field label="Phone">
-          <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/[^\d+]/g, '') })} placeholder="From SparkTG missed-call report" />
+          <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/[^\d+]/g, '').slice(0, 10) })} placeholder="10-digit mobile" />
+          {mobileError(form.phone) && <div className="small err">{mobileError(form.phone)}</div>}
         </Field>
         <Field label="Reason">
           <Select value={form.reason} options={MISSED_REASONS} onChange={(v) => setForm({ ...form, reason: v })} />
@@ -45,7 +47,7 @@ export default function MissedCalls() {
         <Field label="Missed at (blank = now)">
           <input type="datetime-local" value={form.at} onChange={(e) => setForm({ ...form, at: e.target.value })} />
         </Field>
-        <button className="btn primary">Add missed call</button>
+        <button className="btn primary" disabled={!!mobileError(form.phone) || !form.phone}>Add missed call</button>
       </form>
 
       <section className="card">

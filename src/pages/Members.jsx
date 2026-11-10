@@ -61,10 +61,10 @@ export default function Members() {
               <input value={form.ownerName} onChange={(e) => setForm({ ...form, ownerName: e.target.value })} />
             </Field>
             <Field label="Registered mobile *">
-              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <input value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })} />
             </Field>
             <Field label="Alternate phone">
-              <input value={form.altPhone} onChange={(e) => setForm({ ...form, altPhone: e.target.value })} />
+              <input value={form.altPhone} onChange={(e) => setForm({ ...form, altPhone: e.target.value.replace(/\D/g, '').slice(0, 10) })} />
             </Field>
             <Field label="Email">
               <input value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -98,7 +98,7 @@ export default function Members() {
               {addOns.map((a, i) => (
                 <div className="row" key={i}>
                   <input value={a.name} placeholder="Name" onChange={(e) => setForm({ ...form, addOnCards: addOns.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
-                  <input value={a.phone} placeholder="Mobile" onChange={(e) => setForm({ ...form, addOnCards: addOns.map((x, j) => (j === i ? { ...x, phone: e.target.value } : x)) })} />
+                  <input value={a.phone} placeholder="Mobile" onChange={(e) => setForm({ ...form, addOnCards: addOns.map((x, j) => (j === i ? { ...x, phone: e.target.value.replace(/\D/g, '').slice(0, 10) } : x)) })} />
                   <input value={a.cardNo} placeholder="Card no." onChange={(e) => setForm({ ...form, addOnCards: addOns.map((x, j) => (j === i ? { ...x, cardNo: e.target.value } : x)) })} />
                   <button type="button" className="link" onClick={() => setForm({ ...form, addOnCards: addOns.filter((_, j) => j !== i) })}>
                     remove
