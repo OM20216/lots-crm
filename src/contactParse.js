@@ -50,7 +50,8 @@ function splitName(raw) {
   const parts = rest.split(/\s+/).filter(Boolean);
   if (parts.length === 0) return { salutation, firstName: '', lastName: '' };
   if (parts.length === 1) return { salutation, firstName: parts[0], lastName: '' };
-  return { salutation, firstName: parts[0], lastName: parts.slice(1).join(' ') };
+  // last word is the surname; everything before it is the given name (incl. middle names)
+  return { salutation, firstName: parts.slice(0, -1).join(' '), lastName: parts[parts.length - 1] };
 }
 
 function pickEmails(text) {
