@@ -5,6 +5,7 @@ import { useMeta, usePicklists } from '../ui.jsx';
 import Icon from '../components/Icon.jsx';
 import { MAX_ADDON_CARDS } from './Members.jsx';
 import { EMPTY, SECTIONS, toMember } from '../contactFields.js';
+import { parseContactText } from '../contactParse.js';
 
 // "Creating Contact" — same sections and fields as the LOTS contact form in Vtiger.
 // A contact is stored as a member record, so it is recognised automatically when the customer calls.
@@ -76,6 +77,8 @@ export default function ContactForm() {
   const [closed, setClosed] = useState({});
   const [active, setActive] = useState('validation');
   const [menuOpen, setMenuOpen] = useState(true);
+  const [pasteText, setPasteText] = useState('');
+  const [pasteMsg, setPasteMsg] = useState('');
   const [leaving, setLeaving] = useState(false);
   const bodyRef = useRef(null);
   const refs = useRef({});
@@ -251,6 +254,34 @@ export default function ContactForm() {
         </aside>
 
         <div className="cf-body" ref={bodyRef}>
+          <div className="cf-section" data-section="paste">
+            <button className="cf-section-head" onClick={() => setClosed((c) => ({ ...c, paste: !c.paste }))}>
+              <span>Paste details to auto-fill</span>
+            </button>
+            {!closed.paste && (
+              <div className="cf-grid one">
+                <textarea rows={5} value={pasteText} onChange={(e) => setPasteText(e.target.value)} placeholder="Paste the whole contact info here (name, phone, email, address, GSTIN, card no, ...). Only empty fields will be filled." style={{ width: '100%' }} />
+                <div className="row" style={{ gap: 8, marginTop: 6 }}>
+                  <button type="button" className="btn primary sm" onClick={() => {
+                    const parsed = parseContactText(pasteText);
+                    if (!parsed || !Object.keys(parsed).length) { setPasteMsg('Nothing detected.'); return; }
+                    const next = { ...v };
+                    for (const [k, val] of Object.entries(parsed)) {
+                      if (Array.isArray(val)) {
+                        if (!next[k] || !next[k].length || !next[k].some((x) => (x.number || x.address || '').trim())) next[k] = val;
+                      } else if (val && !String(next[k] || '').trim()) {
+                        next[k] = val;
+                      }
+                    }
+                    setV(next);
+                    setPasteMsg('Filled: ' + Object.keys(parsed).join(', '));
+                  }}>Parse & fill</button>
+                  <button type="button" className="btn sm" onClick={() => { setPasteText(''); setPasteMsg(''); }}>Clear</button>
+                  {pasteMsg && <span className="small muted">{pasteMsg}</span>}
+                </div>
+              </div>
+            )}
+          </div>
           {visible.length === 0 && <div className="empty">No field matches “{q}”.</div>}
           {visible.map((s) => (
             <section key={s.id} className="cf-section" data-section={s.id} ref={(el) => (refs.current[s.id] = el)}>
