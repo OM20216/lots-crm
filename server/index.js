@@ -980,12 +980,16 @@ api.get('/lookup', (req, res) => {
 });
 
 // ----- members -----
+// Contacts list: ?q= search, ?store= ?type= ?status= ?group= filters, ?limit= ?offset= pages (newest first).
+// The contact index answers it, so lakhs of contacts are not read one by one for every page.
 api.get('/members', (req, res) => {
-  const s = String(req.query.q || '').toLowerCase();
-  let list = db().members;
-  if (s) return res.json(core.searchMembers(s, 500)); // the contact index (lakhs of contacts)
-  res.json(list.slice(-500).reverse());
+  const { q = '', store = '', type = '', status = '', group = '', limit = 50, offset = 0 } = req.query;
+  res.json(core.queryMembers({ q, store, type, status, group, limit, offset }));
 });
+
+// The values actually present in the contact master, for the filter dropdowns (imported contacts use
+// names the contact form does not offer, e.g. "Existing Member" and "Other FR"). Counted once per change.
+api.get('/members/facets', (req, res) => res.json(core.memberFacets()));
 
 const MAX_ADDON_CARDS = 4; // process owner decision, 30 Sep 2026
 const checkAddOns = (body) => {

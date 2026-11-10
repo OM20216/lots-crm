@@ -702,7 +702,7 @@ ul.tight li, ol.tight li { margin-bottom: 4px; }
 .ct-round { width: 38px; height: 38px; border-radius: 50%; border: 1px solid #e5e7eb; background: #fff; display: grid; place-items: center; color: #d71920; cursor: pointer; padding: 0; text-decoration: none; }
 .ct-round:hover { background: #fef2f2; }
 .ct-round.wa { color: #16a34a; }
-.ct-more { text-align: center; padding: 6px; }
+.ct-more { display: grid; gap: 8px; justify-items: center; text-align: center; padding: 6px; }
 .ct-detail { position: sticky; top: 12px; }
 .ct-panel { background: #fff; border: 1px solid #e5e7eb; border-radius: 16px; padding: 24px; max-height: calc(100vh - 120px); overflow-y: auto; }
 .ct-head { display: flex; align-items: center; gap: 18px; }

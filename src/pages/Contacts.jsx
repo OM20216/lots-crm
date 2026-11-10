@@ -1,7 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { api } from '../api.js';
-import { Empty, storeLabel, useLoad, useMeta } from '../ui.jsx';
+import { Empty, Select, storeLabel, useMeta } from '../ui.jsx';
+import { CUSTOMER_GROUPS } from '../taxonomy.js';
+import { CONTACT_TYPES } from '../contactFields.js';
 import MemberImport from '../components/MemberImport.jsx';
 import { CallButton } from '../components/Dialer.jsx';
 import Icon from '../components/Icon.jsx';
@@ -23,15 +25,136 @@ const when = (iso) => (iso ? new Date(iso).toLocaleString('en-IN', { day: '2-dig
 const dur = (s) => (s == null || s === '' ? '' : `${Math.floor(Number(s) / 60)}:${String(Math.round(Number(s) % 60)).padStart(2, '0')}`);
 const wa = (p) => `https://wa.me/91${String(p || '').replace(/\D/g, '').slice(-10)}`;
 
+const PAGE = 50;
+const CUSTOMER_STATUSES = ['Active', 'Inactive', 'Blocked'];
+
+// GET /members query: the search text, the filters and one page of the list.
+function memberQuery({ q, store, type, status, group, limit, offset }) {
+  const p = new URLSearchParams();
+  if (q) p.set('q', q);
+  if (store) p.set('store', store);
+  if (type) p.set('type', type);
+  if (status) p.set('status', status);
+  if (group) p.set('group', group);
+  p.set('limit', String(limit));
+  p.set('offset', String(offset));
+  return p.toString();
+}
+
 export default function Contacts() {
   const loc = useLocation();
   const [params, setParams] = useSearchParams();
+  const { stores } = useMeta();
   const [q, setQ] = useState('');
+  const [query, setQuery] = useState('');
+  const [store, setStore] = useState('');
+  const [type, setType] = useState('');
+  const [status, setStatus] = useState('');
+  const [group, setGroup] = useState('');
+  const [items, setItems] = useState(null);
+  const [total, setTotal] = useState(0);
+  const [hasMore, setHasMore] = useState(false);
+  const [more, setMore] = useState(false);
+  const [err, setErr] = useState('');
   const [showImport, setShowImport] = useState(false);
-  const [list, reload] = useLoad(() => api.get('/members?q=' + encodeURIComponent(q)), [q]);
+  const [facets, setFacets] = useState(null);
+  const [bump, setBump] = useState(0); // forced reload: a CSV import adds contacts even when the filters did not change
   const flash = loc.state?.saved;
-  const selectedId = params.get('c') || list?.[0]?.id || null;
+  const selectedId = params.get('c') || items?.[0]?.id || null;
   const select = (id) => setParams((p) => (p.set('c', id), p), { replace: true });
+  const filtered = Boolean(query || store || type || status || group);
+
+  // what actually exists in the member master, for the filter dropdowns (imported contacts use names
+  // like "Existing Member" and "Other FR" that the contact form never offers)
+  const loadFacets = () => api.get('/members/facets').then(setFacets).catch(() => {});
+  useEffect(() => {
+    loadFacets();
+    return () => {};
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // search as you type, but only ask the server once the typing pauses
+  useEffect(() => {
+    const t = setTimeout(() => setQuery(q.trim()), 250);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const firstRender = useRef(true);
+  const key = [query, store, type, status, group, bump].join('\u0001');
+  useEffect(() => {
+    // a new filter makes a new list; a contact picked under the old filter is let go (but a ?c= link is kept on arrival)
+    if (firstRender.current) firstRender.current = false;
+    else
+      setParams((p) => {
+        if (!p.get('c')) return p;
+        const next = new URLSearchParams(p);
+        next.delete('c');
+        return next;
+      }, { replace: true });
+
+    let live = true;
+    setItems(null);
+    setErr('');
+    api
+      .get('/members?' + memberQuery({ q: query, store, type, status, group, limit: PAGE, offset: 0 }))
+      .then((r) => {
+        if (!live) return;
+        setItems(r.items || []);
+        setTotal(r.total || 0);
+        setHasMore(Boolean(r.hasMore));
+      })
+      .catch((e) => {
+        if (!live) return;
+        setErr(e.message);
+        setItems([]);
+      });
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+
+  async function loadMore() {
+    setMore(true);
+    setErr('');
+    try {
+      const r = await api.get('/members?' + memberQuery({ q: query, store, type, status, group, limit: PAGE, offset: items?.length || 0 }));
+      setItems((cur) => [...(cur || []), ...(r.items || [])]);
+      setTotal(r.total || 0);
+      setHasMore(Boolean(r.hasMore));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setMore(false);
+    }
+  }
+
+  const clear = () => {
+    setQ('');
+    setQuery('');
+    setStore('');
+    setType('');
+    setStatus('');
+    setGroup('');
+  };
+
+  // after an import, refresh the dropdowns AND the list (a fresh import may add to the current page)
+  const afterImport = () => {
+    clear();
+    setBump((b) => b + 1);
+    loadFacets();
+  };
+
+  // dropdown values: what is actually in the data, falling back to the contact form's lists;
+  // the store list is the official stores, plus any other codes that appear in the data
+  const typeOptions = facets?.types?.length ? facets.types.map((x) => x.value) : CONTACT_TYPES;
+  const statusOptions = facets?.statuses?.length ? facets.statuses.map((x) => x.value) : CUSTOMER_STATUSES;
+  const groupOptions = facets?.groups?.length ? facets.groups.map((x) => x.value) : Object.keys(CUSTOMER_GROUPS);
+  const facetStoreCodes = (facets?.stores || []).map((x) => String(x.value));
+  const storeOptions = [
+    ...stores.filter((s) => !facetStoreCodes.length || facetStoreCodes.includes(String(s.code))).map((s) => ({ value: s.code, label: `${s.code} ${s.short}` })),
+    ...facetStoreCodes.filter((c) => !stores.some((s) => String(s.code) === c)).map((c) => ({ value: c, label: c })),
+  ];
 
   return (
     <>
@@ -50,24 +173,34 @@ export default function Contacts() {
         </div>
       </div>
       {flash && <div className="notice ok">{flash}</div>}
-      {showImport && <MemberImport onDone={reload} />}
+      {showImport && <MemberImport onDone={afterImport} />}
 
       <div className="card filters">
         <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, business, mobile, card no., email, GSTIN, contact type…" autoFocus />
+        <Select value={store} onChange={setStore} options={storeOptions} placeholder="All stores" />
+        <Select value={type} onChange={setType} options={typeOptions} placeholder="All contact types" />
+        <Select value={status} onChange={setStatus} options={statusOptions} placeholder="All statuses" />
+        <Select value={group} onChange={setGroup} options={groupOptions} placeholder="All customer groups" />
+        {filtered && (
+          <button type="button" className="link" onClick={clear}>
+            Clear filters
+          </button>
+        )}
       </div>
+      {err && <div className="error">{err}</div>}
 
-      {!list ? (
+      {items === null ? (
         <section className="card">
           <Empty>Loading…</Empty>
         </section>
-      ) : list.length === 0 ? (
+      ) : items.length === 0 ? (
         <section className="card">
-          <Empty>{q ? 'No contact matches.' : 'No contacts yet. Click “+ Create Contact” or import your member list.'}</Empty>
+          <Empty>{filtered ? 'No contact matches these filters.' : 'No contacts yet. Click “+ Create Contact” or import your member list.'}</Empty>
         </section>
       ) : (
         <div className="ct-split">
           <div className="ct-list">
-            {list.map((m) => (
+            {items.map((m) => (
               <div key={m.id} className={`ct-card ${m.id === selectedId ? 'on' : ''}`} onClick={() => select(m.id)} role="button" tabIndex={0} onKeyDown={(e) => e.key === 'Enter' && select(m.id)}>
                 <div className="ct-avatar">{initials(m)}</div>
                 <div className="ct-main">
@@ -97,9 +230,19 @@ export default function Contacts() {
                 </div>
               </div>
             ))}
-            {list.length >= 500 && <div className="muted small ct-more">Showing the newest 500 · search to find any contact</div>}
+            <div className="ct-more">
+              <div className="muted small">
+                Showing {items.length.toLocaleString('en-IN')} of {total.toLocaleString('en-IN')}
+                {filtered ? ' matching' : ''} contacts
+              </div>
+              {hasMore && (
+                <button className="btn" onClick={loadMore} disabled={more}>
+                  {more ? 'Loading…' : 'Load more'}
+                </button>
+              )}
+            </div>
           </div>
-          <div className="ct-detail">{selectedId ? <ContactDetail id={selectedId} fallback={list.find((m) => m.id === selectedId)} /> : null}</div>
+          <div className="ct-detail">{selectedId ? <ContactDetail id={selectedId} fallback={items.find((m) => m.id === selectedId)} /> : null}</div>
         </div>
       )}
     </>

@@ -216,6 +216,92 @@ export function searchMembers(q, limit) {
   return out;
 }
 
+// What the Contacts screen shows for a contact, with the same defaults as the contact form (old imported
+// records have no contact object, so they are Registered Member / Active / no group).
+export const contactTypeOf = (m) => m.contact?.contactType || 'Registered Member';
+export const contactStatusOf = (m) => (m.status === 'Blocked' ? 'Blocked' : m.contact?.customerStatus || 'Active');
+export const contactGroupOf = (m) => m.customerGroup || m.contact?.segment3 || '';
+
+// Contacts list: one search box plus Store / Contact type / Status / Customer group filters, newest first, in pages.
+// The matching contacts are collected once per filter combination and kept, so "Load more" does not scan again;
+// the cache is dropped whenever a contact changes (the index version changes with it).
+const MEMBER_PAGE = 50;
+const MEMBER_CACHE = 5;
+const queryCache = { version: null, lists: new Map() };
+
+export function queryMembers({ q = '', store = '', type = '', status = '', group = '', limit = MEMBER_PAGE, offset = 0 } = {}) {
+  const ix = memberIndex();
+  const search = low(q);
+  const f = { store: String(store || ''), type: String(type || ''), status: String(status || ''), group: String(group || '') };
+  const filtered = Boolean(f.store || f.type || f.status || f.group);
+  const size = Math.min(Math.max(Math.round(Number(limit)) || MEMBER_PAGE, 1), 200);
+  const from = Math.max(Math.round(Number(offset)) || 0, 0);
+  const all = db().members;
+
+  // nothing to search or filter: the newest page, taken straight from the member list
+  if (!search && !filtered) {
+    const end = Math.max(all.length - from, 0);
+    const start = Math.max(end - size, 0);
+    return { items: all.slice(start, end).reverse(), total: all.length, offset: from, limit: size, hasMore: start > 0 };
+  }
+
+  if (queryCache.version !== ix.version) {
+    queryCache.version = ix.version;
+    queryCache.lists.clear();
+  }
+  const key = JSON.stringify([search, f]);
+  let list = queryCache.lists.get(key);
+  if (!list) {
+    list = [];
+    const { text } = ix;
+    for (let i = text.length - 1; i >= 0; i--) {
+      const e = text[i];
+      if (!e || (search && !e[1].includes(search))) continue;
+      const m = e[0];
+      if (f.store && String(m.homeStore || '') !== f.store) continue;
+      if (f.type && contactTypeOf(m) !== f.type) continue;
+      if (f.status && contactStatusOf(m) !== f.status) continue;
+      if (f.group && contactGroupOf(m) !== f.group) continue;
+      list.push(m);
+    }
+    if (queryCache.lists.size >= MEMBER_CACHE) queryCache.lists.delete(queryCache.lists.keys().next().value); // oldest kept list
+    queryCache.lists.set(key, list);
+  }
+  const items = list.slice(from, from + size);
+  return { items, total: list.length, offset: from, limit: size, hasMore: from + items.length < list.length };
+}
+
+// The values actually present in the member master, for the Contacts filter dropdowns (imported Vtiger data
+// has names the contact form does not offer, e.g. "Existing Member" and "Other FR"). Counted once per change.
+const FACET_LIMIT = 200; // a very long tail is cut; the search box still finds those contacts
+let facetCache = { version: null, data: null };
+export function memberFacets() {
+  const ix = memberIndex();
+  if (facetCache.version === ix.version) return facetCache.data;
+  const count = (get) => {
+    const map = new Map();
+    for (const e of ix.text) {
+      if (!e) continue;
+      const v = get(e[0]);
+      if (v) map.set(v, (map.get(v) || 0) + 1);
+    }
+    return [...map]
+      .sort((a, b) => b[1] - a[1] || String(a[0]).localeCompare(String(b[0])))
+      .slice(0, FACET_LIMIT)
+      .map(([value, n]) => ({ value, count: n }));
+  };
+  facetCache = {
+    version: ix.version,
+    data: {
+      stores: count((m) => String(m.homeStore || '')),
+      types: count(contactTypeOf),
+      statuses: count(contactStatusOf),
+      groups: count(contactGroupOf),
+    },
+  };
+  return facetCache.data;
+}
+
 /** Every contact with this mobile (shared numbers: each with its own card no.), as { member, via, addOn }. */
 export function membersByPhone(phone) {
   const key = phoneKey(phone);

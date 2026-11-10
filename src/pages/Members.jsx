@@ -13,7 +13,8 @@ const blank = { businessName: '', ownerName: '', phone: '', altPhone: '', email:
 export default function Members() {
   const { stores } = useMeta();
   const [q, setQ] = useState('');
-  const [members, reload] = useLoad(() => api.get('/members?q=' + encodeURIComponent(q)), [q]);
+  const [res, reload] = useLoad(() => api.get('/members?q=' + encodeURIComponent(q)), [q]);
+  const members = res?.items;
   const [form, setForm] = useState(null);
   const [err, setErr] = useState('');
   const [showImport, setShowImport] = useState(false);
