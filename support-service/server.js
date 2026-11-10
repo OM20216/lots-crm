@@ -1,7 +1,8 @@
 // LOTS Support - a standalone support-token service.
 //
-// It runs as its own process/task on its own port and keeps tokens in its own JSON store, so the
-// support button's tokens still work when the CRM server, its build or its database is down.
+// It runs as its own process/task on its own port. The tokens live in the company's MySQL database
+// (support_tickets / support_messages, tables of their own), so they survive CRM restarts, rebuilds
+// and crashes; on a machine without MySQL settings they go to the local JSON file store instead.
 // The CRM talks to it through the same API the two browser portals use.
 import fs from 'node:fs';
 import http from 'node:http';
@@ -9,6 +10,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createStore } from './store.js';
+import { createMySqlStore } from './mysql-store.js';
 import { SUGGESTED, SUPPORT_ARTICLES, matchArticle, relatedArticles } from '../src/supportKb.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -29,12 +31,24 @@ const DATA_DIR = process.env.SUPPORT_DATA_DIR || path.join(privateDir, 'support'
 const CRM_URL = (process.env.SUPPORT_CRM_URL || 'http://localhost:4000').replace(/\/$/, '');
 const TEAMS_WEBHOOK = process.env.SUPPORT_TEAMS_WEBHOOK || '';
 
+// The store: MySQL when support.env has the database settings (the default here), JSON file otherwise.
+const MYSQL_CONFIG = process.env.MYSQL_HOST && process.env.MYSQL_DATABASE
+  ? {
+      host: process.env.MYSQL_HOST,
+      port: Number(process.env.MYSQL_PORT) || 3306,
+      user: process.env.MYSQL_USER,
+      password: process.env.MYSQL_PASSWORD,
+      database: process.env.MYSQL_DATABASE,
+      ssl: process.env.MYSQL_SSL === 'true' ? { rejectUnauthorized: process.env.MYSQL_SSL_VERIFY !== 'false' } : undefined,
+    }
+  : null;
+
 if (!AGENT_CODE || !ADMIN_CODE || !SERVICE_TOKEN) {
   console.error(`Missing access codes. Set SUPPORT_AGENT_CODE, SUPPORT_ADMIN_CODE and SUPPORT_SERVICE_TOKEN in ${envFile}`);
   process.exit(1);
 }
 
-const store = createStore(DATA_DIR);
+const store = MYSQL_CONFIG ? createMySqlStore({ dir: DATA_DIR, config: MYSQL_CONFIG }) : createStore(DATA_DIR);
 const now = () => new Date().toISOString();
 const clean = (v, n = 400) => String(v || '').trim().slice(0, n);
 const EMAIL = /^[^@\s,;]+@[^@\s,;]+\.[a-z]{2,}$/i;
@@ -43,71 +57,55 @@ const httpError = (status, message) => Object.assign(new Error(message), { statu
 
 // ---------- tickets ----------
 
+function findTicketId(id) {
+  return store.get(id);
+}
+
 function sortTickets(list) {
   const open = (t) => (t.status === 'Open' || t.status === 'Answered' ? 0 : 1);
   return [...list].sort((a, b) => open(a) - open(b) || String(b.createdAt).localeCompare(String(a.createdAt)));
 }
 
-function findTicket(id) {
-  return store.tickets().find((t) => t.id === id);
-}
-
-export function ticketsFor(agent) {
-  const list = agent ? store.tickets().filter((t) => String(t.agent).toLowerCase() === String(agent).toLowerCase()) : store.tickets();
-  return sortTickets(list);
+async function ticketsFor(agent) {
+  return sortTickets(await store.list(agent));
 }
 
 async function createTicket({ question, agent, context } = {}) {
   const q = clean(question, 1000);
   if (!q) throw httpError(400, 'Type your question first');
-  const t = {
-    id: store.nextId(),
+  const t = await store.create({
     question: q,
     agent: clean(agent || 'Unknown', 80),
-    status: 'Open',
     createdAt: now(),
-    updatedAt: now(),
     context: { page: clean(context?.page, 120), caseId: clean(context?.caseId, 20) },
-    replies: [],
-    notified: {},
-  };
-  store.tickets().push(t);
-  await store.save();
+  });
   notifyManager(t).catch((e) => console.error('[support] notify', e.message));
   return t;
 }
 
 async function replyTicket(id, text, by, from = 'manager') {
-  const t = findTicket(id);
+  const t = await findTicketId(id);
   if (!t) throw httpError(404, 'Support token not found');
   if (t.status === 'Closed') throw httpError(400, `${t.id} is closed - ask again to open a new token`);
   const body = clean(text, 2000);
   if (!body) throw httpError(400, from === 'agent' ? 'Write your message first' : 'Write the answer first');
-  t.replies.push({ at: now(), by: clean(by || (from === 'agent' ? t.agent : 'Help desk'), 80), text: body, from });
-  t.status = from === 'agent' ? 'Open' : 'Answered';
-  t.updatedAt = now();
-  await store.save();
-  if (from === 'agent') notifyMessage(t, body).catch((e) => console.error('[support] notify', e.message));
-  return t;
+  const at = now();
+  const reply = { at, by: clean(by || (from === 'agent' ? t.agent : 'Help desk'), 80), text: body, from };
+  const saved = await store.saveReply(id, reply, { status: from === 'agent' ? 'Open' : 'Answered', updatedAt: at });
+  if (from === 'agent') notifyMessage(saved, body).catch((e) => console.error('[support] notify', e.message));
+  return saved;
 }
 
 async function closeTicket(id, by) {
-  const t = findTicket(id);
+  const t = await findTicketId(id);
   if (!t) throw httpError(404, 'Support token not found');
-  t.status = 'Closed';
-  t.closedAt = now();
-  t.closedBy = clean(by || 'Help desk', 80);
-  t.updatedAt = now();
-  await store.save();
-  return t;
+  const at = now();
+  return store.patch(id, { status: 'Closed', closedAt: at, closedBy: clean(by || 'Help desk', 80), updatedAt: at });
 }
 
 async function deleteTicket(id) {
-  const list = store.tickets();
-  const i = list.findIndex((t) => t.id === id);
-  if (i < 0) throw httpError(404, 'Support token not found');
-  list.splice(i, 1);
-  await store.save();
+  const ok = await store.delete(id);
+  if (!ok) throw httpError(404, 'Support token not found');
   return { ok: true };
 }
 
@@ -154,7 +152,7 @@ async function notifyManager(ticket) {
   }
   ticket.notified = notified;
   ticket.updatedAt = now();
-  await store.save();
+  await store.patch(ticket.id, { notified, updatedAt: ticket.updatedAt });
 }
 
 async function notifyMessage(ticket, body) {
@@ -231,7 +229,7 @@ async function route(req, res) {
   if (!p.startsWith('/api/')) return send(res, 404, { error: 'Not found' });
 
   if (req.method === 'GET' && p === '/api/health')
-    return send(res, 200, { ok: true, service: 'LOTS Support', port: PORT, tickets: store.tickets().length, data: store.dir });
+    return send(res, 200, { ok: true, service: 'LOTS Support', port: PORT, tickets: await store.count(), backend: store.backend, data: store.dir });
 
   if (req.method === 'GET' && p === '/api/overview') {
     const s = store.settings();
@@ -284,7 +282,7 @@ async function route(req, res) {
     if (req.method === 'GET') {
       const agent = role === 'agent' ? agentName(url) : '';
       if (role === 'agent' && !agent) return send(res, 400, { error: 'Agent name required' });
-      return send(res, 200, ticketsFor(agent));
+      return send(res, 200, await ticketsFor(agent));
     }
     if (req.method === 'POST') {
       const body = await readBody(req);
@@ -299,7 +297,7 @@ async function route(req, res) {
   const one = p.match(/^\/api\/tickets\/([^/]+)$/);
   if (one) {
     const id = decodeURIComponent(one[1]);
-    const t = findTicket(id);
+    const t = await findTicketId(id);
     const agent = agentName(url);
     if (!t) return send(res, 404, { error: 'Support token not found' });
     if (role === 'agent' && String(t.agent).toLowerCase() !== agent.toLowerCase()) return send(res, 403, { error: 'That token belongs to another agent' });
@@ -337,7 +335,7 @@ server.listen(PORT, HOST, () => {
   console.log(`LOTS Support running on http://localhost:${PORT}`);
   console.log(`  Agents:  http://localhost:${PORT}/`);
   console.log(`  Manager: http://localhost:${PORT}/admin`);
-  console.log(`  Data:    ${store.dir}`);
+  console.log(`  Store:   ${MYSQL_CONFIG ? `MySQL (database "${MYSQL_CONFIG.database}", tables support_tickets + support_messages)` : `JSON files in ${store.dir}`}`);
 });
 
 function shutdown() {

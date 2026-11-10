@@ -533,6 +533,16 @@ The user exported Contacts from Vtiger (`Contacts_24-10-2026_1158.csv`). That fi
 
 ---
 
+## 10 November 2026
+
+### Support tokens now live in MySQL (user's go-ahead)
+- The standalone support service stores its tokens in the company's existing `lots` database in **two new tables of its own**, `support_tickets` (one row per token; the row number IS the token number, so a deleted token's number is never reused) and `support_messages` (every manager / agent message in order). The CRM's own tables are untouched.
+- `support.env` gained the `MYSQL_*` settings (copied from `secrets.env`); when they are missing on another machine the service falls back to the old local JSON file store, so it still runs without the database.
+- One-off `support-service/migrate-to-mysql.mjs` moved the 3 existing tokens out of `tickets.json` (kept as `tickets.json.pre-mysql` backup); numbering continued at SUP-000009.
+- Tested live: create → manager reply → agent message → close → delete straight into MySQL, numbering continued (SUP-000010), 401/403 paths still refused, rows checked in the database, and everything re-read after a service restart. CRM-side list shows the same 3 tokens.
+
+---
+
 ## 14 October 2026
 
 ### Picklists and dependencies, as in the PSRI CRM
