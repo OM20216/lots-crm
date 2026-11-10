@@ -258,7 +258,7 @@ export default function ContactForm() {
                 <span className={`cf-chev ${closed[s.id] ? 'shut' : ''}`}>⌄</span> {s.title}
               </button>
               {!closed[s.id] && (
-                <div className={`cf-grid ${['addon', 'description'].includes(s.id) ? 'one' : ''}`}>
+                <div className={`cf-grid ${['addon'].includes(s.id) ? 'one' : ''}`}>
                   {s.fields.map((fl) => (
                     <FieldRow key={fl.key} fl={fl} v={v} set={set} errors={errors} stores={stores} agents={agents} taken={taken} />
                   ))}

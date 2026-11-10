@@ -94,11 +94,6 @@ export const SECTIONS = [
     ],
   },
   { id: 'addon', title: 'Details of Addon Member', fields: [f('addons', 'Add-on members', 'addons')] },
-  { id: 'description', title: 'Description Details', fields: [f('description', 'Description', 'richtext'), f('needValidation', 'Need Validation', 'checkbox')] },
-  {
-    id: 'socials', title: 'Socials',
-    fields: [f('linkedinUrl', 'Linkedin URL'), f('linkedinFollowers', 'Linkedin Followers'), f('facebookUrl', 'Facebook URL'), f('facebookFollowers', 'Facebook Followers')],
-  },
 ];
 
 export const EMPTY = {
