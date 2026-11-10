@@ -60,10 +60,15 @@ function pickEmails(text) {
 }
 
 function pickPhones(text) {
-  // 10-digit Indian mobiles
-  const re = /\b[6-9]\d{9}\b/g;
-  const found = [...new Set(text.match(re) || [])];
-  return found.map((n, i) => ({ type: i === 0 ? 'Mobile' : 'Alternate', number: n }));
+  // 10-digit Indian mobiles, even when written with spaces/dashes/+91
+  const normalized = text.replace(/\+91[\s\-]*/g, '');
+  const re = /[6-9](?:[\s\-]*\d){9}/g;
+  const found = new Set();
+  for (const m of normalized.match(re) || []) {
+    const d = m.replace(/\D/g, '');
+    if (d.length === 10) found.add(d);
+  }
+  return [...found].map((n, i) => ({ type: i === 0 ? 'Mobile' : 'Alternate', number: n }));
 }
 
 function pickGSTIN(text) {
