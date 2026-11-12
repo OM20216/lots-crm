@@ -106,6 +106,23 @@ function Get-WatchdogProcesses {
     Where-Object { $_.CommandLine -like '*watchdog.ps1*run*' -and $_.ProcessId -ne $PID })
 }
 
+# Is somebody already restarting a service by hand (crm-service.ps1 / support-service.ps1)? Then the watchdog
+# must keep its hands off: two restarts at once stop and start the same service on top of each other.
+function Test-ServiceScriptBusy([string]$Name) {
+  $busy = @(Get-CimInstance Win32_Process -Filter "Name='powershell.exe'" -ErrorAction SilentlyContinue |
+    Where-Object { $_.CommandLine -and $_.CommandLine -like "*$Name*" -and $_.ProcessId -ne $PID })
+  return $busy.Count -gt 0
+}
+
+# A process that has just started is still loading 3.2 lakh contacts: it is not down, it is not ready yet.
+function Test-JustStarted([int]$Port, [int]$GraceMinutes) {
+  $c = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+  if (-not $c) { return $false }
+  $p = Get-Process -Id $c.OwningProcess -ErrorAction SilentlyContinue
+  if (-not $p) { return $false }
+  return ((Get-Date) - $p.StartTime).TotalMinutes -lt $GraceMinutes
+}
+
 # Restarts a service through its own script (which knows how to stop it safely, without losing pending writes).
 function Repair([string]$Service) {
   try {
@@ -197,12 +214,18 @@ function Invoke-Pass {
     $script:crmFails++
     if (-not $script:crmDownSince) { $script:crmDownSince = (Get-Date).ToString('o'); Add-Event 'crm' 'down' $crm.detail }
     if ($script:crmFails -eq $FailuresBeforeRestart -or ($script:crmFails -gt $FailuresBeforeRestart -and $script:crmFails % 5 -eq 0)) {
+      if (Test-ServiceScriptBusy 'crm-service') {
+        Write-Log 'crm: down, but crm-service.ps1 is running - leaving the restart to it'
+      } elseif (Test-JustStarted $crmPort 8) {
+        Write-Log 'crm: not answering, but the process has just started - giving it time to load'
+      } else {
       Show-Alert 'LOTS CRM is down' "The CRM is not answering. Restarting it automatically ($($crm.detail))."
       $ok = Repair 'crm'
       $after = Test-Crm
       if ($after.up) { Add-Event 'crm' 'restart' "restarted automatically - $($after.detail)"; $script:crmFails = 0; $crm = $after; $script:crmDownSince = '' }
       elseif (-not $ok) { Add-Event 'crm' 'restart-failed' 'the restart command failed - see logs\watchdog-service.log' }
       else { Add-Event 'crm' 'restart-failed' "still not answering - $($after.detail)" }
+      }
     }
   }
 
@@ -211,12 +234,18 @@ function Invoke-Pass {
     $script:supFails++
     if (-not $script:supDownSince) { $script:supDownSince = (Get-Date).ToString('o'); Add-Event 'support' 'down' $support.detail }
     if ($script:supFails -eq $FailuresBeforeRestart -or ($script:supFails -gt $FailuresBeforeRestart -and $script:supFails % 5 -eq 0)) {
+      if (Test-ServiceScriptBusy 'support-service') {
+        Write-Log 'support: down, but support-service.ps1 is running - leaving the restart to it'
+      } elseif (Test-JustStarted $supportPort 2) {
+        Write-Log 'support: not answering, but the process has just started - giving it time'
+      } else {
       Show-Alert 'LOTS Support is down' "Support tokens are not answering. Restarting the support service ($($support.detail))."
       $ok = Repair 'support'
       $after = Test-Support
       if ($after.up) { Add-Event 'support' 'restart' "restarted automatically - $($after.detail)"; $script:supFails = 0; $support = $after; $script:supDownSince = '' }
       elseif (-not $ok) { Add-Event 'support' 'restart-failed' 'the restart command failed - see logs\watchdog-service.log' }
       else { Add-Event 'support' 'restart-failed' "still not answering - $($after.detail)" }
+      }
     }
   }
 

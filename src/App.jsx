@@ -262,10 +262,6 @@ export default function App() {
             <NavItem to="/calls" icon="incoming" label="Call logs" />
             <NavItem to="/contacts" icon="members" label="Contacts" />
             <NavItem to="/cases" icon="search" label="Cases" />
-            <NavItem to="/followups" icon="check" label="Follow-ups" />
-            <NavItem to="/missed" icon="missed" label="Missed calls" />
-            <NavItem to="/leads" icon="leads" label="Leads" />
-            <NavItem to="/kb" icon="book" label="Knowledge base" />
             <NavItem to="/reports" icon="book" label="Report" />
             <NavItem to="/support" icon="help" label="Support" count={stats?.supportTokens} plain />
           </nav>

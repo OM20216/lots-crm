@@ -16,9 +16,15 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 - **Status bar in the CRM** (`src/components/HealthBanner.jsx`, fed by the watchdog data added to `/api/health`): quiet when all is well; red while the support service or the database write is failing; amber after an automatic restart ("Everything is working now - no action needed"). Dismissable per event.
 - **Tested live:** support service stopped at 12:50 -> bar red at 12:51 ("not answering since 12:51 PM") -> restarted automatically at 12:54 with 3 tokens intact -> bar amber ("restarted automatically at 12:55 PM") -> dismissed. Both services up; `watchdog.ps1 status` shows the history.
 
-### Menu links for the pages nobody could reach (user: "do 4")
-- **Follow-ups, Missed calls, Leads and Knowledge base** added to the sidebar. The worklog of 28 October had already noted that Outbound leads and the Knowledge base had no link anywhere; Missed calls and Follow-ups were only reachable through a top-bar popup and three Dashboard tiles.
-- Automation, Case workflows, Picklists and Dependencies keep their place under Admin, where team-leader pages belong. The sidebar now scrolls when the window is short.
+### Menu links: added, then removed again (user: "do 4", then "remove the sidebar options that you added now")
+- Follow-ups, Missed calls, Leads and Knowledge base were added to the sidebar, then taken out again the same day at the user's request. The menu is back to its nine items; every one of those four pages still opens from its old place (a Dashboard tile, the top-bar missed-calls popup, or by typing the address) and none of them was changed.
+- Automation, Case workflows, Picklists and Dependencies stay under Admin. The sidebar keeps the scroll it gained, so a short window never hides the last item.
+
+### Watchdog: two guards after a restart of the CRM (same day)
+- A manual `crm-service.ps1 restart` at 13:09 was still building when the watchdog saw the CRM down at 13:10 and started it too, so two restarts ran on top of each other and the service took five minutes to come back. Nothing was lost (0 pending writes), but the alert was noise.
+- **Guard 1:** while `crm-service.ps1` / `support-service.ps1` is running, the watchdog leaves the restart to it.
+- **Guard 2:** a process that started less than 8 minutes ago (CRM) or 2 minutes ago (support) is treated as "still loading", not as down - a cold start reads 3.2 lakh contacts from MySQL.
+- MySQL itself timed out on this PC around 13:10 (`connect ETIMEDOUT`, `read ECONNRESET` in `crm-error.log`); it was reachable again a few minutes later and the full export/table check was not needed.
 
 ---
 
