@@ -4,6 +4,24 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ---
 
+## 12 November 2026
+
+### Remove the paste-to-auto-fill panel (user: "remove this section")
+- The "Paste details to auto-fill" block (textarea, Parse & fill, Clear) is gone from the Creating / Editing Contact form, with its two state variables and `src/contactParse.js` (nothing else used it; it stays in git history). The seven Vtiger sections and every field are unchanged.
+
+### Watchdog for both services (user: "do 2" - restart the service and tell someone when it is down)
+- **Why:** the two runner loops (`run-crm.ps1`, `run-support.ps1`) only cover a crashed Node process. They do not cover a service that is still listening but not answering (MySQL unreachable, hung), a runner loop that has died, or nobody noticing either.
+- `scripts/watchdog.ps1` (task "LOTS CRM Watchdog", starts at log-on and again every 5 minutes): every 60 s checks `:4000/api/health` and `:4100/api/health`; after 3 failed checks in a row it restarts that service through its own script (so a stop still waits for pending database writes). A slow start is retried once, because loading 3.2 lakh contacts can stall the event loop for seconds.
+- Writes `~/.lots-crm/watchdog-status.json` and `logs/watchdog.log`, and raises a Windows notification when it restarts something. The event history survives a watchdog restart.
+- **Status bar in the CRM** (`src/components/HealthBanner.jsx`, fed by the watchdog data added to `/api/health`): quiet when all is well; red while the support service or the database write is failing; amber after an automatic restart ("Everything is working now - no action needed"). Dismissable per event.
+- **Tested live:** support service stopped at 12:50 -> bar red at 12:51 ("not answering since 12:51 PM") -> restarted automatically at 12:54 with 3 tokens intact -> bar amber ("restarted automatically at 12:55 PM") -> dismissed. Both services up; `watchdog.ps1 status` shows the history.
+
+### Menu links for the pages nobody could reach (user: "do 4")
+- **Follow-ups, Missed calls, Leads and Knowledge base** added to the sidebar. The worklog of 28 October had already noted that Outbound leads and the Knowledge base had no link anywhere; Missed calls and Follow-ups were only reachable through a top-bar popup and three Dashboard tiles.
+- Automation, Case workflows, Picklists and Dependencies keep their place under Admin, where team-leader pages belong. The sidebar now scrolls when the window is short.
+
+---
+
 ## 28 October 2026
 
 ### Process documentation (user: "process documentation of each process ... the whole documentation")

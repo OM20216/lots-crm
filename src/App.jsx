@@ -30,6 +30,7 @@ import { CallerPanel, Dialer } from './components/Dialer.jsx';
 import SupportWidget from './components/SupportWidget.jsx';
 import Icon from './components/Icon.jsx';
 import MissedBar from './components/MissedBar.jsx';
+import HealthBanner from './components/HealthBanner.jsx';
 import { useSparkTG } from './sparktg.jsx';
 
 function NavItem({ to, end, icon, label, count, accent, plain }) {
@@ -261,6 +262,10 @@ export default function App() {
             <NavItem to="/calls" icon="incoming" label="Call logs" />
             <NavItem to="/contacts" icon="members" label="Contacts" />
             <NavItem to="/cases" icon="search" label="Cases" />
+            <NavItem to="/followups" icon="check" label="Follow-ups" />
+            <NavItem to="/missed" icon="missed" label="Missed calls" />
+            <NavItem to="/leads" icon="leads" label="Leads" />
+            <NavItem to="/kb" icon="book" label="Knowledge base" />
             <NavItem to="/reports" icon="book" label="Report" />
             <NavItem to="/support" icon="help" label="Support" count={stats?.supportTokens} plain />
           </nav>
@@ -277,6 +282,7 @@ export default function App() {
         </aside>
         <div className="shell">
         <TopBar agent={agent} role={auth.required ? auth.user?.role : 'agent'} signedIn={auth.required} onSwitch={signOut} />
+        <HealthBanner />
         <main className="main">
           <Routes>
             <Route path="/" element={<Dashboard />} />

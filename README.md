@@ -103,6 +103,14 @@ npm start            # http://<this-pc-ip>:4000 — every agent opens this in Ch
   powershell -ExecutionPolicy Bypass -File scripts\support-service.ps1 install | status | restart | stop
   ```
   Agents use `http://<this-pc-ip>:4100/`; the manager uses `http://<this-pc-ip>:4100/admin`. The CRM reads and writes tokens through this service, so both places show one shared list. See [support-service/README.md](support-service/README.md).
+- **Watchdog**: checks both services every minute and restarts whichever stops answering (3 failed checks in a row), because the two runner loops above only cover a crashed Node process - not a hung one, a dead loop, or nobody noticing. It writes `~/.lots-crm/watchdog-status.json` (the CRM shows it as a bar above the page) and `logs/watchdog.log`, and raises a Windows notification when it restarts something:
+  ```
+  powershell -ExecutionPolicy Bypass -File scripts\watchdog.ps1 install    # create the task and start checking
+  powershell -ExecutionPolicy Bypass -File scripts\watchdog.ps1 status     # last check, both services, recent events
+  powershell -ExecutionPolicy Bypass -File scripts\watchdog.ps1 check      # one check now, then exit
+  powershell -ExecutionPolicy Bypass -File scripts\watchdog.ps1 uninstall
+  ```
+  Skipped checks: the CRM needs up to 3 minutes to load before it is restarted, so an occasional slow start only delays the restart. The bar above the page turns amber after an automatic restart and red while a service is down.
 
 ---
 

@@ -26,6 +26,7 @@ code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; }
 .layout { display: flex; min-height: 100vh; }
 .sidebar { width: 230px; flex-shrink: 0; background: var(--ink); color: #fff; padding: 16px 12px; display: flex; flex-direction: column; gap: 14px; position: sticky; top: 0; height: 100vh; }
 .sidebar nav { display: flex; flex-direction: column; gap: 2px; }
+.sidebar > nav { overflow-y: auto; min-height: 0; }
 .sidebar nav a { color: #cbd5e1; padding: 8px 10px; border-radius: 6px; display: flex; justify-content: space-between; align-items: center; }
 .sidebar nav a:hover { background: #2b3242; text-decoration: none; }
 .sidebar nav a.active { background: #2b3242; color: #fff; font-weight: 600; }
@@ -162,6 +163,17 @@ textarea { resize: vertical; }
 .error { color: var(--red); background: #fef2f2; border: 1px solid #fecaca; padding: 8px 10px; border-radius: 6px; margin-top: 10px; }
 .notice { background: #eff6ff; border: 1px solid #bfdbfe; padding: 8px 12px; border-radius: 8px; margin-bottom: 12px; }
 .notice.ok { background: #f0fdf4; border-color: #bbf7d0; }
+
+/* service status bar (HealthBanner): only shown when the CRM, support service, database or watchdog has a problem */
+.health-banner { display: flex; align-items: center; gap: 10px; padding: 9px 16px; font-size: 13px; border-bottom: 1px solid; }
+.health-banner.danger { background: #fef2f2; border-color: #fecaca; color: #991b1b; }
+.health-banner.warn { background: #fffbeb; border-color: #fde68a; color: #92400e; }
+.health-banner .health-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.health-banner.danger .health-dot { background: var(--red); }
+.health-banner.warn .health-dot { background: var(--warn); }
+.health-banner .health-text { flex: 1; }
+.health-banner .health-x { background: none; border: 0; color: inherit; cursor: pointer; font-size: 13px; padding: 2px 6px; opacity: .7; }
+.health-banner .health-x:hover { opacity: 1; }
 .conflict { background: #fff7ed; border: 1px solid #fed7aa; color: #9a3412; padding: 6px 8px; border-radius: 6px; font-size: 12px; margin-bottom: 8px; }
 .script-line { font-style: italic; color: var(--muted); }
 .script { font-size: 13px; background: #fffbeb; border-color: #fde68a; }

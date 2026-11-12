@@ -77,9 +77,22 @@ const summary = ({ id, createdAt, status, caseType, category, subCategory }) => 
 
 // Health check for the background service (scripts/crm-service.ps1): up, and no database writes pending.
 // Open without sign-in; it shows nothing about the data.
+// The watchdog (scripts/watchdog.ps1) writes ~/.lots-crm/watchdog-status.json; its last pass is passed on so
+// the screens can say when a service was down or restarted.
+function watchdogStatus() {
+  try {
+    const file = path.join(os.homedir(), '.lots-crm', 'watchdog-status.json');
+    const doc = JSON.parse(fs.readFileSync(file, 'utf8').replace(/^\uFEFF/, ''));
+    const age = Math.round((Date.now() - Date.parse(doc.updatedAt)) / 1000);
+    return { ...doc, ageSeconds: Number.isFinite(age) ? age : null };
+  } catch {
+    return null;
+  }
+}
+
 api.get('/health', (req, res) => {
   const d = store.status();
-  res.json({ ok: true, backend: d.backend, pending: d.pending || 0, lastError: d.lastError ? true : false, startedAt: STARTED_AT });
+  res.json({ ok: true, backend: d.backend, pending: d.pending || 0, lastError: d.lastError ? true : false, startedAt: STARTED_AT, watchdog: watchdogStatus() });
 });
 
 api.get('/meta', (req, res) => {
