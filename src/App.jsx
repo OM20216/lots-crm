@@ -94,7 +94,7 @@ function PasswordSignIn({ agents, onDone }) {
         </div>
         <p className="muted">Sign in with your name and password.</p>
         <label className="field">
-          <span className="field-label">User Name</span>
+          <span className="field-label">Full Name</span>
           <select value={name} onChange={(e) => setName(e.target.value)} required>
             <option value="">Select…</option>
             {agents.map((a) => (
@@ -118,9 +118,8 @@ function PasswordSignIn({ agents, onDone }) {
   );
 }
 
-function SignIn({ agents, profiles = {}, onSignIn }) {
+function SignIn({ agents, onSignIn }) {
   const [name, setName] = useState('');
-  const [fullName, setFullName] = useState('');
   const [sipId, setSipId] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
@@ -133,29 +132,22 @@ function SignIn({ agents, profiles = {}, onSignIn }) {
         <p className="muted">Choose your name. It is recorded on every case you touch.</p>
         <div className="agent-list">
           {agents.map((a) => (
-            <div key={a} className="signin-agent">
-              <button className="btn" onClick={() => onSignIn(a)}>
-                {a}
-              </button>
-              {profiles[a]?.fullName && <span className="signin-fullname">{profiles[a].fullName}</span>}
-            </div>
+            <button key={a} className="btn" onClick={() => onSignIn(a)}>
+              {a}
+            </button>
           ))}
         </div>
         <form
           className="signin-new"
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) onSignIn(name.trim(), true, { fullName: fullName.trim(), sipId: sipId.trim(), email: email.trim(), phone: phone.trim() });
+            if (name.trim()) onSignIn(name.trim(), true, { sipId: sipId.trim(), email: email.trim(), phone: phone.trim() });
           }}
         >
           <p className="muted small">New here? Add your details once; an admin can change them later in Admin → Users.</p>
           <label className="field">
-            <span className="field-label">User Name</span>
-            <input placeholder="e.g. Kajal" value={name} onChange={(e) => setName(e.target.value)} required />
-          </label>
-          <label className="field">
-            <span className="field-label">Full name</span>
-            <input placeholder="e.g. Kajal Sharma" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+            <span className="field-label">Full Name</span>
+            <input placeholder="e.g. Kajal Sharma" value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
           <label className="field">
             <span className="field-label">SIP ID</span>
@@ -261,7 +253,7 @@ export default function App() {
         }}
       />
     );
-  if (!agent) return <SignIn agents={meta.agents} profiles={meta.agentProfiles} onSignIn={signIn} />;
+  if (!agent) return <SignIn agents={meta.agents} onSignIn={signIn} />;
   const isAdmin = !auth.required || auth.user?.role === 'admin';
 
   return (

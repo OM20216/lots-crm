@@ -7,11 +7,12 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 ## 13 November 2026
 
 ### Agent contact card: Full Name, SIP ID, Email ID, Phone No. (user request)
-- **Where:** Admin → Users rows and the Add user form, plus the sign-in screen's "Add & sign in" form. Existing agents show their full name under their name button on the sign-in screen.
-- **Stored in MySQL:** new `agentProfiles` key (`fullName`, `sipId`, `phone`); the email continues in `agentEmails`, because the SparkTG dialer uses it for SSO. `agentProfiles` is part of `KV_KEYS`, so it is written by the normal flush and survives restarts.
-- **Server:** `/api/meta` returns `agentProfiles`; `POST /agents` and `PUT /agents/:name` accept the four fields; `PUT /users/:name` accepts them too and `/api/users` returns them. Empty/extra spaces are trimmed; a later edit of one field keeps the others.
-- **Edit later:** open Admin → Users, change any of the four cells and press **Save details** (or add a user with all five fields).
-- **Checked:** API returns the four fields for Kajal/Navjot; Users page shows the four columns and row inputs; sign-in page shows the four labelled inputs; a local file-store round-trip (add agent → edit one field → re-read the file) passed. No live agent details were written (the existing profiles are empty until an admin fills them).
+- **Where:** Admin → Users rows and the Add user form, plus the sign-in screen's "Add & sign in" form.
+- **One name only:** the CRM agent name **is** the full name. An earlier duplicate "Name"/"Full Name" pair was merged, so Admin → Users has a single **Full Name** column and the sign-in forms ask for **Full Name** once.
+- **Stored in MySQL:** `agentProfiles` key (`sipId`, `phone`); the name is the key, and the email continues in `agentEmails` because the SparkTG dialer uses it for SSO. `agentProfiles` is part of `KV_KEYS`, so it is written by the normal flush and survives restarts.
+- **Server:** `/api/meta` returns `agentProfiles`; `POST /agents` and `PUT /agents/:name` accept SIP ID/email/phone; `PUT /users/:name` accepts them too and `/api/users` returns them. Empty/extra spaces are trimmed; a later edit of one field keeps the others.
+- **Edit later:** open Admin → Users, change any of the three cells and press **Save details** (or add a user with all four fields). A rename of the agent itself still means adding the new name and retiring the old one.
+- **Checked:** API returns the fields for Kajal/Navjot; Users page shows the columns and row inputs; sign-in page shows the four labelled inputs; a local file-store round-trip (add agent → edit one field → re-read the file) passed. No live agent details were written (the existing profiles are empty until an admin fills them).
 
 ### Source of Information: every survey answer (user request, same day)
 - The contact form's dropdown now holds **105 options**: 8 standard sources, the 9 main survey answers and 88 written-in answers. The `Other - ` prefix is dropped and spelling repeats (`Walking`/`WALKING`, `Google`/`GOOGLE`, `OK`/`ok`, …) are merged into one option each. Blank answers and "." are left out. Plain `Other` was removed on request.

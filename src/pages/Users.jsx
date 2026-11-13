@@ -2,13 +2,13 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { fmtDate, useLoad, useMeta } from '../ui.jsx';
 
-const PROFILE_KEYS = ['fullName', 'sipId', 'email', 'phone'];
-const emptyProfile = { fullName: '', sipId: '', email: '', phone: '' };
+const PROFILE_KEYS = ['sipId', 'email', 'phone'];
+const emptyProfile = { sipId: '', email: '', phone: '' };
 
 /** One person: contact card, role, active, a new password (Admin → Users). */
 function UserRow({ u, onSaved }) {
   const [password, setPassword] = useState('');
-  const [profile, setProfile] = useState({ fullName: u.fullName || '', sipId: u.sipId || '', email: u.email || '', phone: u.phone || '' });
+  const [profile, setProfile] = useState({ sipId: u.sipId || '', email: u.email || '', phone: u.phone || '' });
   const [msg, setMsg] = useState('');
   const dirty = PROFILE_KEYS.some((k) => profile[k] !== (u[k] || ''));
   const save = (patch, ok) =>
@@ -26,7 +26,7 @@ function UserRow({ u, onSaved }) {
           <input
             type={k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'}
             value={profile[k]}
-            placeholder={k === 'fullName' ? 'Full name' : k === 'sipId' ? 'SIP ID' : k === 'email' ? 'Email ID' : 'Phone no.'}
+            placeholder={k === 'sipId' ? 'SIP ID' : k === 'email' ? 'Email ID' : 'Phone no.'}
             onChange={(e) => setProfile({ ...profile, [k]: e.target.value })}
           />
         </td>
@@ -150,7 +150,6 @@ export default function Users() {
           <table className="table">
             <thead>
               <tr>
-                <th>User Name</th>
                 <th>Full Name</th>
                 <th>SIP ID</th>
                 <th>Email ID</th>
@@ -163,7 +162,7 @@ export default function Users() {
             </thead>
             <tbody>
               {(data?.users || []).map((u) => (
-                <UserRow key={u.name + u.role + u.setAt + u.active + u.fullName + u.sipId + u.email + u.phone} u={u} onSaved={refresh} />
+                <UserRow key={u.name + u.role + u.setAt + u.active + u.sipId + u.email + u.phone} u={u} onSaved={refresh} />
               ))}
             </tbody>
           </table>
@@ -172,15 +171,14 @@ export default function Users() {
           className="row wrap"
           onSubmit={(e) => {
             e.preventDefault();
-            const profile = { fullName: fresh.fullName.trim(), sipId: fresh.sipId.trim(), email: fresh.email.trim(), phone: fresh.phone.trim() };
+            const profile = { sipId: fresh.sipId.trim(), email: fresh.email.trim(), phone: fresh.phone.trim() };
             api
               .put('/users/' + encodeURIComponent(fresh.name.trim()), { role: 'agent', ...profile })
               .then(() => (setFresh({ name: '', ...emptyProfile }), refresh()))
               .catch((e2) => setMsg('⚠ ' + e2.message));
           }}
         >
-          <input placeholder="User name" value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} />
-          <input placeholder="Full name" value={fresh.fullName} onChange={(e) => setFresh({ ...fresh, fullName: e.target.value })} />
+          <input placeholder="Full name" value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} />
           <input placeholder="SIP ID" value={fresh.sipId} onChange={(e) => setFresh({ ...fresh, sipId: e.target.value })} />
           <input type="email" placeholder="Email ID" value={fresh.email} onChange={(e) => setFresh({ ...fresh, email: e.target.value })} />
           <input type="tel" placeholder="Phone no." value={fresh.phone} onChange={(e) => setFresh({ ...fresh, phone: e.target.value })} />
@@ -188,7 +186,7 @@ export default function Users() {
             Add user
           </button>
         </form>
-        <p className="muted small">Full name, SIP ID, email and phone are the agent&apos;s contact card; the email is also the SparkTG dialer login (SSO). Forgotten password: set a new one here. All admin passwords forgotten: put CRM_AUTH_OFF=1 in the private secrets file and restart.</p>
+        <p className="muted small">The name is the agent&apos;s full name; SIP ID, email and phone complete the contact card, and the email is also the SparkTG dialer login (SSO). Forgotten password: set a new one here. All admin passwords forgotten: put CRM_AUTH_OFF=1 in the private secrets file and restart.</p>
       </section>
     </>
   );

@@ -65,7 +65,6 @@ export function list() {
   const p = db().agentProfiles || {};
   return db().agents.map((name) => ({
     name,
-    fullName: p[name]?.fullName || '',
     sipId: p[name]?.sipId || '',
     email: db().agentEmails?.[name] || '',
     phone: p[name]?.phone || '',
@@ -77,16 +76,15 @@ export function list() {
   }));
 }
 
-/** The four fields shown on Admin → Users and asked for on the sign-in screen. */
+/** The agent's contact card: SIP ID, email (in agentEmails) and phone. The name is the agent's own name. */
 const cleanText = (v, n) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, n);
 
 /** Save the agent's contact card. The email is kept in agentEmails (SparkTG dialer SSO reads it). */
 export function saveProfile(name, body = {}) {
-  if (!['fullName', 'sipId', 'email', 'phone'].some((k) => body[k] !== undefined)) return;
+  if (!['sipId', 'email', 'phone'].some((k) => body[k] !== undefined)) return;
   const d = db();
   d.agentProfiles ||= {};
   const p = { ...(d.agentProfiles[name] || {}) };
-  if (body.fullName !== undefined) p.fullName = cleanText(body.fullName, 80);
   if (body.sipId !== undefined) p.sipId = cleanText(body.sipId, 40);
   if (body.phone !== undefined) p.phone = cleanText(body.phone, 30);
   d.agentProfiles[name] = p;

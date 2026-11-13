@@ -119,7 +119,7 @@ api.get('/meta', (req, res) => {
 });
 
 // SparkTG dialer logs agents in by email (SSO), so each CRM agent needs theirs.
-// The same call carries the agent's contact card (Admin → Users / sign-in): full name, SIP ID, phone.
+// The same call carries the agent's contact card (Admin → Users / sign-in): SIP ID and phone (the name is the key).
 api.put('/agents/:name', (req, res) => {
   const name = req.params.name;
   if (!db().agents.includes(name)) return res.status(404).json({ error: 'Agent not found' });
