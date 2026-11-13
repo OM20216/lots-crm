@@ -146,7 +146,7 @@ export const SECTIONS = [
       f('businessLandline', 'Business Landline'),
       f('segment3', 'Segment3', 'datalist', { optionsFrom: (v, pk) => pk.list('Customer Group'), hint: 'Customer group' }),
       f('segment4', 'Segment4', 'datalist', { optionsFrom: (v, pk) => (v.segment3 && pk.dependents('Customer Type', 'Customer Group', v.segment3).length ? pk.dependents('Customer Type', 'Customer Group', v.segment3) : pk.list('Customer Type')), hint: 'Customer type' }),
-      f('sourceOfInformation', 'Source of Information', 'select', { options: SOURCES, required: true }),
+      f('sourceOfInformation', 'Source of Information', 'select', { options: SOURCES, required: true, addNew: 'Add new source…' }),
     ],
   },
   {

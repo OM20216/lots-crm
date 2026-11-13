@@ -11,6 +11,9 @@ import { EMPTY, SECTIONS, toMember } from '../contactFields.js';
 
 const digits = (v) => String(v || '').replace(/\D/g, '').slice(-10);
 
+// "Add new source…" in a dropdown opens a text box, for a value that is not in the list
+const ADD_NEW = '__add_new__';
+
 // Member record → form (members imported or added before this form get their fields mapped).
 function toForm(m) {
   if (m.contact) return { ...EMPTY, ...m.contact };
@@ -303,6 +306,7 @@ function Taken({ n, taken, allowed }) {
 
 function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
   const pk = usePicklists();
+  const [adding, setAdding] = useState(false);
   const err = errors[fl.key];
   const val = v[fl.key];
   const label = (
@@ -322,7 +326,51 @@ function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
   );
 
   switch (fl.type) {
-    case 'select':
+    case 'select': {
+      // a field that also accepts a value of its own ("Add new source…"): an older contact whose
+      // value is not in the list also opens in the text box, so its source is never lost
+      if (fl.addNew) {
+        if (adding || (val && !fl.options.includes(val)))
+          return wrap(
+            <>
+              <input
+                className={err ? 'bad' : ''}
+                value={val || ''}
+                autoFocus
+                placeholder="Type the new value"
+                onChange={(e) => set({ [fl.key]: e.target.value })}
+                onBlur={() => {
+                  const t = String(val || '').trim();
+                  if (!t) setAdding(false);
+                  else if (t !== val) set({ [fl.key]: t });
+                }}
+              />
+              <button type="button" className="cf-add" onClick={() => { set({ [fl.key]: '' }); setAdding(false); }}>
+                Choose from the list
+              </button>
+            </>
+          );
+        return wrap(
+          <select
+            className={err ? 'bad' : ''}
+            value={val || ''}
+            onChange={(e) => {
+              if (e.target.value === ADD_NEW) {
+                set({ [fl.key]: '' });
+                setAdding(true);
+                return;
+              }
+              set({ [fl.key]: e.target.value });
+            }}
+          >
+            <option value="">Select an Option</option>
+            {fl.options.map((o) => (
+              <option key={o}>{o}</option>
+            ))}
+            <option value={ADD_NEW}>{fl.addNew}</option>
+          </select>
+        );
+      }
       return wrap(
         <select className={err ? 'bad' : ''} value={val || ''} onChange={(e) => set({ [fl.key]: e.target.value })}>
           <option value="">Select an Option</option>
@@ -331,6 +379,7 @@ function FieldRow({ fl, v, set, errors, stores, agents, taken }) {
           ))}
         </select>
       );
+    }
     case 'datalist': {
       const opts = fl.optionsFrom ? fl.optionsFrom(v, pk) : fl.options;
       return wrap(
