@@ -59,6 +59,7 @@ function MatrixRow({ r, base, sub, isDefault, resetLabel, resetAsk, onSaved }) {
     }
     setBusy(false);
   }
+  const isCustom = r.key.startsWith('x-') || r.key.startsWith('custom:') || r.key.includes('.custom-');
   const save = () => run(() => api.put(`${base}/${encodeURIComponent(r.key)}`, { stages: edit.map((s) => ({ to: s.to, cc: s.cc, tat: { value: s.value, unit: s.unit } })) }), () => 'Saved');
   return (
     <tr className={r.edited ? 'hom-edited' : ''}>
@@ -80,6 +81,11 @@ function MatrixRow({ r, base, sub, isDefault, resetLabel, resetAsk, onSaved }) {
           {!edit && r.edited && (
             <button className="btn sm" disabled={busy} onClick={() => confirm(resetAsk) && run(() => api.del(`${base}/${encodeURIComponent(r.key)}`), () => 'Done')}>
               {resetLabel}
+            </button>
+          )}
+          {!edit && isCustom && (
+            <button className="btn sm danger" disabled={busy} onClick={() => confirm(`Delete “${r.row}”? This removes the row entirely.`) && run(() => api.del(`${base}/${encodeURIComponent(r.key)}`), () => 'Deleted')}>
+              Delete
             </button>
           )}
         </div>
