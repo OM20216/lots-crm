@@ -150,7 +150,7 @@ export default function Users() {
           <table className="table">
             <thead>
               <tr>
-                <th>Name</th>
+                <th>User Name</th>
                 <th>Full Name</th>
                 <th>SIP ID</th>
                 <th>Email ID</th>
@@ -179,7 +179,7 @@ export default function Users() {
               .catch((e2) => setMsg('⚠ ' + e2.message));
           }}
         >
-          <input placeholder="New user's name" value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} />
+          <input placeholder="User name" value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} />
           <input placeholder="Full name" value={fresh.fullName} onChange={(e) => setFresh({ ...fresh, fullName: e.target.value })} />
           <input placeholder="SIP ID" value={fresh.sipId} onChange={(e) => setFresh({ ...fresh, sipId: e.target.value })} />
           <input type="email" placeholder="Email ID" value={fresh.email} onChange={(e) => setFresh({ ...fresh, email: e.target.value })} />

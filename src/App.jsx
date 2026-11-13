@@ -94,7 +94,7 @@ function PasswordSignIn({ agents, onDone }) {
         </div>
         <p className="muted">Sign in with your name and password.</p>
         <label className="field">
-          <span className="field-label">Name</span>
+          <span className="field-label">User Name</span>
           <select value={name} onChange={(e) => setName(e.target.value)} required>
             <option value="">Select…</option>
             {agents.map((a) => (
@@ -150,7 +150,7 @@ function SignIn({ agents, profiles = {}, onSignIn }) {
         >
           <p className="muted small">New here? Add your details once; an admin can change them later in Admin → Users.</p>
           <label className="field">
-            <span className="field-label">Name in the CRM</span>
+            <span className="field-label">User Name</span>
             <input placeholder="e.g. Kajal" value={name} onChange={(e) => setName(e.target.value)} required />
           </label>
           <label className="field">
