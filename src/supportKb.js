@@ -112,7 +112,7 @@ export const SUPPORT_ARTICLES = [
     keywords: ['escalation matrix', 'matrix', 'ho matrix', 'escalation rows', 'who gets the mail', 'to and cc', 'level contact'],
     answer:
       'The HO escalation matrix (LOTS sheet V_6) says who gets the mail for the HO case types — Real Estate, the supplier types, Legal, HR, IT / Website, Admin, Marketing — at each stage: To, Cc and TAT.\n' +
-      'It is under Stores & settings → Escalation matrix (HO), where a row can be edited (and put back as in the sheet) or sent to Teams as a sample.\n' +
+      'It is under Escalation matrix (HO), where a row can be edited (and put back as in the sheet) or sent to Teams as a sample.\n' +
       'The CRM never invents an address: a corrected typo from the sheet is marked ✎, a TAT that was missing in the sheet is marked ⚠ to confirm.',
   },
   {
@@ -122,7 +122,7 @@ export const SUPPORT_ARTICLES = [
     answer:
       'Store, membership, app, e-commerce and BDA cases follow LOTS’s store escalation matrix (the workbook with one tab per store: App, Ecommerce, BDA, Store related).\n' +
       'The case’s category → sub-category → sub-category 2 picks the row, and its store the people (membership: the member’s home store). Each row has its own To, Cc and TAT for First Time Resolution, Level 1 and Level 2.\n' +
-      'Stores & settings → Escalation matrix – stores: pick a store and a tab; Edit changes a row at once, Back to the workbook undoes it. DH 105 and GNI’s Ecommerce tab are not in the workbook: they were made from NSP’s rows, as LOTS confirmed (23 Oct 2026).\n' +
+      'Escalation matrix – stores: pick a store and a tab; Edit changes a row at once, Back to the workbook undoes it. DH 105 and GNI’s Ecommerce tab are not in the workbook: they were made from NSP’s rows, as LOTS confirmed (23 Oct 2026).\n' +
       'Cases no matrix covers (General Query, Festive Gifting …) use the store / team rows below it.',
   },
   {
@@ -130,7 +130,7 @@ export const SUPPORT_ARTICLES = [
     title: 'Update the escalation matrix from Excel',
     keywords: ['excel', 'update matrix', 'matrix from excel', 'import matrix', 'one drive', 'sharepoint', 'live link', 'matrix workbook', 'upload matrix'],
     answer:
-      'Stores & settings → Escalation matrix (HO) → Update from Excel:\n' +
+      'Escalation matrix (HO) → Update from Excel:\n' +
       '• Upload LOTS’s .xlsx / .csv, or paste the OneDrive / SharePoint share link (Live link: press Refresh now to read LOTS’s latest version).\n' +
       '• The CRM reads the HO sheet and the store tabs and shows every change (old → new, yellow cells marked) before anything is saved; Apply saves it.\n' +
       '• Typos are fixed and noted; where the sheet is unclear (empty SPOC, TAT without a unit) the CRM keeps its value. Rows or tabs missing from the file are left as they are.\n' +

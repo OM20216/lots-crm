@@ -125,7 +125,7 @@ export default function EscalationPanel({ c, onChange, onError, embedded = false
             </>
           ) : (
             <span className="muted">
-              {levels.length || m ? 'Highest level reached: a daily reminder goes out while overdue' : 'No escalation matrix yet'} — <Link to="/settings">Escalation matrix</Link>
+              {levels.length || m ? 'Highest level reached: a daily reminder goes out while overdue' : 'No escalation matrix yet'} — <Link to="/escalation-matrix">Escalation matrix</Link>
             </span>
           )}
         </span>

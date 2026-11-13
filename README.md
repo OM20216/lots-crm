@@ -229,7 +229,8 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 
 | Page | What it is for |
 | --- | --- |
-| **Stores & settings** | Store contacts, team contacts (§6.6), **escalation matrix** and **holidays** (§6.8), agent SparkTG emails, SparkTG connection test, database status, backup download |
+| **Stores & settings** | Store contacts, team contacts (§6.6), **holidays** (§6.8), agent SparkTG emails, SparkTG connection test, database status, backup download |
+| **Escalation matrix** | HO, store and team escalation matrices: who gets the email at each level, with TATs. Edit any row; it applies at once, also to cases already escalated. Sample to Teams. Also see **Escalation flow** for the same rules as a flow chart |
 | **Automation** | Mailbox connection, **Email previews in Microsoft Teams**, rule switches, timers, agent shifts, activity log, outbox |
 | **Case workflows** | The workflow of every case type: owner team, TAT, steps, and the teams' email addresses (§6.6) |
 | **LOTS workflow chart** | The SOP flow as an interactive chart; every box shows its live count (red = needs attention) |

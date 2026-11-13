@@ -3,7 +3,8 @@ import Icon from '../components/Icon.jsx';
 
 // Setup pages in one place, so the menu only has what agents use every day.
 const PAGES = [
-  ['/settings', 'settings', 'Stores & settings', 'Store and team contacts, escalation matrix, holidays, agents, SparkTG, backup'],
+  ['/settings', 'settings', 'Stores & settings', 'Store and team contacts, holidays, agents, SparkTG, backup'],
+  ['/escalation-matrix', 'workflow', 'Escalation matrix', 'HO, store and team escalation matrix: who gets the email at each level, TATs, edit, sample to Teams'],
   ['/automation', 'zap', 'Automation', 'Mailbox, automatic emails, Teams email previews, timers, agent shifts, activity log, outbox'],
   ['/case-workflows', 'workflow', 'Case workflows', 'Owner team, TAT and steps for every case type'],
   ['/workflow', 'workflow', 'LOTS workflow chart', 'The SOP flow with live counts'],

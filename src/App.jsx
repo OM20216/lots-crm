@@ -19,6 +19,7 @@ import Admin from './pages/Admin.jsx';
 import Picklists from './pages/Picklists.jsx';
 import Dependencies from './pages/Dependencies.jsx';
 import Settings from './pages/Settings.jsx';
+import EscalationMatrix from './pages/EscalationMatrix.jsx';
 import Automation from './pages/Automation.jsx';
 import Calls from './pages/Calls.jsx';
 import Support from './pages/Support.jsx';
@@ -331,7 +332,8 @@ export default function App() {
                 </Suspense>
               }
             />
-            <Route path="/picklists" element={<Picklists />} />
+            <Route path="/escalation-matrix" element={<EscalationMatrix />} />
+<Route path="/picklists" element={<Picklists />} />
             <Route path="/dependencies" element={<Dependencies />} />
             <Route path="/support" element={<Support />} />
             <Route path="/settings" element={<Settings />} />

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { fmtDate, portalUrl, useLoad, useMeta } from '../ui.jsx';
 import { TEAMS } from '../workflows.js';
-import HoMatrixCard, { ContactMatrixCard, StoreMatrixCard } from '../components/HoMatrixCard.jsx';
+import HoMatrixCard from '../components/HoMatrixCard.jsx';
 
 function SparkTgPanel() {
   const [status, reload] = useLoad(() => api.get('/sparktg/status'));
@@ -338,9 +338,11 @@ export default function Settings() {
           </tbody>
         </table>
       </section>
-      <HoMatrixCard />
-      <StoreMatrixCard />
-      <ContactMatrixCard />
+      <section className="card">
+        <h2>Escalation matrix</h2>
+        <p className="muted small">The HO, store and team escalation matrices (who gets the email at each level, with the TATs) have moved to their own page.</p>
+        <a className="btn" href="/escalation-matrix">Open escalation matrix →</a>
+      </section>
       <HolidaysCard />
       <SupportCard />
       <SparkTgPanel />

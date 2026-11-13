@@ -6,6 +6,12 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 13 November 2026
 
+### Escalation matrix moved to its own page (user request)
+- **What:** the HO, store and team escalation matrices (the editable rows with To / Cc / TAT, Sample to Teams, MatrixImport) used to sit inside Stores & settings. They now have their own page, `/escalation-matrix`, reachable from Admin → Escalation matrix. Stores & settings keeps a short card with a link.
+- **Why:** the matrix is long and was making the settings page unwieldy; admins look for it on its own.
+- **Where:** new `src/pages/EscalationMatrix.jsx`; route added in `src/App.jsx`; Admin tile added; `HoMatrixCard`/`StoreMatrixCard`/`ContactMatrixCard` removed from `src/pages/Settings.jsx` (import dropped); links in `EscalationPanel.jsx` and `supportKb.js` repointed to `/escalation-matrix`; README §5 Admin table updated.
+- **Checked:** build ok; `/escalation-matrix` renders all three matrices; `/settings` shows only the link card; no console errors.
+
 ### A cloned copy looked empty: setup script, dialer default, database warning (user report)
 - **What happened:** a collaborator cloned the project on his PC and the CRM showed no SparkTG dialer and no cases/contacts. Nothing was deleted: a clone is only the code. `.env` (port, SparkTG addresses) and the private secrets file (MySQL, SparkTG login) are git-ignored on purpose, and the data lives in the company MySQL and in `server/data/` (also git-ignored). Without `MYSQL_*` the server starts `backend=file` on a brand-new empty `db.json`; without `SPARKTG_WIDGET_URL` no dialer iframe appears.
 - **`scripts/crm-setup.ps1` (new):** for any new PC. Checks Node 20.12+, runs `npm install` when `node_modules` is missing, creates `.env` from `.env.example`, creates `C:\Users\<you>\.lots-crm\secrets.env` from the template, builds, then lists the settings that are still empty (never a value). `-InstallService` also installs and starts the "LOTS CRM" task. It never overwrites `.env` or the secrets file.
