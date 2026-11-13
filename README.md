@@ -112,6 +112,26 @@ npm start            # http://<this-pc-ip>:4000 — every agent opens this in Ch
   ```
   Skipped checks: the CRM needs up to 3 minutes to load before it is restarted, so an occasional slow start only delays the restart. The bar above the page turns amber after an automatic restart and red while a service is down.
 
+### Run a copy on another PC (collaborator)
+
+A clone contains **only the code**. Settings and data are deliberately outside git, so on a new PC the CRM starts on its own **empty data file** and without the **SparkTG dialer** — it looks as if all the data disappeared, but nothing was deleted: that copy simply has no MySQL settings and no access to the company database yet.
+
+1. Install **Node.js 20.12 or newer** (LTS), clone the project, open a terminal in the project folder.
+2. Run the setup script:
+   ```
+   powershell -ExecutionPolicy Bypass -File scripts\crm-setup.ps1
+   ```
+   It checks Node, runs `npm install`, creates `.env` from `.env.example` (port, SparkTG addresses, mailbox), creates `C:\Users\<him>\.lots-crm\secrets.env` from the template, builds the screens and lists exactly which values are still empty. It never prints or overwrites a password. Add `-InstallService` to also create the background task and start it.
+3. Paste the **same** secrets values the live CRM PC uses into `C:\Users\<him>\.lots-crm\secrets.env` — `MYSQL_HOST`, `MYSQL_DATABASE`, `MYSQL_USER`, `MYSQL_PASSWORD`, and the `SPARKTG_*` login. Copy them from the live PC by hand; they are never in git and must never be committed.
+4. Restart (`scripts\crm-service.ps1 restart` or `npm start`) and open `http://localhost:4000`.
+
+Then check the bar above the page: it must be quiet, and **Stores & settings › Database** must say `MySQL database lots`. If the bar says *"using its own local data file"*, the `MYSQL_*` values were not read — the copy is not on the company database.
+
+- **Writing to the live database:** pointing a second copy at the same MySQL means its cases, calls and contact edits are live immediately. For a training/dev copy, set `CRM_DATA_DIR` in `.env` to a separate folder (or use a separate database) instead.
+- **Never open `dist/index.html` directly** (double-click). Always start the server; the screens need `/api`, and without it every list is empty.
+- **Do not commit** `.env`, `secrets.env` or `server/data/` (all git-ignored already).
+- **Support tokens** are a separate service. Either paste the live PC's `SUPPORT_SERVICE_URL` + `SUPPORT_SERVICE_TOKEN`, or set up a copy with `scripts\support-service.ps1` and `C:\Users\<him>\.lots-crm\support.env` ([support-service/README.md](support-service/README.md)).
+
 ---
 
 ## 3. Configuration: `.env` and the private secrets file
@@ -123,6 +143,8 @@ Settings are kept in two files:
 | **Private secrets file** | `C:\Users\<you>\.lots-crm\secrets.env`, **outside** the project folder, readable only by that Windows user | Every credential: MySQL server, user and password; SparkTG login and service ID; Microsoft 365 app details |
 | **Microsoft sign-in** | `C:\Users\<you>\.lots-crm\ms-signin.json`, same private folder | Created by "Sign in with Microsoft" (§9.3). Never edit or share it |
 | `.env` | Project folder | Only non-secret settings: port, SparkTG web addresses, mailbox name |
+
+A **fresh clone has no `.env` and no private secrets file**, so it starts on its own empty data file. Run `scripts\crm-setup.ps1` (§2, "Run a copy on another PC") to create both and to see which values are still missing.
 
 Zipping, copying or sharing the project folder never shares a password, and none of these files go into git. The browser never receives credentials. The CRM never shows the database server or user (terminal, Settings, error messages). Templates: `secrets.env.example` and `.env.example`. Another location can be set with the `LOTS_SECRETS_FILE` environment variable. The secrets file is read first, `.env` second.
 

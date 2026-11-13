@@ -61,6 +61,24 @@ export default function HealthBanner() {
     if (dbError) {
       return { level: 'danger', key: `db-${health.startedAt}`, text: 'The last database write failed. Open Stores & settings › Database to see the error before more data is entered.' };
     }
+
+    // A copy without the private MySQL settings runs on its own empty data file. Say so plainly, because it looks
+    // like every case, contact and call log has disappeared. (A clone of the project has no settings and no data.)
+    if (health.backend === 'file') {
+      return {
+        level: 'warn',
+        key: 'file-backend',
+        text: 'This copy is using its own local data file, not the company MySQL database, so the live cases, contacts and call logs are not here. Add MYSQL_HOST, MYSQL_DATABASE, MYSQL_USER and MYSQL_PASSWORD to the private secrets file (README §3) and restart.',
+      };
+    }
+    // SparkTG dialer: the widget address is a non-secret setting in .env, and without it no call opens in the CRM.
+    if (health.sparktgWidget === false) {
+      return {
+        level: 'warn',
+        key: 'sparktg-widget-missing',
+        text: 'The SparkTG dialer is not set up on this copy: SPARKTG_WIDGET_URL is empty in .env, so calls cannot open inside the CRM. Copy that line from the live PC’s .env and restart.',
+      };
+    }
     if (supportDown) {
       return {
         level: 'danger',

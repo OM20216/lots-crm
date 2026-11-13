@@ -92,7 +92,19 @@ function watchdogStatus() {
 
 api.get('/health', (req, res) => {
   const d = store.status();
-  res.json({ ok: true, backend: d.backend, pending: d.pending || 0, lastError: d.lastError ? true : false, startedAt: STARTED_AT, watchdog: watchdogStatus() });
+  res.json({
+    ok: true,
+    backend: d.backend,
+    // which data store this copy is on ('file' = its own empty file, not the company database) and whether the
+    // dialer is configured: the screens warn about both, so an unconfigured copy is never mistaken for lost data
+    database: d.database || null,
+    file: d.file || null,
+    sparktgWidget: Boolean(process.env.SPARKTG_WIDGET_URL),
+    pending: d.pending || 0,
+    lastError: d.lastError ? true : false,
+    startedAt: STARTED_AT,
+    watchdog: watchdogStatus(),
+  });
 });
 
 api.get('/meta', (req, res) => {

@@ -281,7 +281,7 @@ function DatabaseCard() {
         </div>
       ) : (
         <div className="notice">
-          Using the data file <code>{d.file}</code>. To move to MySQL, put the MySQL settings in the private secrets file (see README §3) and restart. Existing data is copied into MySQL on the first start.
+          <strong>This copy is not on the company database.</strong> It is using its own data file <code>{d.file}</code>, so the live cases, contacts and call logs are not here (a fresh clone always starts empty). To use the company MySQL, put the MySQL settings in the private secrets file (README §3) and restart; existing data in the file is copied into MySQL on the first start.
         </div>
       )}
     </section>

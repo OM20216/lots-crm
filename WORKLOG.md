@@ -6,6 +6,15 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 13 November 2026
 
+### A cloned copy looked empty: setup script, dialer default, database warning (user report)
+- **What happened:** a collaborator cloned the project on his PC and the CRM showed no SparkTG dialer and no cases/contacts. Nothing was deleted: a clone is only the code. `.env` (port, SparkTG addresses) and the private secrets file (MySQL, SparkTG login) are git-ignored on purpose, and the data lives in the company MySQL and in `server/data/` (also git-ignored). Without `MYSQL_*` the server starts `backend=file` on a brand-new empty `db.json`; without `SPARKTG_WIDGET_URL` no dialer iframe appears.
+- **`scripts/crm-setup.ps1` (new):** for any new PC. Checks Node 20.12+, runs `npm install` when `node_modules` is missing, creates `.env` from `.env.example`, creates `C:\Users\<you>\.lots-crm\secrets.env` from the template, builds, then lists the settings that are still empty (never a value). `-InstallService` also installs and starts the "LOTS CRM" task. It never overwrites `.env` or the secrets file.
+- **`.env.example`:** `SPARKTG_WIDGET_URL` is now filled with `https://telephonycloud.co.in/sparktg-iframe/`, so a copied `.env` shows the dialer straight away; the comment says what happens when it is empty.
+- **`/api/health`** now reports `backend`, `database`, `file` and `sparktgWidget`. The bar above the page warns "This copy is using its own local data file, not the company MySQL database…" on a file-backed copy, and separately when the dialer address is missing. **Stores & settings › Database** says the same in the file case ("This copy is not on the company database").
+- **README:** new §2 subsection "Run a copy on another PC (collaborator)" — steps, what to paste by hand, the warning that a second copy pointed at the live MySQL writes live data (use `CRM_DATA_DIR` / another database for training), and never open `dist/index.html` directly. §3 notes that a clone has no `.env`/secrets file.
+- **Checked:** `crm-setup.ps1` run on this PC (no changes, all settings reported present) and in a simulated fresh profile (created `.env` + secrets template, listed the six missing keys, build ok, live `.env` restored afterwards). A second instance started with an empty profile and `CRM_DATA_DIR` on port 4210: `/api/health` returned `backend=file` with a local `db.json`, and after signing in the amber bar showed the "own local data file" warning; that test instance and its temp folder were removed.
+- **Live CRM:** restarted, `/api/health` → `backend=mysql`, `database=lots`, `sparktgWidget=true`, `pending=0`, and no database-warning bar on the live copy.
+
 ### Agent contact card: Full Name, SIP ID, Email ID, Phone No. (user request)
 - **Where:** Admin → Users rows and the Add user form, plus the sign-in screen's "Add & sign in" form.
 - **One name only:** the CRM agent name **is** the full name. An earlier duplicate "Name"/"Full Name" pair was merged, so Admin → Users has a single **Full Name** column and the sign-in forms ask for **Full Name** once.
