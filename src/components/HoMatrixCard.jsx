@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import { fmtDate, useMeta } from '../ui.jsx';
 import MatrixImport from './MatrixImport.jsx';
 import { shownText } from '../storeMatrix.js';
+import { CASE_TREE } from '../taxonomy.js';
 
 const caseOf = (m) => [m.caseType, m.category, m.sub2].filter(Boolean).join(' › ');
 const tatOf = (t) => `${t.value} working ${t.unit === 'hours' ? 'hour' : 'day'}${t.value > 1 ? 's' : ''}`;
@@ -40,7 +41,7 @@ function MatrixRow({ r, base, sub, isDefault, resetLabel, resetAsk, onSaved }) {
   const { integrations } = useMeta();
   const init = () => [0, 1, 2].map((i) => {
     const s = r.stages[i];
-    return { to: s?.to.join(', ') || '', cc: s?.cc.join(', ') || '', value: s?.tat.value || STAGE_DAYS[i], unit: s?.tat.unit || 'days' };
+    return { to: s?.to?.join(', ') || '', cc: s?.cc?.join(', ') || '', value: s?.tat?.value || STAGE_DAYS[i], unit: s?.tat?.unit || 'days' };
   });
   const [edit, setEdit] = useState(null);
   const [msg, setMsg] = useState('');
@@ -146,21 +147,60 @@ export default function HoMatrixCard() {
   const { hoMatrix, workHours, reloadMeta } = useMeta();
   const [hours, setHours] = useState(null);
   const [err, setErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [newRow, setNewRow] = useState('');
+  const [newCaseType, setNewCaseType] = useState(Object.keys(CASE_TREE)[0] || '');
+  const [newCategory, setNewCategory] = useState('');
+  const [addErr, setAddErr] = useState('');
+  const [busy, setBusy] = useState(false);
   if (!hoMatrix) return null;
   const wh = hours || workHours || { start: '09:00', end: '21:00' };
+  const caseTypes = Object.keys(CASE_TREE);
+  const categories = newCaseType ? Object.keys(CASE_TREE[newCaseType] || {}) : [];
+  async function addRow(e) {
+    e.preventDefault();
+    setBusy(true);
+    setAddErr('');
+    try {
+      await api.post('/ho-matrix/add', { row: newRow.trim(), caseType: newCaseType, category: newCategory });
+      setNewRow('');
+      setAdding(false);
+      reloadMeta();
+    } catch (e2) {
+      setAddErr(e2.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <section className="card">
       <div className="row between">
         <h2>Escalation matrix (HO)</h2>
-        <Link className="btn sm" to="/escalation-flow">
-          See as flow chart
-        </Link>
+        <div className="row">
+          <button className="btn sm" onClick={() => setAdding((v) => !v)}>{adding ? 'Cancel' : '+ Add row'}</button>
+          <Link className="btn sm" to="/escalation-flow">
+            See as flow chart
+          </Link>
+        </div>
       </div>
       <p className="muted small">
         From <strong>{hoMatrix.source}</strong>. A case of these types is escalated to the <strong>First Time Resolution</strong> SPOC with the listed people in copy. If it is not resolved within the TAT, it goes to <strong>Level 1</strong>, then <strong>Level 2</strong>, automatically, each with its own SPOC, copy list and TAT
         (counted from when the case reaches that level). After Level 2's TAT, a reminder goes to Level 2 every working day. TATs count Monday–Saturday, without holidays.
       </p>
       <p className="muted small">Store, membership, app, e-commerce and BDA cases use the store matrix below; the rest use the store / team rows.</p>
+      {adding && (
+        <form className="row wrap" onSubmit={addRow} style={{ margin: '8px 0' }}>
+          <input placeholder="Row name" value={newRow} onChange={(e) => setNewRow(e.target.value)} required />
+          <select value={newCaseType} onChange={(e) => { setNewCaseType(e.target.value); setNewCategory(Object.keys(CASE_TREE[e.target.value] || {})[0] || ''); }}>
+            {caseTypes.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+          <select value={newCategory} onChange={(e) => setNewCategory(e.target.value)}>
+            {categories.map((c) => <option key={c} value={c}>{c}</option>)}
+          </select>
+          <button className="btn sm primary" disabled={busy || !newRow.trim()}>{busy ? 'Adding…' : 'Add'}</button>
+          {addErr && <span className="error small">{addErr}</span>}
+        </form>
+      )}
       <MatrixImport />
       <div className="row small hom-hours">
         Working hours for TATs in hours:
@@ -203,14 +243,43 @@ export default function HoMatrixCard() {
 /** Stores and teams: same three stages; First Time Resolution = the store's / team's own email. */
 export function ContactMatrixCard() {
   const { contactMatrix = [], reloadMeta } = useMeta();
+  const [adding, setAdding] = useState(false);
+  const [newRow, setNewRow] = useState('');
+  const [addErr, setAddErr] = useState('');
+  const [busy, setBusy] = useState(false);
+  async function addRow(e) {
+    e.preventDefault();
+    setBusy(true);
+    setAddErr('');
+    try {
+      await api.post('/escalation-rows/add', { row: newRow.trim() });
+      setNewRow('');
+      setAdding(false);
+      reloadMeta();
+    } catch (e2) {
+      setAddErr(e2.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   return (
     <section className="card">
-      <h2>Escalation matrix – stores &amp; teams</h2>
+      <div className="row between">
+        <h2>Escalation matrix – stores &amp; teams</h2>
+        <button className="btn sm" onClick={() => setAdding((v) => !v)}>{adding ? 'Cancel' : '+ Add row'}</button>
+      </div>
       <p className="muted small">
         For the cases neither matrix covers (General Query, Festive Gifting, …), and for a store matrix case whose store isn’t set. Same as the HO matrix: the case goes to the store's / team's <strong>First Time Resolution</strong> email, then automatically to <strong>Level 1</strong> and <strong>Level 2</strong> when each TAT passes, each with
         its own To, Cc and TAT. After Level 2, a reminder every working day. A store or team without its own Level 1 / Level 2 uses the <strong>Default</strong> row. Press <strong>Edit</strong> to change any email or TAT; it applies at once, also to cases already escalated.
       </p>
       <p className="muted small">Refunds and new suppliers keep the SOP's 7 working days at First Time Resolution when that is longer than the row's TAT.</p>
+      {adding && (
+        <form className="row wrap" onSubmit={addRow} style={{ margin: '8px 0' }}>
+          <input placeholder="Row name" value={newRow} onChange={(e) => setNewRow(e.target.value)} required />
+          <button className="btn sm primary" disabled={busy || !newRow.trim()}>{busy ? 'Adding…' : 'Add'}</button>
+          {addErr && <span className="error small">{addErr}</span>}
+        </form>
+      )}
       <div className="table-wrap">
         <table className="table hom-table">
           <Head first="Store / team" />
@@ -244,6 +313,10 @@ export function StoreMatrixCard() {
   const [tab, setTab] = useState('app');
   const [data, setData] = useState(null);
   const [err, setErr] = useState('');
+  const [adding, setAdding] = useState(false);
+  const [newRow, setNewRow] = useState('');
+  const [addErr, setAddErr] = useState('');
+  const [busy, setBusy] = useState(false);
   const load = () =>
     api
       .get(`/store-matrix?store=${code}`)
@@ -252,17 +325,52 @@ export function StoreMatrixCard() {
   useEffect(() => {
     load();
   }, [code]); // eslint-disable-line react-hooks/exhaustive-deps
+  async function addRow(e) {
+    e.preventDefault();
+    setBusy(true);
+    setAddErr('');
+    try {
+      await api.post('/store-matrix/add', { store: code, tab, row: newRow.trim() });
+      setNewRow('');
+      setAdding(false);
+      load();
+      reloadMeta();
+    } catch (e2) {
+      setAddErr(e2.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   const rows = (data?.rows || []).filter((r) => r.tab === tab);
   const confirm = rows.find((r) => r.toConfirm)?.toConfirm;
   const note = rows.find((r) => r.note)?.note;
   return (
     <section className="card">
-      <h2>Escalation matrix – stores (per store and kind)</h2>
+      <div className="row between">
+        <h2>Escalation matrix – stores (per store and kind)</h2>
+        <button className="btn sm" onClick={() => setAdding((v) => !v)}>{adding ? 'Cancel' : '+ Add row'}</button>
+      </div>
       <p className="muted small">
         From LOTS's workbook <strong>{data?.source || '…'}</strong>: one table per store for <strong>App</strong>, <strong>Ecommerce</strong>, <strong>BDA</strong> and <strong>Store related</strong>. A case goes to the row of its category ›
         sub-category › sub-category 2, for its store (membership: the member's home store), then to Level 1 and Level 2 by itself when each TAT passes. <strong>Edit</strong> changes a row at once, also for cases already escalated; the
         workbook (upload or live link above) updates them too.
       </p>
+      {adding && (
+        <form className="row wrap" onSubmit={addRow} style={{ margin: '8px 0' }}>
+          <select value={code} onChange={(e) => setCode(e.target.value)}>
+            {stores.map((s) => <option key={s.code} value={s.code}>{s.code} {s.short}</option>)}
+          </select>
+          <select value={tab} onChange={(e) => setTab(e.target.value)}>
+            <option value="app">App</option>
+            <option value="web">Ecommerce</option>
+            <option value="bda">BDA</option>
+            <option value="store">Store related</option>
+          </select>
+          <input placeholder="Row name" value={newRow} onChange={(e) => setNewRow(e.target.value)} required />
+          <button className="btn sm primary" disabled={busy || !newRow.trim()}>{busy ? 'Adding…' : 'Add'}</button>
+          {addErr && <span className="error small">{addErr}</span>}
+        </form>
+      )}
       <div className="row wrap small hom-hours">
         Store
         <select value={code} onChange={(e) => setCode(e.target.value)}>

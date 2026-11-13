@@ -5,7 +5,7 @@ import { extractRefs } from '../src/requirements.js';
 import { CALL_TYPE_OF_CHANNEL, normalizeCallerType } from '../src/taxonomy.js';
 import { TEAMS, escalationBlocker, escalationTarget, workflowFor } from '../src/workflows.js';
 import { HO_MATRIX, STAGES, WORK_HOURS, cleanList, matrixRowFor, tatText } from '../src/escalationMatrix.js';
-import { STORE_ROWS, parseStoreRowKey, shownText, storeRouteFor, storeRowKey } from '../src/storeMatrix.js';
+import { STORE_ROWS, STORE_TABS, parseStoreRowKey, shownText, storeRouteFor, storeRowKey } from '../src/storeMatrix.js';
 import fs from 'node:fs';
 
 // The store escalation matrix as read from LOTS's workbook (server/buildStoreMatrix.js); edits are in settings.storeMatrix
@@ -464,17 +464,20 @@ export function storeRow(key) {
   const p = parseStoreRowKey(key);
   if (!p) return null;
   const def = STORE_ROWS.find((r) => r.key === p.rowKey);
+  const custom = !def ? (db().settings?.storeMatrixExtra || []).find((x) => x.key === key) : null;
   const s = db().stores.find((x) => x.code === p.code);
-  if (!def || !s) return null;
+  if ((!def && !custom) || !s) return null;
   const base = STORE_MATRIX.stores?.[p.code]?.[p.rowKey];
   const saved = db().settings?.storeMatrix?.[key];
   return {
     key,
     store: p.code,
-    tab: def.tab,
+    tab: def ? def.tab : custom.tab,
     rowKey: p.rowKey,
-    row: `${s.short} ${def.tabLabel}: ${shownText(def.sheet[0])}${def.sheet[1] && def.sheet[1] !== def.sheet[0] ? ` (${shownText(def.sheet[1])})` : ''}`,
-    sheet: def.sheet,
+    row: def
+      ? `${s.short} ${def.tabLabel}: ${shownText(def.sheet[0])}${def.sheet[1] && def.sheet[1] !== def.sheet[0] ? ` (${shownText(def.sheet[1])})` : ''}`
+      : `${s.short} ${(STORE_TABS.find((t) => t.tab === custom.tab)?.label || custom.tab)}: ${custom.row}`,
+    sheet: def ? def.sheet : [custom.row],
     stages: saved?.stages || base?.stages || [null, null, null],
     toConfirm: saved ? '' : base?.toConfirm || '',
     note: base?.note || '', // where a row came from (e.g. DH 105, made from NSP's row; confirmed by LOTS)
@@ -485,7 +488,14 @@ export function storeRow(key) {
 }
 
 /** Every row of one store (or of all stores). */
-export const storeRows = (code) => db().stores.filter((s) => !code || s.code === code).flatMap((s) => STORE_ROWS.map((r) => storeRow(storeRowKey(s.code, r.key))).filter(Boolean));
+export const storeRows = (code) => {
+  const base = db().stores.filter((s) => !code || s.code === code).flatMap((s) => STORE_ROWS.map((r) => storeRow(storeRowKey(s.code, r.key))).filter(Boolean));
+  const custom = (db().settings?.storeMatrixExtra || [])
+    .filter((x) => !code || x.store === code)
+    .map((x) => storeRow(x.key))
+    .filter(Boolean);
+  return [...base, ...custom];
+};
 
 /**
  * The store-matrix row a case goes to: its category › sub-category › sub-category 2 picks the tab row, its store
@@ -529,6 +539,12 @@ export function contactRow(key) {
     label = t.name;
     first = t.email;
     contact = t.contact || '';
+  } else if (key.startsWith('custom:')) {
+    const extra = (db().settings?.contactMatrixExtra || []).find((x) => x.key === key);
+    if (!extra) return null;
+    label = extra.row;
+    first = '';
+    contact = '';
   } else if (key !== '*') return null;
   const lv = (i) => {
     const s = saved?.stages?.[i];
@@ -551,7 +567,7 @@ export function contactRow(key) {
 }
 
 /** Every store / team row, for the Settings page. */
-export const contactRows = () => ['*', ...db().stores.map((s) => `store:${s.code}`), ...CONTACT_TEAMS.map((k) => `team:${k}`)].map(contactRow).filter(Boolean);
+export const contactRows = () => ['*', ...db().stores.map((s) => `store:${s.code}`), ...CONTACT_TEAMS.map((k) => `team:${k}`), ...(db().settings?.contactMatrixExtra || []).map((x) => x.key)].map(contactRow).filter(Boolean);
 
 /**
  * The full escalation row of a target: HO matrix row, or the store / team row with Level 1 / Level 2

@@ -6,6 +6,12 @@ What was done on the CRM each day. The README's §19 has the work log by feature
 
 ## 13 November 2026
 
+### "Add row" in every escalation matrix (user request)
+- **What:** each of the three matrices (HO, store per store/kind, stores & teams) now has a **+ Add row** button. It creates a brand-new row with an empty To / Cc / TAT that the admin can Edit and save; the row is persisted in MySQL and appears in the matrix straight away. Delete (the existing back-to-sheet / clear action) removes an added row.
+- **Where:** `POST /ho-matrix/add`, `POST /store-matrix/add`, `POST /escalation-rows/add` in `server/index.js`; `core.js` (storeRow/storeRows and contactRow/contactRows) now read custom rows from `settings.storeMatrixExtra` / `settings.contactMatrixExtra`; `src/components/HoMatrixCard.jsx` (all three cards) gained the button + form; `MatrixRow.init` guarded against null stages.
+- **HO rows** can optionally be linked to a case type + category so cases of that type use them; store rows are tied to a store + tab; stores & teams rows are free-form.
+- **Checked:** build ok; all three endpoints create rows and they show up via `/api/meta` and `/api/store-matrix`; delete removes them; the page renders three "+ Add row" buttons with no console errors.
+
 ### Escalation matrix moved to its own page (user request)
 - **What:** the HO, store and team escalation matrices (the editable rows with To / Cc / TAT, Sample to Teams, MatrixImport) used to sit inside Stores & settings. They now have their own page, `/escalation-matrix`, reachable from Admin → Escalation matrix. Stores & settings keeps a short card with a link.
 - **Why:** the matrix is long and was making the settings page unwieldy; admins look for it on its own.

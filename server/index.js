@@ -547,8 +547,27 @@ api.delete('/escalation-rows/:key', (req, res) => {
   const d = db();
   if (d.settings?.escalationRows) delete d.settings.escalationRows[req.params.key];
   if (d.settings?.escalationMatrix) delete d.settings.escalationMatrix[req.params.key];
+  if (d.settings?.contactMatrixExtra) d.settings.contactMatrixExtra = d.settings.contactMatrixExtra.filter((r) => r.key !== req.params.key);
   save();
   res.json(contactMatrixView());
+});
+
+// Add a brand-new row to the stores & teams matrix
+api.post('/escalation-rows/add', (req, res) => {
+  const row = clean(req.body?.row);
+  if (!row) return res.status(400).json({ error: 'Enter a row name' });
+  const d = db();
+  d.settings ||= {};
+  const extra = d.settings.contactMatrixExtra || [];
+  const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'row';
+  let key = `custom:${slug(row)}`;
+  let n = 2;
+  const existing = new Set([...core.contactRows().map((r) => r.key), ...extra.map((r) => r.key)]);
+  while (existing.has(key)) key = `custom:${slug(row)}-${n++}`;
+  d.settings.contactMatrixExtra = [...extra, { key, row, addedAt: now(), addedBy: agentOf(req) }];
+  d.settings.escalationRows = { ...(d.settings.escalationRows || {}), [key]: { stages: [{ to: [], cc: [], tat: { value: 1, unit: 'days' } }, null, null], updatedAt: now(), updatedBy: agentOf(req) } };
+  save();
+  res.status(201).json(contactMatrixView());
 });
 
 api.post(
@@ -601,6 +620,26 @@ api.delete('/ho-matrix/:key', (req, res) => {
   res.json(hoMatrixView());
 });
 
+// Add a brand-new HO escalation row (not in LOTS's sheet): label + optional case type / category
+api.post('/ho-matrix/add', (req, res) => {
+  const row = clean(req.body?.row);
+  if (!row) return res.status(400).json({ error: 'Enter a row name' });
+  const caseType = clean(req.body?.caseType);
+  const category = clean(req.body?.category);
+  const d = db();
+  d.settings ||= {};
+  const extra = d.settings.hoExtra || [];
+  const slug = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'row';
+  let key = `x-${slug(row)}`;
+  let n = 2;
+  const existing = new Set([...core.hoMatrix().map((r) => r.key), ...extra.map((r) => r.key)]);
+  while (existing.has(key)) key = `x-${slug(row)}-${n++}`;
+  const match = caseType && category ? { caseType, category } : {};
+  d.settings.hoExtra = [...extra, { key, row, match, stages: [null, null, null], addedAt: now(), addedBy: agentOf(req) }];
+  save();
+  res.status(201).json(hoMatrixView());
+});
+
 // Post the First Time Resolution / Level 1 / Level 2 emails of one row to Teams (sample case, nothing emailed)
 api.post(
   '/ho-matrix/:key/sample',
@@ -632,9 +671,32 @@ api.put('/store-matrix/:key', (req, res) => {
 api.delete('/store-matrix/:key', (req, res) => {
   const row = core.storeRow(req.params.key);
   if (!row) return res.status(404).json({ error: 'Unknown store matrix row' });
-  if (db().settings?.storeMatrix) delete db().settings.storeMatrix[row.key];
+  const d = db();
+  if (d.settings?.storeMatrix) delete d.settings.storeMatrix[row.key];
+  if (d.settings?.storeMatrixExtra) d.settings.storeMatrixExtra = d.settings.storeMatrixExtra.filter((r) => r.key !== row.key);
   save();
   res.json(storeMatrixView(row.store));
+});
+
+api.post('/store-matrix/add', (req, res) => {
+  const store = clean(req.body?.store);
+  const tab = clean(req.body?.tab);
+  const row = clean(req.body?.row);
+  if (!store || !tab || !row) return res.status(400).json({ error: 'Store, tab and row name are required' });
+  const s = db().stores.find((x) => x.code === store);
+  if (!s) return res.status(404).json({ error: 'Unknown store' });
+  if (!STORE_TABS.some((t) => t.tab === tab)) return res.status(400).json({ error: 'Unknown tab' });
+  const d = db();
+  d.settings ||= {};
+  const extra = d.settings.storeMatrixExtra || [];
+  const slug = (v) => String(v || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'row';
+  let key = `s${store}.custom-${slug(row)}`;
+  let n = 2;
+  const existing = new Set([...core.storeRows(store).map((r) => r.key), ...extra.map((r) => r.key)]);
+  while (existing.has(key)) key = `s${store}.custom-${slug(row)}-${n++}`;
+  d.settings.storeMatrixExtra = [...extra, { key, store, tab, row, addedAt: now(), addedBy: agentOf(req) }];
+  save();
+  res.status(201).json(storeMatrixView(store));
 });
 
 api.post(
