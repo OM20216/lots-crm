@@ -30,6 +30,9 @@ function emptyDb() {
     sparktgEvents: [],
     calls: [],
     agentEmails: {},
+    // Agent contact card shown under Admin → Users and asked for on the sign-in screen:
+    // { [agent name]: { fullName, sipId, phone } }. The email lives in agentEmails (SparkTG SSO uses it too).
+    agentProfiles: {},
     teams: {}, // contact details per escalation team (src/workflows.js TEAMS)
     picklists: {}, // values added from the Picklists screen: { field: [{ value, by, at }] }
     dependencies: [], // pairs added from the Dependencies screen: [{ mainField, mainValue, subField, subValue, by, at }]

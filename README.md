@@ -162,11 +162,11 @@ Wrap values containing `#` or spaces in single quotes, for example `MYSQL_PASSWO
 ## 4. First-time setup checklist
 
 1. `npm install`, create `.env` and `C:\Users\<you>\.lots-crm\secrets.env` (§3), then `npm run build` and `npm start`.
-2. **Sign in.** Each agent adds their name and **SparkTG login email** the first time.
+2. **Sign in.** Each agent adds their name, **full name**, **SIP ID**, **email ID** and **phone no.** the first time. An admin can change them later in Admin → Users.
 3. **Admin → Stores & settings:**
    - **store contacts** (name, phone, email) for all six stores, and **team contacts** (E-commerce, IT, BDA, HR, Admin, Marketing, Supplier) — escalation and follow-up emails go to them
    - the **escalation matrix** (Level 2 / 3 names, emails, TATs) and **holidays**, once LOTS shares them
-   - each agent's SparkTG login email, if not given at sign-in
+   - each agent's **SIP ID**, email and phone, if not given at sign-in (email is the SparkTG dialer login)
    - **SparkTG → Test connection**, with a real call ID to see how the record is read
 4. **Admin → Automation:**
    - **Email previews in Microsoft Teams**: *Send a test message* and *Post a sample of every email* to check the emails with the team
@@ -882,7 +882,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, INDEX, ALTER ON lots.* TO 'lots_cr
 | `member_addon_cards` | Add-on member of a contact |
 | `lead_log` | Call outcome logged on an outbound lead |
 | `missed_call_attempts` | Call-back attempt on a missed call |
-| `agents` | Agent, with SparkTG login email and shift |
+| `agents` | Agent, with SparkTG login email and shift. Full name, SIP ID and phone are the `agentProfiles` value in `kv` |
 | `automation_log` | Action taken by the automation engine |
 
 **Reference tables from the SOP** (rewritten from the CRM's code at every start): `ref_case_categories` (66 rows: case type → category → sub-category, with `needs_documents` and the SOP `requirements`), `ref_customer_types` (41 rows), `ref_values` (status, channel, caller type, product category, lead type and outcome, missed-call reason).
@@ -915,7 +915,7 @@ To browse the tables: VS Code extension **"MySQL" by Database Client**, MySQL Wo
 ### 13.3 Sign-in with passwords and roles
 
 **Off until an admin switches it on** (Admin → **Users and sign-in**). Until then the CRM works as before: the agent picks their name.
-- **Users:** every agent gets a password (8+ characters) and a role. An **Agent** does the daily work. An **Admin** can also:
+- **Users:** every agent gets a password (8+ characters) and a role, plus a contact card — **full name, SIP ID, email ID, phone no.** The email is also the SparkTG dialer login (SSO). An **Agent** does the daily work. An **Admin** can also:
   - use the Admin pages, the escalation matrices (edit, Excel upload, live link), automation and the Teams samples;
   - change stores, teams, holidays, working hours, users and agents;
   - answer support tokens, correct an escalation level and download the full backup.
@@ -1035,7 +1035,7 @@ Every request sends the agent's name in the `x-agent` header; it goes on the tim
 | GET | `/api/health` | Open: the CRM is up, the database backend and its pending writes (for the background service) |
 | GET / POST | `/api/auth/me`, `/api/auth/login`, `/api/auth/logout`, `/api/auth/password` | Sign-in: who is signed in, sign in `{ name, password }`, sign out, change your password `{ current, password }` |
 | PUT | `/api/auth/settings` | Switch sign-in on `{ required: true, name, password }` (an admin) or off |
-| GET / PUT | `/api/users`, `/api/users/:name` | Users with role and whether a password is set / set `{ role, password, active }` |
+| GET / PUT | `/api/users`, `/api/users/:name` | Users with role, password state and their contact card / set `{ role, password, active, fullName, sipId, email, phone }` |
 | GET | `/api/flow`, `/api/stats`, `/api/export` | Workflow live counts / dashboard / full backup |
 
 ---

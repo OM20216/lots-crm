@@ -2,10 +2,15 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { fmtDate, useLoad, useMeta } from '../ui.jsx';
 
-/** One person: role, active, a new password (Admin → Users). */
+const PROFILE_KEYS = ['fullName', 'sipId', 'email', 'phone'];
+const emptyProfile = { fullName: '', sipId: '', email: '', phone: '' };
+
+/** One person: contact card, role, active, a new password (Admin → Users). */
 function UserRow({ u, onSaved }) {
   const [password, setPassword] = useState('');
+  const [profile, setProfile] = useState({ fullName: u.fullName || '', sipId: u.sipId || '', email: u.email || '', phone: u.phone || '' });
   const [msg, setMsg] = useState('');
+  const dirty = PROFILE_KEYS.some((k) => profile[k] !== (u[k] || ''));
   const save = (patch, ok) =>
     api
       .put('/users/' + encodeURIComponent(u.name), patch)
@@ -16,6 +21,16 @@ function UserRow({ u, onSaved }) {
       <td>
         <strong>{u.name}</strong>
       </td>
+      {PROFILE_KEYS.map((k) => (
+        <td key={k}>
+          <input
+            type={k === 'email' ? 'email' : k === 'phone' ? 'tel' : 'text'}
+            value={profile[k]}
+            placeholder={k === 'fullName' ? 'Full name' : k === 'sipId' ? 'SIP ID' : k === 'email' ? 'Email ID' : 'Phone no.'}
+            onChange={(e) => setProfile({ ...profile, [k]: e.target.value })}
+          />
+        </td>
+      ))}
       <td>
         <select value={u.role} onChange={(e) => save({ role: e.target.value }, 'Role saved')}>
           <option value="agent">Agent</option>
@@ -41,6 +56,11 @@ function UserRow({ u, onSaved }) {
         <label className="row small">
           <input type="checkbox" checked={u.active} onChange={(e) => save({ active: e.target.checked }, e.target.checked ? 'Can sign in again' : 'Can no longer sign in')} /> can sign in
         </label>
+        {dirty && (
+          <button className="btn sm primary" onClick={() => save(profile, 'Details saved')}>
+            Save details
+          </button>
+        )}
         {msg && <div className="small">{msg}</div>}
       </td>
     </tr>
@@ -51,7 +71,7 @@ function UserRow({ u, onSaved }) {
 export default function Users() {
   const { agent, auth, reloadAuth, reloadMeta } = useMeta();
   const [data, reload, error] = useLoad(() => api.get('/users'));
-  const [name, setName] = useState('');
+  const [fresh, setFresh] = useState({ name: '', ...emptyProfile });
   const [adminName, setAdminName] = useState(agent);
   const [adminPassword, setAdminPassword] = useState('');
   const [msg, setMsg] = useState('');
@@ -131,6 +151,10 @@ export default function Users() {
             <thead>
               <tr>
                 <th>Name</th>
+                <th>Full Name</th>
+                <th>SIP ID</th>
+                <th>Email ID</th>
+                <th>Phone No.</th>
                 <th>Role</th>
                 <th>Password</th>
                 <th>New password</th>
@@ -139,27 +163,32 @@ export default function Users() {
             </thead>
             <tbody>
               {(data?.users || []).map((u) => (
-                <UserRow key={u.name + u.role + u.setAt + u.active} u={u} onSaved={refresh} />
+                <UserRow key={u.name + u.role + u.setAt + u.active + u.fullName + u.sipId + u.email + u.phone} u={u} onSaved={refresh} />
               ))}
             </tbody>
           </table>
         </div>
         <form
-          className="row"
+          className="row wrap"
           onSubmit={(e) => {
             e.preventDefault();
+            const profile = { fullName: fresh.fullName.trim(), sipId: fresh.sipId.trim(), email: fresh.email.trim(), phone: fresh.phone.trim() };
             api
-              .put('/users/' + encodeURIComponent(name.trim()), { role: 'agent' })
-              .then(() => (setName(''), refresh()))
+              .put('/users/' + encodeURIComponent(fresh.name.trim()), { role: 'agent', ...profile })
+              .then(() => (setFresh({ name: '', ...emptyProfile }), refresh()))
               .catch((e2) => setMsg('⚠ ' + e2.message));
           }}
         >
-          <input placeholder="New user's name" value={name} onChange={(e) => setName(e.target.value)} />
-          <button className="btn" disabled={!name.trim()}>
+          <input placeholder="New user's name" value={fresh.name} onChange={(e) => setFresh({ ...fresh, name: e.target.value })} />
+          <input placeholder="Full name" value={fresh.fullName} onChange={(e) => setFresh({ ...fresh, fullName: e.target.value })} />
+          <input placeholder="SIP ID" value={fresh.sipId} onChange={(e) => setFresh({ ...fresh, sipId: e.target.value })} />
+          <input type="email" placeholder="Email ID" value={fresh.email} onChange={(e) => setFresh({ ...fresh, email: e.target.value })} />
+          <input type="tel" placeholder="Phone no." value={fresh.phone} onChange={(e) => setFresh({ ...fresh, phone: e.target.value })} />
+          <button className="btn" disabled={!fresh.name.trim()}>
             Add user
           </button>
         </form>
-        <p className="muted small">Their SparkTG login email is set under Stores &amp; settings → Agents. Forgotten password: set a new one here. All admin passwords forgotten: put CRM_AUTH_OFF=1 in the private secrets file and restart.</p>
+        <p className="muted small">Full name, SIP ID, email and phone are the agent&apos;s contact card; the email is also the SparkTG dialer login (SSO). Forgotten password: set a new one here. All admin passwords forgotten: put CRM_AUTH_OFF=1 in the private secrets file and restart.</p>
       </section>
     </>
   );

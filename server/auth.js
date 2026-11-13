@@ -62,13 +62,45 @@ const adminsWithPassword = () => Object.entries(users()).filter(([, u]) => u.rol
 /** Everyone in the agent list, with their role and whether a password is set (never the hash). */
 export function list() {
   const u = users();
-  return db().agents.map((name) => ({ name, role: u[name]?.role || 'agent', hasPassword: Boolean(u[name]?.hash), active: u[name]?.active !== false, setAt: u[name]?.setAt || null, setBy: u[name]?.setBy || null }));
+  const p = db().agentProfiles || {};
+  return db().agents.map((name) => ({
+    name,
+    fullName: p[name]?.fullName || '',
+    sipId: p[name]?.sipId || '',
+    email: db().agentEmails?.[name] || '',
+    phone: p[name]?.phone || '',
+    role: u[name]?.role || 'agent',
+    hasPassword: Boolean(u[name]?.hash),
+    active: u[name]?.active !== false,
+    setAt: u[name]?.setAt || null,
+    setBy: u[name]?.setBy || null,
+  }));
+}
+
+/** The four fields shown on Admin → Users and asked for on the sign-in screen. */
+const cleanText = (v, n) => String(v == null ? '' : v).trim().replace(/\s+/g, ' ').slice(0, n);
+
+/** Save the agent's contact card. The email is kept in agentEmails (SparkTG dialer SSO reads it). */
+export function saveProfile(name, body = {}) {
+  if (!['fullName', 'sipId', 'email', 'phone'].some((k) => body[k] !== undefined)) return;
+  const d = db();
+  d.agentProfiles ||= {};
+  const p = { ...(d.agentProfiles[name] || {}) };
+  if (body.fullName !== undefined) p.fullName = cleanText(body.fullName, 80);
+  if (body.sipId !== undefined) p.sipId = cleanText(body.sipId, 40);
+  if (body.phone !== undefined) p.phone = cleanText(body.phone, 30);
+  d.agentProfiles[name] = p;
+  if (body.email !== undefined) {
+    d.agentEmails ||= {};
+    d.agentEmails[name] = cleanText(body.email, 200);
+  }
 }
 
 /** Set a user's role, password or active flag (Admin → Users). Adds the name to the agent list if new. */
-export function setUser(name, { role, password, active } = {}, by) {
+export function setUser(name, body = {}, by) {
   name = String(name || '').trim();
   if (!name) throw fail('Enter the name');
+  const { role, password, active } = body;
   const d = db();
   if (!d.agents.includes(name)) d.agents.push(name);
   const u = { ...(users()[name] || { role: 'agent' }) };
@@ -87,6 +119,7 @@ export function setUser(name, { role, password, active } = {}, by) {
   const next = { ...users(), [name]: u };
   if (required() && !Object.values(next).some((x) => x.role === 'admin' && x.hash && x.active !== false)) throw fail('At least one active admin with a password is needed while sign-in is required');
   d.users = next;
+  saveProfile(name, body);
   save();
   return list().find((x) => x.name === name);
 }
@@ -246,6 +279,6 @@ export function routes(api) {
 
   api.put('/users/:name', (req, res) => {
     const by = req.user?.name || req.get('x-agent') || 'Unknown';
-    res.json(setUser(req.params.name, { role: req.body?.role, password: req.body?.password, active: req.body?.active }, by));
+    res.json(setUser(req.params.name, req.body || {}, by));
   });
 }

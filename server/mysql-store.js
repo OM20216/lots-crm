@@ -88,7 +88,7 @@ const TABLES = {
     row: (x) => ({ code: x.code, short_name: s(x.short, 10), name: s(x.name, 100), spoc_name: s(x.spocName, 100), spoc_email: s(x.spocEmail, 300), spoc_phone: s(x.spocPhone, 40) }),
   },
 };
-const KV_KEYS = ['counters', 'agents', 'agentEmails', 'agentShifts', 'settings', 'automationState', 'automationLog', 'sparktgEvents', 'schemaVersion', 'teams', 'picklists', 'dependencies', 'supportTickets', 'users'];
+const KV_KEYS = ['counters', 'agents', 'agentEmails', 'agentShifts', 'agentProfiles', 'settings', 'automationState', 'automationLog', 'sparktgEvents', 'schemaVersion', 'teams', 'picklists', 'dependencies', 'supportTickets', 'users'];
 const SCHEMA_VERSION = 2; // v2: readable detail tables — existing data is copied into them once
 
 // ---------- readable detail tables (derived from each record, rewritten when the record changes) ----------

@@ -114,22 +114,24 @@ api.get('/meta', (req, res) => {
     dependencies: db().dependencies || [],
     database: store.status(),
     agentEmails: db().agentEmails,
+    agentProfiles: db().agentProfiles || {},
   });
 });
 
 // SparkTG dialer logs agents in by email (SSO), so each CRM agent needs theirs.
+// The same call carries the agent's contact card (Admin → Users / sign-in): full name, SIP ID, phone.
 api.put('/agents/:name', (req, res) => {
   const name = req.params.name;
   if (!db().agents.includes(name)) return res.status(404).json({ error: 'Agent not found' });
-  db().agentEmails[name] = String(req.body.email || '').trim();
+  auth.saveProfile(name, req.body || {});
   save();
-  res.json(db().agentEmails);
+  res.json({ agentEmails: db().agentEmails, agentProfiles: db().agentProfiles });
 });
 
 api.post('/agents', (req, res) => {
   const name = String(req.body.name || '').trim();
   if (name && !db().agents.includes(name)) db().agents.push(name);
-  if (name && req.body.email) db().agentEmails[name] = String(req.body.email).trim();
+  if (name) auth.saveProfile(name, req.body || {});
   save();
   res.json(db().agents);
 });

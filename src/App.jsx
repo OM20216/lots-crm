@@ -118,9 +118,12 @@ function PasswordSignIn({ agents, onDone }) {
   );
 }
 
-function SignIn({ agents, onSignIn }) {
+function SignIn({ agents, profiles = {}, onSignIn }) {
   const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [sipId, setSipId] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   return (
     <div className="signin">
       <div className="card signin-card">
@@ -130,20 +133,42 @@ function SignIn({ agents, onSignIn }) {
         <p className="muted">Choose your name. It is recorded on every case you touch.</p>
         <div className="agent-list">
           {agents.map((a) => (
-            <button key={a} className="btn" onClick={() => onSignIn(a)}>
-              {a}
-            </button>
+            <div key={a} className="signin-agent">
+              <button className="btn" onClick={() => onSignIn(a)}>
+                {a}
+              </button>
+              {profiles[a]?.fullName && <span className="signin-fullname">{profiles[a].fullName}</span>}
+            </div>
           ))}
         </div>
         <form
-          className="row"
+          className="signin-new"
           onSubmit={(e) => {
             e.preventDefault();
-            if (name.trim()) onSignIn(name.trim(), true, email.trim());
+            if (name.trim()) onSignIn(name.trim(), true, { fullName: fullName.trim(), sipId: sipId.trim(), email: email.trim(), phone: phone.trim() });
           }}
         >
-          <input placeholder="New agent name" value={name} onChange={(e) => setName(e.target.value)} />
-          <input type="email" placeholder="SparkTG login email" value={email} onChange={(e) => setEmail(e.target.value)} />
+          <p className="muted small">New here? Add your details once; an admin can change them later in Admin → Users.</p>
+          <label className="field">
+            <span className="field-label">Name in the CRM</span>
+            <input placeholder="e.g. Kajal" value={name} onChange={(e) => setName(e.target.value)} required />
+          </label>
+          <label className="field">
+            <span className="field-label">Full name</span>
+            <input placeholder="e.g. Kajal Sharma" value={fullName} onChange={(e) => setFullName(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="field-label">SIP ID</span>
+            <input placeholder="e.g. 10167201" value={sipId} onChange={(e) => setSipId(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="field-label">Email ID</span>
+            <input type="email" placeholder="you@cpwi.in" value={email} onChange={(e) => setEmail(e.target.value)} />
+          </label>
+          <label className="field">
+            <span className="field-label">Phone no.</span>
+            <input type="tel" placeholder="10-digit mobile number" value={phone} onChange={(e) => setPhone(e.target.value)} />
+          </label>
           <button className="btn primary">Add &amp; sign in</button>
         </form>
       </div>
@@ -152,7 +177,7 @@ function SignIn({ agents, onSignIn }) {
 }
 
 export default function App() {
-  const [meta, setMeta] = useState({ stores: [], agents: [], agentEmails: {} });
+  const [meta, setMeta] = useState({ stores: [], agents: [], agentEmails: {}, agentProfiles: {} });
   const [agent, setAgent] = useState(currentAgent());
   // sign-in with passwords (server/auth.js): { required, user: { name, role } | null }
   const [auth, setAuth] = useState(null);
@@ -204,8 +229,8 @@ export default function App() {
     return () => clearInterval(t);
   }, [agent, refreshStats]);
 
-  async function signIn(name, isNew, email) {
-    if (isNew) await api.post('/agents', { name, email });
+  async function signIn(name, isNew, profile) {
+    if (isNew) await api.post('/agents', { name, ...profile });
     try {
       localStorage.setItem('lots-agent', name);
     } catch {
@@ -236,7 +261,7 @@ export default function App() {
         }}
       />
     );
-  if (!agent) return <SignIn agents={meta.agents} onSignIn={signIn} />;
+  if (!agent) return <SignIn agents={meta.agents} profiles={meta.agentProfiles} onSignIn={signIn} />;
   const isAdmin = !auth.required || auth.user?.role === 'admin';
 
   return (
