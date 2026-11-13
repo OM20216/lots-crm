@@ -32,7 +32,9 @@ function CrmProcess {
 function Build {
   Write-Host 'Building the screens (npm run build)...'
   Push-Location $root
-  try { & cmd.exe /c 'npm run build' | Out-Host; if ($LASTEXITCODE) { throw 'The build failed - the CRM was not changed.' } } finally { Pop-Location }
+  # 2>&1 inside cmd: npm writes warnings to stderr, which PowerShell 5.1 turns into an error record
+  # and $ErrorActionPreference = 'Stop' would abort the restart even though the build succeeded.
+  try { & cmd.exe /c 'npm run build 2>&1' | Out-Host; if ($LASTEXITCODE) { throw 'The build failed - the CRM was not changed.' } } finally { Pop-Location }
 }
 function Stop-Crm {
   $p = CrmProcess
